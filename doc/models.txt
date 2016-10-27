@@ -1,11 +1,11 @@
- -------------------
-| consumer          |
-|-------------------|
-| id: int           |
-| credit: int       |
-| name: string[128] |
-| active: bool      |
-|___________________|
+ --------------------
+| consumer           |
+|--------------------|
+| id: int            |
+| credit: int        |
+| name: varchar[128] |
+| active: bool       |
+|____________________|
 
  --------------------
 | product            |
@@ -27,11 +27,11 @@
 | paid_price: int          |
 |__________________________|
 
- ----------------------
-| deposit              |
-|----------------------|
-| id: int              |
-| consumer_id          |
-| amount: int          |
-| timestamp: timestamp |
-|______________________|
+ --------------------------
+| deposit                  |
+|--------------------------|
+| id: int                  |
+| consumer_id: foreign_key |
+| amount: int              |
+| timestamp: timestamp     |
+|__________________________|
