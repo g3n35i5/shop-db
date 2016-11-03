@@ -7,6 +7,10 @@ class WrongType(Exception):
     pass
 
 
+class MaxLengthExceeded(Exception):
+    pass
+
+
 class UnknownField(Exception):
     pass
 
@@ -22,6 +26,17 @@ class LessThan(object):
                 'Field {} should be less than {}, but is {}'
                 .format(name, self.other, value)
             )
+
+
+class MaxLength(object):
+    def __init__(self, length):
+        self.length = length
+
+    def validate(self, name, value):
+        if len(value) > self.length:
+            raise MaxLengthExceeded(
+                'String {} should of length {}, but is {}'
+                .format(name, self.length, len(value)))
 
 
 class Type(object):
@@ -73,11 +88,15 @@ class TestValidatableObject(unittest.TestCase):
     def setUp(self):
         class TestClass(ValidatableObject):
             _validators = {
-                'name': [Type(str)],
+                'name': [Type(str), MaxLength(20)],
                 'amount': [Type(int), LessThan(5)]
             }
 
         self.test_obj = TestClass()
+
+    def test_string_too_long(self):
+        with self.assertRaises(MaxLengthExceeded):
+            self.test_obj.name = "thisfieldismuchtoolong"
 
     def test_set_unknown_field(self):
         with self.assertRaises(UnknownField):
