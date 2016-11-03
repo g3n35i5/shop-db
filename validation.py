@@ -71,10 +71,13 @@ class ValidatableObject(object):
 class TestValidatableObject(unittest.TestCase):
 
     def setUp(self):
-        self.test_obj = ValidatableObject(validators={
-            'name': [Type(str)],
-            'amount': [Type(int), LessThan(5)]
-        })
+        class TestClass(ValidatableObject):
+            _validators = {
+                'name': [Type(str)],
+                'amount': [Type(int), LessThan(5)]
+            }
+
+        self.test_obj = TestClass()
 
     def test_set_unknown_field(self):
         with self.assertRaises(UnknownField):
