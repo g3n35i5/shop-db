@@ -23,14 +23,13 @@ def representation(obj):
 
 class Product(ValidatableObject):
 
-    def __init__(self):
-        ValidatableObject.__init__(self, {
-            'id': [Type(int)],
-            'name': [Type(str)],
-            'price': [Type(int)],
-            'active': [Type(bool)],
-            'on_stock': [Type(bool)]
-        })
+    _validators = {
+        'id': [Type(int)],
+        'name': [Type(str)],
+        'price': [Type(int)],
+        'active': [Type(bool)],
+        'on_stock': [Type(bool)]
+    }
 
     def __repr__(self):
         return representation(self)

@@ -38,9 +38,11 @@ class Type(object):
 
 class ValidatableObject(object):
 
-    def __init__(self, validators, **kwargs):
-        self._validators = validators
+    def __init__(self, **kwargs):
         self._data = {}
+
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     def __setattr__(self, field_name, field_value):
         if field_name in ['_data', '_validators']:
