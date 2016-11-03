@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-from validation import ValidatableObject, Type
+from validation import ValidatableObject, Type, fields
 
 
 def representation(obj):
-    keys = list(obj._validators.keys())
+    keys = list(fields(obj))
     keys.remove('id')
 
     r = ['<', type(obj).__name__, '(id=', str(obj.id)]

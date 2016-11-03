@@ -15,6 +15,10 @@ class UnknownField(Exception):
     pass
 
 
+def fields(object):
+    return object._validators.keys()
+
+
 class LessThan(object):
 
     def __init__(self, other):
