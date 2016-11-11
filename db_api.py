@@ -26,13 +26,14 @@ class FieldIsNone(DatabaseApiException):
 
 
 class ObjectNotFound(DatabaseApiException):
-
-    def __init__(self, model, id):
-        self.model = model
+    def __init__(self, table, id, name):
+        self.table = table
         self.id = id
+        self.name = name
 
     def __str__(self):
-        return '{0.model.__name__} with id={0.id} not found.'.format(self)
+        return '{0.table.__name__} with \
+            id={0.id}/name={0.name} not found.'.format(self)
 
 
 def factory(cls):
