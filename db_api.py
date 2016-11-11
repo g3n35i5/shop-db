@@ -16,6 +16,22 @@ class DatabaseApiException(Exception):
         self.model = model
 
 
+class NonExistentModel(DatabaseApiException):
+    def __init__(self, model):
+        self.model = model
+
+    def __str__(self):
+        return 'non existent Model {0.model.__name__}.'.format(self)
+
+
+class NonExistentTable(DatabaseApiException):
+    def __init__(self, table):
+        self.table = table
+
+    def __str__(self):
+        return 'non existent table {0.table.__name__}.'.format(self)
+
+
 class FieldIsNone(DatabaseApiException):
     def __init__(self, model, field):
         self.model = model
