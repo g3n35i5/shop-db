@@ -38,3 +38,22 @@ class TestDatabaseApi(unittest.TestCase):
         # insert wrong types
         with self.assertRaises(WrongType):
             c = Consumer(name=2, active=True, credit=250)
+
+    def test_insert_product(self):
+        # insert correctly
+        p = Product(name='Twix', active=True, on_stock=True, price=90)
+        self.api.insert_object(p)
+        product = self.api.get_one(table='product', id=1)
+        self.assertEqual(product.name, 'Twix')
+        self.assertEqual(product.price, 90)
+        self.assertTrue(product.active)
+        self.assertTrue(product.on_stock)
+
+        # missing fields
+        with self.assertRaises(FieldIsNone):
+            p = Product(name='Twix', price=250)
+            self.api.insert_object(p)
+
+        # insert wrong types
+        with self.assertRaises(WrongType):
+            p = Product(name=2, active=True, price=250)
