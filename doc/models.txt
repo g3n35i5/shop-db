@@ -24,6 +24,7 @@
 | consumer_id: foreign_key |
 | product_id: foreign_key  |
 | timestamp: timestamp     |
+| revoked: bool            |
 | paid_price: int          |
 |__________________________|
 
