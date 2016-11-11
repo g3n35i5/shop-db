@@ -2,6 +2,7 @@ import sqlite3
 import unittest
 from models import Consumer, Product, Purchase, Deposit
 from db_api import *
+from validation import WrongType
 import pdb
 
 
@@ -34,4 +35,6 @@ class TestDatabaseApi(unittest.TestCase):
             c = Consumer(name='Hans Müller', credit=250)
             self.api.insert_object(c)
 
-        # TODO: insert wrong types
+        # insert wrong types
+        with self.assertRaises(WrongType):
+            c = Consumer(name=2, active=True, credit=250)
