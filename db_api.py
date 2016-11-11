@@ -205,7 +205,7 @@ class DatabaseApi(object):
                                    consumer.credit, consumer.id))
         self.con.commit()
 
-    def create_deposit(self, consumer, amount):
+    def insert_deposit(self, consumer, amount):
         time = datetime.datetime.now()
         deposit = Deposit(consumer_id=consumer.id,
                           amount=amount,
@@ -213,3 +213,32 @@ class DatabaseApi(object):
         res = self.insert_object(deposit)
         consumer.credit = consumer.credit + amount
         self.update_consumer(consumer)
+
+    def insert_purchase(self, consumer, product):
+        consumer = self.get_one(table='consumer', id=consumer.id)
+        product = self.get_one(table='product', id=product.id)
+        time = datetime.datetime.now()
+        purchase = Purchase(consumer_id=consumer.id,
+                            product_id=product.id,
+                            revoked=False,
+                            timestamp=time,
+                            paid_price=product.price)
+        self.insert_object(purchase)
+        consumer.credit = consumer.credit - product.price
+        self.update_consumer(consumer)
+
+    def update_purchase(self, purchase):
+        if purchase.id is None:
+            raise("Purchase has no id")
+        cur = self.con.cursor()
+        consumer = self.get_one(table='consumer', id=purchase.consumer_id)
+
+        if purchase.revoked is True:
+            consumer.credit = consumer.credit + purchase.paid_price
+        if purchase.revoked is False:
+            consumer.credit = consumer.credit - purchase.paid_price
+
+        self.update_consumer(consumer)
+        cur.execute('UPDATE purchase SET revoked=? \
+                    WHERE id=?;', (purchase.revoked, purchase.id))
+        self.con.commit()

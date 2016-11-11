@@ -118,7 +118,7 @@ class TestDatabaseApi(unittest.TestCase):
         consumer = self.api.get_one(table='consumer', name='Hans Müller')
         self.assertEqual(consumer.credit, 250)
         # create deposit
-        self.api.create_deposit(consumer=consumer, amount=250)
+        self.api.insert_deposit(consumer=consumer, amount=250)
         consumer = self.api.get_one(table='consumer', name='Hans Müller')
         # check, if the consumers credit has been increased
         self.assertEqual(consumer.credit, 500)
@@ -126,3 +126,37 @@ class TestDatabaseApi(unittest.TestCase):
         deposit = self.api.get_one(table='deposit', id=1)
         self.assertEqual(deposit.amount, 250)
         self.assertEqual(deposit.consumer_id, consumer.id)
+
+    def test_purchase(self):
+        # insert consumer and product
+        p = Product(name='Coffee', price=20, active=True, on_stock=True)
+        c = Consumer(name='Hans Müller', active=True, credit=250)
+        self.api.insert_object(p)
+        self.api.insert_object(c)
+
+        # check, if the objects are correct
+        consumer = self.api.get_one(table='consumer', name='Hans Müller')
+        product = self.api.get_one(table='product', name='Coffee')
+        self.assertEqual(consumer.credit, 250)
+        self.assertEqual(product.price, 20)
+
+        # create purchase
+        self.api.insert_purchase(consumer=consumer, product=product)
+
+        # check if the consumers credit hase been decreased
+        consumer = self.api.get_one(table='consumer', name='Hans Müller')
+        self.assertEqual(consumer.credit, 230)
+
+        # check, if the purchase has been inserted correctly
+        purchase = self.api.get_one(table='purchase', id=1)
+        self.assertEqual(purchase.paid_price, 20)
+
+        # revoke and update purchase
+        purchase.revoked = True
+        self.api.update_purchase(purchase)
+        purchase = self.api.get_one(table='purchase', id=1)
+        self.assertTrue(purchase.revoked)
+
+        # check, if the consumers credit has been updated
+        consumer = self.api.get_one(table='consumer', name='Hans Müller')
+        self.assertEqual(consumer.credit, 250)
