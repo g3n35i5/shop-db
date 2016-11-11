@@ -67,3 +67,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.api.update_consumer(consumer)
         consumer = self.api.get_one(table='consumer', id=1)
         self.assertEqual(consumer.name, 'Peter Meier')
+
+    def test_access_wrong_table(self):
+        with self.assertRaises(NonExistentTable):
+            product = self.api.get_one(table='wrongtable', id=1)
