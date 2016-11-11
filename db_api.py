@@ -171,7 +171,11 @@ class DatabaseApi(object):
         if id is not None:
             cur.execute('SELECT * FROM {} WHERE id=?;'.format(table), (id,))
         else:
-            cur.execute('SELECT * FROM {} WHERE name=?;'.format(table), (name,))
+            if table is not 'deposit':
+                cur.execute('SELECT * FROM {} WHERE name=?;'.format(table),
+                            (name,))
+            else:
+                raise 'field name is not available for deposit'
         res = cur.fetchone()
         if res is None:
             raise ObjectNotFound(table=table, id=id, name=name)
