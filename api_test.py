@@ -109,3 +109,20 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(products[1].price, 40)
         self.assertFalse(products[1].active)
         self.assertTrue(products[1].on_stock)
+
+    def test_create_deposit(self):
+        # create test consumer
+        c = Consumer(name='Hans Müller', active=True, credit=250)
+        self.api.insert_object(c)
+        # check the consumers credit
+        consumer = self.api.get_one(table='consumer', name='Hans Müller')
+        self.assertEqual(consumer.credit, 250)
+        # create deposit
+        self.api.create_deposit(consumer=consumer, amount=250)
+        consumer = self.api.get_one(table='consumer', name='Hans Müller')
+        # check, if the consumers credit has been increased
+        self.assertEqual(consumer.credit, 500)
+        # get all deposits
+        deposit = self.api.get_one(table='deposit', id=1)
+        self.assertEqual(deposit.amount, 250)
+        self.assertEqual(deposit.consumer_id, consumer.id)

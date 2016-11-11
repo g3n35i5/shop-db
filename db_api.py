@@ -3,6 +3,7 @@
 import sqlite3
 from models import Consumer, Product, Purchase, Deposit
 import pdb
+import datetime
 
 # convert booleans since sqlite3 has no booleans
 # see: https://www.sqlite.org/datatype3.html#boolean_datatype
@@ -203,3 +204,12 @@ class DatabaseApi(object):
                     WHERE id=?;', (consumer.name, consumer.active,
                                    consumer.credit, consumer.id))
         self.con.commit()
+
+    def create_deposit(self, consumer, amount):
+        time = datetime.datetime.now()
+        deposit = Deposit(consumer_id=consumer.id,
+                          amount=amount,
+                          timestamp=time)
+        res = self.insert_object(deposit)
+        consumer.credit = consumer.credit + amount
+        self.update_consumer(consumer)
