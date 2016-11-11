@@ -39,18 +39,3 @@ class DatabaseApi(object):
 
     def __init__(self, sqlite3_connection):
         self.con = sqlite3_connection
-
-    def get_products(self):
-        cur = self.con.cursor()
-        cur.row_factory = factory(Product)
-        cur.execute('SELECT * FROM product;')
-        return cur.fetchall()
-
-    def get_product_by_id(self, id):
-        cur = self.con.cursor()
-        cur.row_factory = factory(Product)
-        cur.execute('SELECT * FROM product WHERE id=?;', (id,))
-        res = cur.fetchone()
-        if res is None:
-            raise ObjectNotFound(model=Product, id=id)
-        return res
