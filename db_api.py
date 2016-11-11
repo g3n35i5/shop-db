@@ -16,6 +16,15 @@ class DatabaseApiException(Exception):
         self.model = model
 
 
+class FieldIsNone(DatabaseApiException):
+    def __init__(self, model, field):
+        self.model = model
+        self.field = field
+
+    def __str__(self):
+        return '{0.model.__name__}: field {0.field} is None'.format(self)
+
+
 class ObjectNotFound(DatabaseApiException):
 
     def __init__(self, model, id):
@@ -45,9 +54,17 @@ class DatabaseApi(object):
         cur = self.con.cursor()
         # Handle products
         if isinstance(object, Product):
-            l = [object.name, object.active, object.on_stock, object.price]
-            if None in l:
-                raise FieldIsNone(model=Product)
+            for (i, n) in zip([object.name,
+                               object.active,
+                               object.on_stock,
+                               object.price],
+                              ["name",
+                               "active",
+                               "on_stock",
+                               "price"]):
+                if i is None:
+                    raise FieldIsNone(model=Product, field=n)
+
             cur.execute(
                 'INSERT INTO product (name, active, on_stock, price) '
                 'VALUES (?,?,?,?);',
@@ -57,9 +74,11 @@ class DatabaseApi(object):
 
         # Handle consumer
         elif isinstance(object, Consumer):
-            l = [object.name, object.active, object.credit]
-            if None in l:
-                raise FieldIsNone(model=Product)
+            for (i, n) in zip([object.name, object.active, object.credit],
+                              ["name", "active", "credit"]):
+                if i is None:
+                    raise FieldIsNone(model=Product, field=n)
+
             cur.execute(
                 'INSERT INTO consumer (name, active, credit) '
                 'VALUES (?,?,?);',
@@ -69,13 +88,19 @@ class DatabaseApi(object):
 
         # Handle purchase
         elif isinstance(object, Purchase):
-            l = [object.consumer_id,
-                 object.product_id,
-                 object.revoked,
-                 object.timestamp,
-                 object.paid_price]
-            if None in l:
-                raise FieldIsNone(model=Product)
+            for (i, n) in zip([object.consumer_id,
+                               object.product_id,
+                               object.revoked,
+                               object.timestamp,
+                               object.paid_price],
+                              ["consumer_id",
+                               "product_id",
+                               "revoked",
+                               "timestamp",
+                               "paid_price"]):
+                            if i is None:
+                                raise FieldIsNone(model=Product, field=n)
+
             cur.execute(
                 'INSERT INTO purchase (consumer_id,\
                 product_id,\
@@ -93,9 +118,14 @@ class DatabaseApi(object):
 
         # Handle deposit
         elif isinstance(object, Deposit):
-            l = [object.consumer_id, object.amount, object.timestamp]
-            if None in l:
-                raise FieldIsNone(model=Product)
+            for (i, n) in zip([object.consumer_id,
+                               object.amount,
+                               object.timestamp],
+                              ["consumer_id",
+                               "amount",
+                               "timestamp"]):
+                if i is None:
+                    raise FieldIsNone(model=Product, field=n)
             cur.execute(
                 'INSERT INTO deposit (consumer_id, amount, timestamp) '
                 'VALUES (?,?,?);',

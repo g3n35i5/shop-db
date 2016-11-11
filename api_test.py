@@ -1,7 +1,7 @@
 import sqlite3
 import unittest
 from models import Consumer, Product, Purchase, Deposit
-from db_api import DatabaseApi
+from db_api import *
 import pdb
 
 
@@ -28,5 +28,10 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(consumer.name, 'Hans Müller')
         self.assertEqual(consumer.credit, 250)
         self.assertTrue(consumer.active)
+
+        # missing fields
+        with self.assertRaises(FieldIsNone):
+            c = Consumer(name='Hans Müller', credit=250)
+            self.api.insert_object(c)
 
         # TODO: insert wrong types
