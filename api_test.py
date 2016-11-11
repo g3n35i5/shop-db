@@ -71,3 +71,21 @@ class TestDatabaseApi(unittest.TestCase):
     def test_access_wrong_table(self):
         with self.assertRaises(NonExistentTable):
             product = self.api.get_one(table='wrongtable', id=1)
+
+    def test_get_product_by_name(self):
+        p = Product(name='Mars', active=True, on_stock=False, price=30)
+        self.api.insert_object(p)
+        product = self.api.get_one(table='product', name='Mars')
+        self.assertEqual(product.name, 'Mars')
+        self.assertEqual(product.price, 30)
+        self.assertTrue(product.active)
+        self.assertFalse(product.on_stock)
+
+    def test_get_product_by_id(self):
+        p = Product(name='Twix', active=True, on_stock=True, price=90)
+        self.api.insert_object(p)
+        product = self.api.get_one(table='product', id=1)
+        self.assertEqual(product.name, 'Twix')
+        self.assertEqual(product.price, 90)
+        self.assertTrue(product.active)
+        self.assertTrue(product.on_stock)
