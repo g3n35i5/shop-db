@@ -11,7 +11,6 @@ sqlite3.register_converter("BOOLEAN", lambda v: bool(int(v)))
 
 
 class DatabaseApiException(Exception):
-
     def __init__(self, model):
         self.model = model
 
@@ -194,3 +193,13 @@ class DatabaseApi(object):
 
         cur.execute('SELECT * FROM {};'.format(table))
         return cur.fetchall()
+
+    def update_consumer(self, consumer):
+        if consumer.id is None:
+            raise("Consumer has no id")
+        cur = self.con.cursor()
+
+        cur.execute('UPDATE consumer SET name=?, active=?, credit=? \
+                    WHERE id=?;', (consumer.name, consumer.active,
+                                   consumer.credit, consumer.id))
+        self.con.commit()
