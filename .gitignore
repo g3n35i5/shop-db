@@ -1,0 +1,5 @@
+# database shits
+*.db
+
+# pycache folder
+__pycache__/*
