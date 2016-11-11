@@ -1,5 +1,8 @@
 import sqlite3
+import unittest
 from models import Consumer, Product, Purchase, Deposit
+from db_api import DatabaseApi
+import pdb
 
 
 class TestDatabaseApi(unittest.TestCase):
@@ -16,3 +19,14 @@ class TestDatabaseApi(unittest.TestCase):
         self.con.executescript(self.schema)
 
         self.api = DatabaseApi(self.con)
+
+    def test_insert_consumer(self):
+        # insert correctly
+        c = Consumer(name='Hans Müller', active=True, credit=250)
+        self.api.insert_object(c)
+        consumer = self.api.get_one(table='consumer', id=1)
+        self.assertEqual(consumer.name, 'Hans Müller')
+        self.assertEqual(consumer.credit, 250)
+        self.assertTrue(consumer.active)
+
+        # TODO: insert wrong types

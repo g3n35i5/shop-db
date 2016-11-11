@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 import sqlite3
-from models import Product
+from models import Consumer, Product, Purchase, Deposit
+import pdb
 
 # convert booleans since sqlite3 has no booleans
 # see: https://www.sqlite.org/datatype3.html#boolean_datatype
@@ -39,3 +40,110 @@ class DatabaseApi(object):
 
     def __init__(self, sqlite3_connection):
         self.con = sqlite3_connection
+
+    def insert_object(self, object):
+        cur = self.con.cursor()
+        # Handle products
+        if isinstance(object, Product):
+            l = [object.name, object.active, object.on_stock, object.price]
+            if None in l:
+                raise FieldIsNone(model=Product)
+            cur.execute(
+                'INSERT INTO product (name, active, on_stock, price) '
+                'VALUES (?,?,?,?);',
+                (object.name, object.active, object.on_stock, object.price)
+            )
+            self.con.commit()
+
+        # Handle consumer
+        elif isinstance(object, Consumer):
+            l = [object.name, object.active, object.credit]
+            if None in l:
+                raise FieldIsNone(model=Product)
+            cur.execute(
+                'INSERT INTO consumer (name, active, credit) '
+                'VALUES (?,?,?);',
+                (object.name, object.active, object.credit)
+            )
+            self.con.commit()
+
+        # Handle purchase
+        elif isinstance(object, Purchase):
+            l = [object.consumer_id,
+                 object.product_id,
+                 object.revoked,
+                 object.timestamp,
+                 object.paid_price]
+            if None in l:
+                raise FieldIsNone(model=Product)
+            cur.execute(
+                'INSERT INTO purchase (consumer_id,\
+                product_id,\
+                revoked,\
+                timestamp,\
+                paid_price) '
+                'VALUES (?,?,?,?,?);',
+                (object.consumer_id,
+                 object.product_id,
+                 object.revoked,
+                 object.timestamp,
+                 object.paid_price)
+            )
+            self.con.commit()
+
+        # Handle deposit
+        elif isinstance(object, Deposit):
+            l = [object.consumer_id, object.amount, object.timestamp]
+            if None in l:
+                raise FieldIsNone(model=Product)
+            cur.execute(
+                'INSERT INTO deposit (consumer_id, amount, timestamp) '
+                'VALUES (?,?,?);',
+                (object.consumer_id, object.amount, object.timestamp))
+            self.con.commit()
+        else:
+            raise NonExistentModel(object)
+
+    def get_one(self, table, id=None, name=None):
+        if id is None and name is None:
+            raise("get_object: at least one identifier required")
+        cur = cur = self.con.cursor()
+
+        if table not in ['consumer', 'product', 'purchase', 'deposit']:
+            raise NonExistentTable(table)
+
+        if table is 'consumer':
+            cur.row_factory = factory(Consumer)
+        elif table is 'product':
+            cur.row_factory = factory(Product)
+        elif table is 'purchase':
+            cur.row_factory = factory(Purchase)
+        elif table is 'deposit':
+            cur.row_factory = factory(Deposit)
+
+        if id is not None:
+            cur.execute('SELECT * FROM {} WHERE id=?;'.format(table), (id,))
+        else:
+            cur.execute('SELECT * FROM {} WHERE name=?;'.format(table), (name,))
+        res = cur.fetchone()
+        if res is None:
+            raise ObjectNotFound(table=table, id=id, name=name)
+        return res
+
+    def get_all(self, table):
+        if table not in ['consumer', 'product', 'purchase', 'deposit']:
+            raise NonExistentTable(table)
+
+        cur = self.con.cursor()
+
+        if table is 'consumer':
+            cur.row_factory = factory(Consumer)
+        elif table is 'product':
+            cur.row_factory = factory(Product)
+        elif table is 'purchase':
+            cur.row_factory = factory(Purchase)
+        elif table is 'deposit':
+            cur.row_factory = factory(Deposit)
+
+        cur.execute('SELECT * FROM {};'.format(table))
+        return cur.fetchall()
