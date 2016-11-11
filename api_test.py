@@ -89,3 +89,23 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(product.price, 90)
         self.assertTrue(product.active)
         self.assertTrue(product.on_stock)
+
+    def test_get_products(self):
+        p1 = Product(name='Mars', price=30, active=True, on_stock=False)
+        p2 = Product(name='Twix', price=40, active=False, on_stock=True)
+        self.api.insert_object(p1)
+        self.api.insert_object(p2)
+
+        products = self.api.get_all('product')
+        self.assertIs(type(products), list)
+        self.assertEqual(len(products), 2)
+        # Mars
+        self.assertEqual(products[0].name, 'Mars')
+        self.assertEqual(products[0].price, 30)
+        self.assertTrue(products[0].active)
+        self.assertFalse(products[0].on_stock)
+        # Twix
+        self.assertEqual(products[1].name, 'Twix')
+        self.assertEqual(products[1].price, 40)
+        self.assertFalse(products[1].active)
+        self.assertTrue(products[1].on_stock)
