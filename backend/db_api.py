@@ -72,36 +72,40 @@ class DatabaseApi(object):
             if getattr(object, field_name, None) is None:
                 raise FieldIsNone(model=type(object), field=field_name)
 
+    def insert_product(self, product):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(
+            product, ['name', 'active', 'on_stock', 'price']
+        )
+
+        cur.execute(
+            'INSERT INTO product (name, active, on_stock, price) '
+            'VALUES (?,?,?,?);',
+            (product.name, product.active, product.on_stock, product.price)
+        )
+        self.con.commit()
+        # TODO: return value
+
+    def insert_consumer(self, consumer):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(
+            consumer, ['name', 'active', 'credit']
+        )
+
+        cur.execute(
+            'INSERT INTO consumer (name, active, credit) '
+            'VALUES (?,?,?);',
+            (consumer.name, consumer.active, consumer.credit)
+        )
+        self.con.commit()
+        # TODO: return value
+
     def insert_object(self, object):
         cur = self.con.cursor()
-        # Handle products
-        if isinstance(object, Product):
-            self._assert_mandatory_fields(
-                object, ['name', 'active', 'on_stock', 'price']
-            )
 
-            cur.execute(
-                'INSERT INTO product (name, active, on_stock, price) '
-                'VALUES (?,?,?,?);',
-                (object.name, object.active, object.on_stock, object.price)
-            )
-            self.con.commit()
-
-        # Handle consumer
-        elif isinstance(object, Consumer):
-            self._assert_mandatory_fields(
-                object, ['name', 'active', 'credit']
-            )
-
-            cur.execute(
-                'INSERT INTO consumer (name, active, credit) '
-                'VALUES (?,?,?);',
-                (object.name, object.active, object.credit)
-            )
-            self.con.commit()
-
-        # Handle purchase
-        elif isinstance(object, Purchase):
+        if isinstance(object, Purchase):
             self._assert_mandatory_fields(
                 object, ['consumer_id', 'product_id', 'revoked',
                          'timestamp', 'paid_price']

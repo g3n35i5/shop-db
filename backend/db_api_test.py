@@ -25,7 +25,7 @@ class TestDatabaseApi(unittest.TestCase):
     def test_insert_consumer(self):
         # insert correctly
         c = Consumer(name='Hans Müller', active=True, credit=250)
-        self.api.insert_object(c)
+        self.api.insert_consumer(c)
         consumer = self.api.get_one(table='consumer', id=1)
         self.assertEqual(consumer.name, 'Hans Müller')
         self.assertEqual(consumer.credit, 250)
@@ -34,7 +34,7 @@ class TestDatabaseApi(unittest.TestCase):
         # missing fields
         with self.assertRaises(FieldIsNone):
             c = Consumer(name='Hans Müller', credit=250)
-            self.api.insert_object(c)
+            self.api.insert_consumer(c)
 
         # insert wrong types
         with self.assertRaises(WrongType):
@@ -43,7 +43,7 @@ class TestDatabaseApi(unittest.TestCase):
     def test_insert_product(self):
         # insert correctly
         p = Product(name='Twix', active=True, on_stock=True, price=90)
-        self.api.insert_object(p)
+        self.api.insert_product(p)
         product = self.api.get_one(table='product', id=1)
         self.assertEqual(product.name, 'Twix')
         self.assertEqual(product.price, 90)
@@ -53,7 +53,7 @@ class TestDatabaseApi(unittest.TestCase):
         # missing fields
         with self.assertRaises(FieldIsNone):
             p = Product(name='Twix', price=250)
-            self.api.insert_object(p)
+            self.api.insert_product(p)
 
         # insert wrong types
         with self.assertRaises(WrongType):
@@ -61,7 +61,7 @@ class TestDatabaseApi(unittest.TestCase):
 
     def test_update_consumer(self):
         c = Consumer(name='Hans Müller', active=True, credit=250)
-        self.api.insert_object(c)
+        self.api.insert_consumer(c)
         consumer = self.api.get_one(table='consumer', id=1)
         self.assertEqual(consumer.name, 'Hans Müller')
         consumer.name = 'Peter Meier'
@@ -75,7 +75,7 @@ class TestDatabaseApi(unittest.TestCase):
 
     def test_get_product_by_name(self):
         p = Product(name='Mars', active=True, on_stock=False, price=30)
-        self.api.insert_object(p)
+        self.api.insert_product(p)
         product = self.api.get_one(table='product', name='Mars')
         self.assertEqual(product.name, 'Mars')
         self.assertEqual(product.price, 30)
@@ -84,7 +84,7 @@ class TestDatabaseApi(unittest.TestCase):
 
     def test_get_product_by_id(self):
         p = Product(name='Twix', active=True, on_stock=True, price=90)
-        self.api.insert_object(p)
+        self.api.insert_product(p)
         product = self.api.get_one(table='product', id=1)
         self.assertEqual(product.name, 'Twix')
         self.assertEqual(product.price, 90)
@@ -94,8 +94,8 @@ class TestDatabaseApi(unittest.TestCase):
     def test_get_products(self):
         p1 = Product(name='Mars', price=30, active=True, on_stock=False)
         p2 = Product(name='Twix', price=40, active=False, on_stock=True)
-        self.api.insert_object(p1)
-        self.api.insert_object(p2)
+        self.api.insert_product(p1)
+        self.api.insert_product(p2)
 
         products = self.api.get_all('product')
         self.assertIs(type(products), list)
@@ -114,7 +114,7 @@ class TestDatabaseApi(unittest.TestCase):
     def test_create_deposit(self):
         # create test consumer
         c = Consumer(name='Hans Müller', active=True, credit=250)
-        self.api.insert_object(c)
+        self.api.insert_consumer(c)
         # check the consumers credit
         consumer = self.api.get_one(table='consumer', name='Hans Müller')
         self.assertEqual(consumer.credit, 250)
@@ -132,8 +132,8 @@ class TestDatabaseApi(unittest.TestCase):
         # insert consumer and product
         p = Product(name='Coffee', price=20, active=True, on_stock=True)
         c = Consumer(name='Hans Müller', active=True, credit=250)
-        self.api.insert_object(p)
-        self.api.insert_object(c)
+        self.api.insert_product(p)
+        self.api.insert_consumer(c)
 
         # check, if the objects are correct
         consumer = self.api.get_one(table='consumer', name='Hans Müller')
