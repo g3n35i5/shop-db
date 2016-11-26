@@ -67,20 +67,18 @@ class DatabaseApi(object):
     def __init__(self, sqlite3_connection):
         self.con = sqlite3_connection
 
+    def _assert_mandatory_fields(self, object, fields):
+        for field_name in fields:
+            if getattr(object, field_name, None) is None:
+                raise FieldIsNone(model=type(object), field=field_name)
+
     def insert_object(self, object):
         cur = self.con.cursor()
         # Handle products
         if isinstance(object, Product):
-            for (i, n) in zip([object.name,
-                               object.active,
-                               object.on_stock,
-                               object.price],
-                              ["name",
-                               "active",
-                               "on_stock",
-                               "price"]):
-                if i is None:
-                    raise FieldIsNone(model=Product, field=n)
+            self._assert_mandatory_fields(
+                object, ['name', 'active', 'on_stock', 'price']
+            )
 
             cur.execute(
                 'INSERT INTO product (name, active, on_stock, price) '
@@ -91,10 +89,9 @@ class DatabaseApi(object):
 
         # Handle consumer
         elif isinstance(object, Consumer):
-            for (i, n) in zip([object.name, object.active, object.credit],
-                              ["name", "active", "credit"]):
-                if i is None:
-                    raise FieldIsNone(model=Product, field=n)
+            self._assert_mandatory_fields(
+                object, ['name', 'active', 'credit']
+            )
 
             cur.execute(
                 'INSERT INTO consumer (name, active, credit) '
@@ -105,18 +102,10 @@ class DatabaseApi(object):
 
         # Handle purchase
         elif isinstance(object, Purchase):
-            for (i, n) in zip([object.consumer_id,
-                               object.product_id,
-                               object.revoked,
-                               object.timestamp,
-                               object.paid_price],
-                              ["consumer_id",
-                               "product_id",
-                               "revoked",
-                               "timestamp",
-                               "paid_price"]):
-                            if i is None:
-                                raise FieldIsNone(model=Product, field=n)
+            self._assert_mandatory_fields(
+                object, ['consumer_id', 'product_id', 'revoked',
+                         'timestamp', 'paid_price']
+            )
 
             cur.execute(
                 'INSERT INTO purchase (consumer_id,\
@@ -135,19 +124,16 @@ class DatabaseApi(object):
 
         # Handle deposit
         elif isinstance(object, Deposit):
-            for (i, n) in zip([object.consumer_id,
-                               object.amount,
-                               object.timestamp],
-                              ["consumer_id",
-                               "amount",
-                               "timestamp"]):
-                if i is None:
-                    raise FieldIsNone(model=Product, field=n)
+            self._assert_mandatory_fields(
+                object, ['consumer_id', 'amount', 'timestamp']
+            )
+
             cur.execute(
                 'INSERT INTO deposit (consumer_id, amount, timestamp) '
                 'VALUES (?,?,?);',
                 (object.consumer_id, object.amount, object.timestamp))
             self.con.commit()
+
         else:
             raise NonExistentModel(object)
 
