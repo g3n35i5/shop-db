@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from validation import ValidatableObject, Type, fields
+from .validation import ValidatableObject, Type, fields
 import datetime
 
 

@@ -1,8 +1,9 @@
 import sqlite3
 import unittest
-from models import Consumer, Product, Purchase, Deposit
-from db_api import *
-from validation import WrongType
+import app
+from .models import Consumer, Product, Purchase, Deposit
+from .db_api import *
+from .validation import WrongType
 import pdb
 
 
@@ -10,7 +11,7 @@ class TestDatabaseApi(unittest.TestCase):
 
     def setUpClass():
         # load the db schema
-        with open('models.sql') as models:
+        with open(app.PATH + '/models.sql') as models:
             TestDatabaseApi.schema = models.read()
 
     def setUp(self):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sqlite3
-from models import Consumer, Product, Purchase, Deposit
+from .models import Consumer, Product, Purchase, Deposit
 import pdb
 import datetime
 
