@@ -128,7 +128,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(deposit.amount, 250)
         self.assertEqual(deposit.consumer_id, consumer.id)
 
-    def test_purchase(self):
+    def test_insert_purchase(self):
         # insert consumer and product
         p = Product(name='Coffee', price=20, active=True, on_stock=True)
         c = Consumer(name='Hans Müller', active=True, credit=250)
@@ -141,23 +141,60 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(consumer.credit, 250)
         self.assertEqual(product.price, 20)
 
-        # create purchase
-        self.api.insert_purchase(consumer=consumer, product=product)
+        pur1 = Purchase(consumer_id=1, product_id=1)
+        self.api.insert_purchase(pur1)
+        # TODO: pur.id is still None here. Should we change this?
 
-        # check if the consumers credit hase been decreased
+        # test whether the purchase was inserted correctly
+        pur2 = self.api.get_one(table='purchase', id=1)
+        # paid_price should have been filled
+        self.assertEqual(pur2.paid_price, 20)
+        # timestamp should have been added
+        self.assertIsNotNone(pur2.timestamp)
+
         consumer = self.api.get_one(table='consumer', name='Hans Müller')
         self.assertEqual(consumer.credit, 230)
 
-        # check, if the purchase has been inserted correctly
-        purchase = self.api.get_one(table='purchase', id=1)
-        self.assertEqual(purchase.paid_price, 20)
+        # test with wrong foreign key consumer_id
+        pur3 = Purchase(consumer_id=2, product_id=1)
+        with self.assertRaises(ForeignKeyNotExisting):
+            self.api.insert_purchase(pur3)
 
-        # revoke and update purchase
-        purchase.revoked = True
-        self.api.update_purchase(purchase)
-        purchase = self.api.get_one(table='purchase', id=1)
-        self.assertTrue(purchase.revoked)
+        # no new purchase should have been created
+        self.assertEqual(len(self.api.get_all(table='purchase')), 1)
 
-        # check, if the consumers credit has been updated
-        consumer = self.api.get_one(table='consumer', name='Hans Müller')
-        self.assertEqual(consumer.credit, 250)
+        # test with wrong foreign key product_id
+        pur4 = Purchase(consumer_id=1, product_id=2)
+        with self.assertRaises(ForeignKeyNotExisting):
+            self.api.insert_purchase(pur4)
+
+        # no new purchase should have been created
+        self.assertEqual(len(self.api.get_all(table='purchase')), 1)
+
+        # the credit of the consumer must not have to be changed
+        consumer = self.api.get_one(table='consumer', id=1)
+        self.assertEqual(consumer.credit, 230)
+
+        # purchase.id should be forbidden
+        pur5 = Purchase(consumer_id=1, product_id=1, id=1337)
+        with self.assertRaises(ForbiddenField):
+            self.api.insert_purchase(pur5)
+
+        # purchase.paid_price should be forbidden
+        pur6 = Purchase(consumer_id=1, product_id=1, paid_price=200)
+        with self.assertRaises(ForbiddenField):
+            self.api.insert_purchase(pur6)
+
+        # purchase.revoked should be forbidden
+        pur7 = Purchase(consumer_id=1, product_id=1, revoked=True)
+        with self.assertRaises(ForbiddenField):
+            self.api.insert_purchase(pur7)
+
+        # purchase.revoked should be forbidden
+        pur8 = Purchase(consumer_id=1, product_id=1,
+                        timestamp=datetime.datetime.now())
+        with self.assertRaises(ForbiddenField):
+            self.api.insert_purchase(pur8)
+
+        # TODO: how to test rollback?
+        # TODO: id should be forbidden!!! this should be in all *_insert()

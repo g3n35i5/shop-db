@@ -16,6 +16,16 @@ class DatabaseApiException(Exception):
         self.model = model
 
 
+class ForeignKeyNotExisting(DatabaseApiException):
+    def __init__(self, foreign_key, foreign_id):
+        self.foreign_key = foreign_key
+        self.foreign_id = foreign_id
+
+    def __str__(self):
+        return 'Foreign key {0.foreign_key} with ' + \
+               'id={0.foreign_id} does not exist.'.format(self)
+
+
 class NonExistentModel(DatabaseApiException):
     def __init__(self, model):
         self.model = model
@@ -39,6 +49,16 @@ class FieldIsNone(DatabaseApiException):
 
     def __str__(self):
         return '{0.model.__name__}: field {0.field} is None'.format(self)
+
+
+class ForbiddenField(DatabaseApiException):
+    def __init__(self, model, field):
+        self.model = model
+        self.field = field
+
+    def __str__(self):
+        return '{0.model.__name__}: field {0.field}' + \
+               'is not allowed'.format(self)
 
 
 class ObjectNotFound(DatabaseApiException):
@@ -66,11 +86,18 @@ class DatabaseApi(object):
 
     def __init__(self, sqlite3_connection):
         self.con = sqlite3_connection
+        self.con.execute('PRAGMA foreign_keys = ON;')
+        # TODO: check whether foreign keys were turned on, or exit!
 
     def _assert_mandatory_fields(self, object, fields):
         for field_name in fields:
             if getattr(object, field_name, None) is None:
                 raise FieldIsNone(model=type(object), field=field_name)
+
+    def _assert_forbidden_fields(self, object, fields):
+        for field_name in fields:
+            if getattr(object, field_name, None) is not None:
+                raise ForbiddenField(model=type(object), field=field_name)
 
     def insert_product(self, product):
         cur = self.con.cursor()
@@ -102,32 +129,68 @@ class DatabaseApi(object):
         self.con.commit()
         # TODO: return value
 
+    def insert_purchase(self, purchase):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(purchase, ['product_id', 'consumer_id'])
+
+        self._assert_forbidden_fields(
+            purchase, ['id', 'timestamp', 'revoked', 'paid_price']
+        )
+
+        purchase.timestamp = datetime.datetime.now()
+        purchase.revoked = False
+
+        # Since the foreign key exception of sqlite3 has no information
+        # which foreign key constrait was breaked, we have to check
+        # that by selecting the consumer/product.
+
+        c = cur.execute('SELECT 1 FROM consumer WHERE id=?;',
+                        (purchase.consumer_id,))
+        if c.fetchone() is None:
+            raise ForeignKeyNotExisting('consumer_id', purchase.consumer_id)
+
+        p = cur.execute('SELECT 1 FROM product WHERE id=?;',
+                        (purchase.product_id,))
+        if p.fetchone() is None:
+            raise ForeignKeyNotExisting('product_id', purchase.product_id)
+
+        cur.execute(
+            'INSERT INTO purchase('
+            '    consumer_id, '
+            '    product_id, '
+            '    revoked, '
+            '    timestamp,'
+            '    paid_price) '
+            'VALUES ('
+            '    ?, '
+            '    ?, '
+            '    ?, '
+            '    ?, '
+            '    (SELECT price from product where id=?)'
+            ');',
+            (purchase.consumer_id,
+             purchase.product_id,
+             purchase.revoked,
+             purchase.timestamp,
+             purchase.product_id)
+        )
+
+        cur.execute(
+            'UPDATE consumer '
+            'SET credit = credit - (SELECT price from product where id=?) '
+            'WHERE id=?;',
+            (purchase.product_id,
+             purchase.consumer_id)
+        )
+
+        self.con.commit()
+
     def insert_object(self, object):
         cur = self.con.cursor()
 
-        if isinstance(object, Purchase):
-            self._assert_mandatory_fields(
-                object, ['consumer_id', 'product_id', 'revoked',
-                         'timestamp', 'paid_price']
-            )
-
-            cur.execute(
-                'INSERT INTO purchase (consumer_id,\
-                product_id,\
-                revoked,\
-                timestamp,\
-                paid_price) '
-                'VALUES (?,?,?,?,?);',
-                (object.consumer_id,
-                 object.product_id,
-                 object.revoked,
-                 object.timestamp,
-                 object.paid_price)
-            )
-            self.con.commit()
-
         # Handle deposit
-        elif isinstance(object, Deposit):
+        if isinstance(object, Deposit):
             self._assert_mandatory_fields(
                 object, ['consumer_id', 'amount', 'timestamp']
             )
@@ -206,19 +269,6 @@ class DatabaseApi(object):
                           timestamp=time)
         res = self.insert_object(deposit)
         consumer.credit = consumer.credit + amount
-        self.update_consumer(consumer)
-
-    def insert_purchase(self, consumer, product):
-        consumer = self.get_one(table='consumer', id=consumer.id)
-        product = self.get_one(table='product', id=product.id)
-        time = datetime.datetime.now()
-        purchase = Purchase(consumer_id=consumer.id,
-                            product_id=product.id,
-                            revoked=False,
-                            timestamp=time,
-                            paid_price=product.price)
-        self.insert_object(purchase)
-        consumer.credit = consumer.credit - product.price
         self.update_consumer(consumer)
 
     def update_purchase(self, purchase):
