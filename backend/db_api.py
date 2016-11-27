@@ -105,6 +105,7 @@ class DatabaseApi(object):
         self._assert_mandatory_fields(
             product, ['name', 'active', 'on_stock', 'price']
         )
+        self._assert_forbidden_fields(product, ['id'])
 
         cur.execute(
             'INSERT INTO product (name, active, on_stock, price) '
@@ -117,9 +118,8 @@ class DatabaseApi(object):
     def insert_consumer(self, consumer):
         cur = self.con.cursor()
 
-        self._assert_mandatory_fields(
-            consumer, ['name', 'active', 'credit']
-        )
+        self._assert_mandatory_fields(consumer, ['name', 'active', 'credit'])
+        self._assert_forbidden_fields(consumer, ['id'])
 
         cur.execute(
             'INSERT INTO consumer (name, active, credit) '

@@ -40,6 +40,10 @@ class TestDatabaseApi(unittest.TestCase):
         with self.assertRaises(WrongType):
             c = Consumer(name=2, active=True, credit=250)
 
+        c = Consumer(id=13, name='Hans', credit=12, active=True)
+        with self.assertRaises(ForbiddenField):
+            self.api.insert_consumer(c)
+
     def test_insert_product(self):
         # insert correctly
         p = Product(name='Twix', active=True, on_stock=True, price=90)
@@ -58,6 +62,12 @@ class TestDatabaseApi(unittest.TestCase):
         # insert wrong types
         with self.assertRaises(WrongType):
             p = Product(name=2, active=True, price=250)
+
+        # product.id should be forbidden
+        p = Product(id=1337, name="Mars", active=True, price=250,
+                    on_stock=True)
+        with self.assertRaises(ForbiddenField):
+            self.api.insert_product(p)
 
     def test_update_consumer(self):
         c = Consumer(name='Hans Müller', active=True, credit=250)
