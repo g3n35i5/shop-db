@@ -245,24 +245,6 @@ class DatabaseApi(object):
 
         self.con.commit()
 
-    def insert_object(self, object):
-        cur = self.con.cursor()
-
-        # Handle deposit
-        if isinstance(object, Deposit):
-            self._assert_mandatory_fields(
-                object, ['consumer_id', 'amount', 'timestamp']
-            )
-
-            cur.execute(
-                'INSERT INTO deposit (consumer_id, amount, timestamp) '
-                'VALUES (?,?,?);',
-                (object.consumer_id, object.amount, object.timestamp))
-            self.con.commit()
-
-        else:
-            raise NonExistentModel(object)
-
     def get_one(self, table, id=None, name=None):
         if id is None and name is None:
             raise("get_object: at least one identifier required")
