@@ -1,16 +1,36 @@
 #!/usr/bin/env python3
 
 
-class WrongType(Exception):
-    pass
+class ValidationException(Exception):
+    def __init__(self, field, value, **kwargs):
+        self.field = field
+        self.value = value
+        self.kwargs = kwargs
 
 
-class MaxLengthExceeded(Exception):
-    pass
+class WrongType(ValidationException):
+    def __str__(self):
+        return 'The {} must be of type {}.' \
+            .format(self.field, self.kwargs['expected_type'])
 
 
-class UnknownField(Exception):
-    pass
+class MaxLengthExceeded(ValidationException):
+    def __str__(self):
+        return 'The {} "{}" exceeds the maximum allowed length of {}.' \
+            .format(self.field,
+                    getattr(self.object, self.field),
+                    self.kwargs['max_length'])
+
+
+class UnknownField(ValidationException):
+    def __str__(self):
+        return '{} is an unknown field.'.format(self.field)
+
+
+class MaximumValueExceeded(ValidationException):
+    def __str__(self):
+        return '{} should be less than {}, but is {}.' \
+            .format(self.field, self.kwargs['max_val'], self.value)
 
 
 def fields(object):
@@ -24,10 +44,7 @@ class LessThan(object):
 
     def validate(self, name, value):
         if value >= self.other:
-            raise Exception(
-                'Field {} should be less than {}, but is {}'
-                .format(name, self.other, value)
-            )
+            raise MaximumValueExceeded(name, value, max_val=self.other)
 
 
 class MaxLength(object):
@@ -36,9 +53,7 @@ class MaxLength(object):
 
     def validate(self, name, value):
         if len(value) > self.length:
-            raise MaxLengthExceeded(
-                'String {} should of length {}, but is {}'
-                .format(name, self.length, len(value)))
+            raise MaxLengthExceeded(name, value, max_length=self.length)
 
 
 class Type(object):
@@ -48,9 +63,7 @@ class Type(object):
 
     def validate(self, name, value):
         if type(value) is not self.type:
-            raise WrongType(
-                'Field {} should be of type {}'.format(name, self.type)
-            )
+            raise WrongType(name, value, expected_type=self.type)
 
 
 class ValidatableObject(object):
@@ -69,8 +82,7 @@ class ValidatableObject(object):
         field_validators = self._validators.get(field_name, None)
 
         if field_validators is None:
-            # TODO: add class name to message
-            raise UnknownField('Field {} is unknown'.format(field_name))
+            raise UnknownField(field_name, None)
 
         for v in field_validators:
             v.validate(field_name, field_value)
@@ -79,7 +91,6 @@ class ValidatableObject(object):
 
     def __getattr__(self, field_name):
         if field_name not in self._validators.keys():
-            # TODO: add class name to message
-            raise UnknownField('Field {} is unknown'.format(field_name))
+            raise UnknownField(field_name, None)
 
         return self._data.get(field_name, None)

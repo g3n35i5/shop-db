@@ -42,5 +42,5 @@ class TestValidatableObject(unittest.TestCase):
         self.test_obj.name = 'banane'
 
     def test_less_than_exception(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(MaximumValueExceeded):
             self.test_obj.amount = 42
