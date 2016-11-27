@@ -124,6 +124,19 @@ class DatabaseApi(object):
                     unique_field_value=getattr(object, field_name)
                 )
 
+    def _check_foreign_key(self, object, foreign_key, foreign_table):
+        cur = self.con.cursor()
+
+        # Since the foreign key exception of sqlite3 has no information
+        # which foreign key constrait was breaked, we have to check
+        # that by selecting the object.
+        c = cur.execute('SELECT 1 FROM {} WHERE id=?;'.format(foreign_table),
+                        (getattr(object, foreign_key),))
+
+        if c.fetchone() is None:
+            raise ForeignKeyNotExisting(foreign_key,
+                                        getattr(object, foreign_key))
+
     def insert_product(self, product):
         cur = self.con.cursor()
 
@@ -160,7 +173,6 @@ class DatabaseApi(object):
         cur = self.con.cursor()
 
         self._assert_mandatory_fields(purchase, ['product_id', 'consumer_id'])
-
         self._assert_forbidden_fields(
             purchase, ['id', 'timestamp', 'revoked', 'paid_price']
         )
@@ -168,19 +180,8 @@ class DatabaseApi(object):
         purchase.timestamp = datetime.datetime.now()
         purchase.revoked = False
 
-        # Since the foreign key exception of sqlite3 has no information
-        # which foreign key constrait was breaked, we have to check
-        # that by selecting the consumer/product.
-
-        c = cur.execute('SELECT 1 FROM consumer WHERE id=?;',
-                        (purchase.consumer_id,))
-        if c.fetchone() is None:
-            raise ForeignKeyNotExisting('consumer_id', purchase.consumer_id)
-
-        p = cur.execute('SELECT 1 FROM product WHERE id=?;',
-                        (purchase.product_id,))
-        if p.fetchone() is None:
-            raise ForeignKeyNotExisting('product_id', purchase.product_id)
+        self._check_foreign_key(purchase, 'consumer_id', 'consumer')
+        self._check_foreign_key(purchase, 'product_id', 'product')
 
         cur.execute(
             'INSERT INTO purchase('
@@ -226,11 +227,7 @@ class DatabaseApi(object):
         # which foreign key constrait was breaked, we have to check
         # that by selecting the consumer/product.
 
-        # TODO: outsourcing in function
-        c = cur.execute('SELECT 1 FROM consumer WHERE id=?;',
-                        (deposit.consumer_id,))
-        if c.fetchone() is None:
-            raise ForeignKeyNotExisting('consumer_id', deposit.consumer_id)
+        self._check_foreign_key(deposit, 'consumer_id', 'consumer')
 
         cur.execute(
             'INSERT INTO deposit (consumer_id, amount, timestamp) '
