@@ -72,6 +72,17 @@ class ObjectNotFound(DatabaseApiException):
             id={0.id}/name={0.name} not found.'.format(self)
 
 
+class DuplicateObject(DatabaseApiException):
+    def __init__(self, model, unique_field_name, unique_field_value):
+        self.model = model
+        self.unique_field_name = unique_field_name
+        self.unique_field_value = unique_field_value
+
+    def __str__(self):
+        return 'There is already a {0.model.__name__} with ' + \
+               '{0.unique_field_name}="self.unique_field_value"'
+
+
 def factory(cls):
     """ Helper function for ORM Mapping """
     def fun(cursor, row):
@@ -99,6 +110,20 @@ class DatabaseApi(object):
             if getattr(object, field_name, None) is not None:
                 raise ForbiddenField(model=type(object), field=field_name)
 
+    def _check_uniqueness(self, object, table, fields):
+        cur = self.con.cursor()
+        for field_name in fields:
+            res = cur.execute(
+                'SELECT 1 FROM {} WHERE {}=?'.format(table, field_name),
+                (getattr(object, field_name),)
+            )
+            if res.fetchone() is not None:
+                raise DuplicateObject(
+                    model=type(object),
+                    unique_field_name=field_name,
+                    unique_field_value=getattr(object, field_name)
+                )
+
     def insert_product(self, product):
         cur = self.con.cursor()
 
@@ -106,6 +131,7 @@ class DatabaseApi(object):
             product, ['name', 'active', 'on_stock', 'price']
         )
         self._assert_forbidden_fields(product, ['id'])
+        self._check_uniqueness(product, 'product', ['name'])
 
         cur.execute(
             'INSERT INTO product (name, active, on_stock, price) '
@@ -120,6 +146,7 @@ class DatabaseApi(object):
 
         self._assert_mandatory_fields(consumer, ['name', 'active', 'credit'])
         self._assert_forbidden_fields(consumer, ['id'])
+        self._check_uniqueness(consumer, 'consumer', ['name'])
 
         cur.execute(
             'INSERT INTO consumer (name, active, credit) '

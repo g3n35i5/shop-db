@@ -44,6 +44,11 @@ class TestDatabaseApi(unittest.TestCase):
         with self.assertRaises(ForbiddenField):
             self.api.insert_consumer(c)
 
+        # duplicate names should be rejected
+        c = Consumer(name='Hans Müller', active=True, credit=0)
+        with self.assertRaises(DuplicateObject):
+            self.api.insert_consumer(c)
+
     def test_insert_product(self):
         # insert correctly
         p = Product(name='Twix', active=True, on_stock=True, price=90)
@@ -68,6 +73,11 @@ class TestDatabaseApi(unittest.TestCase):
                     on_stock=True)
         with self.assertRaises(ForbiddenField):
             self.api.insert_product(p)
+
+        # duplicate names should be rejected
+        c = Product(name='Twix', active=False, on_stock=False, price=30)
+        with self.assertRaises(DuplicateObject):
+            self.api.insert_product(c)
 
     def test_update_consumer(self):
         c = Consumer(name='Hans Müller', active=True, credit=250)
@@ -228,4 +238,3 @@ class TestDatabaseApi(unittest.TestCase):
             self.api.insert_purchase(pur8)
 
         # TODO: how to test rollback?
-        # TODO: id should be forbidden!!! this should be in all *_insert()
