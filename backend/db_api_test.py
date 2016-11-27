@@ -115,18 +115,39 @@ class TestDatabaseApi(unittest.TestCase):
         # create test consumer
         c = Consumer(name='Hans Müller', active=True, credit=250)
         self.api.insert_consumer(c)
+
         # check the consumers credit
         consumer = self.api.get_one(table='consumer', name='Hans Müller')
         self.assertEqual(consumer.credit, 250)
+
         # create deposit
-        self.api.insert_deposit(consumer=consumer, amount=250)
-        consumer = self.api.get_one(table='consumer', name='Hans Müller')
+        dep1 = Deposit(consumer_id=1, amount=250)
+        self.api.insert_deposit(dep1)
+
         # check, if the consumers credit has been increased
+        consumer = self.api.get_one(table='consumer', id=1)
         self.assertEqual(consumer.credit, 500)
-        # get all deposits
+
+        # check the results
         deposit = self.api.get_one(table='deposit', id=1)
         self.assertEqual(deposit.amount, 250)
         self.assertEqual(deposit.consumer_id, consumer.id)
+
+        # test with wrong foreign_key consumer_id
+        dep2 = Deposit(consumer_id=2, amount=240)
+        with self.assertRaises(ForeignKeyNotExisting):
+            self.api.insert_deposit(dep2)
+
+        # deposit.id should be forbidden
+        dep3 = Deposit(consumer_id=2, amount=20, id=12)
+        with self.assertRaises(ForbiddenField):
+            self.api.insert_deposit(dep3)
+
+        # deposit.timestamp should be forbidden
+        dep4 = Deposit(consumer_id=2, amount=20,
+                       timestamp=datetime.datetime.now())
+        with self.assertRaises(ForbiddenField):
+            self.api.insert_deposit(dep3)
 
     def test_insert_purchase(self):
         # insert consumer and product

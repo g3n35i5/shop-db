@@ -186,6 +186,41 @@ class DatabaseApi(object):
 
         self.con.commit()
 
+    def insert_deposit(self, deposit):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(deposit, ['consumer_id', 'amount'])
+        self._assert_forbidden_fields(deposit, ['id', 'timestamp'])
+
+        # default values
+        deposit.timestamp = datetime.datetime.now()
+
+        # Since the foreign key exception of sqlite3 has no information
+        # which foreign key constrait was breaked, we have to check
+        # that by selecting the consumer/product.
+
+        # TODO: outsourcing in function
+        c = cur.execute('SELECT 1 FROM consumer WHERE id=?;',
+                        (deposit.consumer_id,))
+        if c.fetchone() is None:
+            raise ForeignKeyNotExisting('consumer_id', deposit.consumer_id)
+
+        cur.execute(
+            'INSERT INTO deposit (consumer_id, amount, timestamp) '
+            'VALUES (?,?,?);',
+            (deposit.consumer_id, deposit.amount, deposit.timestamp)
+        )
+
+        cur.execute(
+            'UPDATE consumer '
+            'SET credit = credit + ? '
+            'WHERE id=?;',
+            (deposit.amount,
+             deposit.consumer_id)
+        )
+
+        self.con.commit()
+
     def insert_object(self, object):
         cur = self.con.cursor()
 
@@ -261,15 +296,6 @@ class DatabaseApi(object):
                     WHERE id=?;', (consumer.name, consumer.active,
                                    consumer.credit, consumer.id))
         self.con.commit()
-
-    def insert_deposit(self, consumer, amount):
-        time = datetime.datetime.now()
-        deposit = Deposit(consumer_id=consumer.id,
-                          amount=amount,
-                          timestamp=time)
-        res = self.insert_object(deposit)
-        consumer.credit = consumer.credit + amount
-        self.update_consumer(consumer)
 
     def update_purchase(self, purchase):
         if purchase.id is None:
