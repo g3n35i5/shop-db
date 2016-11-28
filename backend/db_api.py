@@ -135,6 +135,25 @@ class DatabaseApi(object):
             raise ForeignKeyNotExisting(foreign_key,
                                         getattr(object, foreign_key))
 
+    def _simple_update(self, cur, object, table, updateable_fields):
+        params = []
+        query_parts = []
+
+        for field in updateable_fields:
+            if getattr(object, field) is None:
+                continue
+            query_parts.append('{}=?'.format(field))
+            params.append(getattr(object, field))
+
+        res = cur.execute(
+            'UPDATE {} SET {} WHERE id=?'
+            .format(table, ', '.join(query_parts)),
+            params + [object.id]
+        )
+
+        if res.rowcount != 1:
+            raise ObjectNotFound(type(object), object.id)
+
     def insert_product(self, product):
         cur = self.con.cursor()
 
@@ -294,28 +313,11 @@ class DatabaseApi(object):
         # TODO: what happens here if product.name is None?
         self._check_uniqueness(product, 'product', ['name'])
 
-        # TODO: maybe we should outsource the query generation
-        #       into an own helper function later
-        updateable_fields = ['name', 'price', 'active',
-                             'on_stock']
-
-        params = []
-        query_parts = []
-
-        for field in updateable_fields:
-            if getattr(product, field) is None:
-                continue
-            query_parts.append('{}=?'.format(field))
-            params.append(getattr(product, field))
-
-        res = cur.execute(
-            'UPDATE product SET {} WHERE id=?'
-            .format(', '.join(query_parts)),
-            params + [product.id]
+        self._simple_update(
+            cur=cur, object=product, table='product',
+            updateable_fields=['name', 'price', 'active',
+                               'on_stock']
         )
-
-        if res.rowcount != 1:
-            raise ObjectNotFound(Product, product.id)
 
     def update_consumer(self, consumer):
         if consumer.id is None:
