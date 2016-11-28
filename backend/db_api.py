@@ -319,6 +319,8 @@ class DatabaseApi(object):
                                'on_stock']
         )
 
+        self.con.commit()
+
     def update_consumer(self, consumer):
         if consumer.id is None:
             raise("Consumer has no id")
