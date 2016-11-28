@@ -236,5 +236,3 @@ class TestDatabaseApi(unittest.TestCase):
                         timestamp=datetime.datetime.now())
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur8)
-
-        # TODO: how to test rollback?

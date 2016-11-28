@@ -98,7 +98,6 @@ class DatabaseApi(object):
     def __init__(self, sqlite3_connection):
         self.con = sqlite3_connection
         self.con.execute('PRAGMA foreign_keys = ON;')
-        # TODO: check whether foreign keys were turned on, or exit!
 
     def _assert_mandatory_fields(self, object, fields):
         for field_name in fields:
@@ -152,7 +151,6 @@ class DatabaseApi(object):
             (product.name, product.active, product.on_stock, product.price)
         )
         self.con.commit()
-        # TODO: return value
 
     def insert_consumer(self, consumer):
         cur = self.con.cursor()
@@ -167,7 +165,6 @@ class DatabaseApi(object):
             (consumer.name, consumer.active, consumer.credit)
         )
         self.con.commit()
-        # TODO: return value
 
     def insert_purchase(self, purchase):
         cur = self.con.cursor()
@@ -177,6 +174,8 @@ class DatabaseApi(object):
             purchase, ['id', 'timestamp', 'revoked', 'paid_price']
         )
 
+        # TODO: purchase should be only allowed if the product and the consumer
+        #       is active
         purchase.timestamp = datetime.datetime.now()
         purchase.revoked = False
 
@@ -222,10 +221,6 @@ class DatabaseApi(object):
 
         # default values
         deposit.timestamp = datetime.datetime.now()
-
-        # Since the foreign key exception of sqlite3 has no information
-        # which foreign key constrait was breaked, we have to check
-        # that by selecting the consumer/product.
 
         self._check_foreign_key(deposit, 'consumer_id', 'consumer')
 
