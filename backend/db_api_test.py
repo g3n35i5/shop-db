@@ -236,3 +236,55 @@ class TestDatabaseApi(unittest.TestCase):
                         timestamp=datetime.datetime.now())
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur8)
+
+    def test_update_product(self):
+        # create test products
+        prod1 = Product(name='Twix', active=True, on_stock=True, price=90)
+        self.api.insert_product(prod1)
+        prod2 = Product(name='Bounty', active=True, on_stock=False, price=80)
+        self.api.insert_product(prod2)
+
+        # define a shortcut to test the state of the product with id=1
+        def check_product(name, price, active, on_stock):
+            # check whether the product was inserted correctly
+            prod = self.api.get_one(table='product', id=1)
+            self.assertEqual(prod.name, name)
+            self.assertEqual(prod.price, price)
+            self.assertEqual(prod.active, active)
+            self.assertEqual(prod.on_stock, on_stock)
+
+        # test update name
+        prod3 = Product(id=1, name='Mars')
+        self.api.update_product(prod3)
+        check_product('Mars', 90, True, True)
+
+        # test update active and on_stock
+        prod4 = Product(id=1, active=False, on_stock=False)
+        self.api.update_product(prod4)
+        check_product('Mars', 90, False, False)
+
+        # test update price (negative prices are allowed!)
+        prod5 = Product(id=1, price=-10)
+        self.api.update_product(prod5)
+        check_product('Mars', -10, False, False)
+
+        # test update without id
+        prod6 = Product(name="Rafaelo")
+        with self.assertRaises(FieldIsNone):
+            self.api.update_product(prod6)
+        # this should still be the same as before
+        check_product('Mars', -10, False, False)
+
+        # test update with unknown id
+        prod7 = Product(id=3, name="Rafaelo")
+        with self.assertRaises(ObjectNotFound):
+            self.api.update_product(prod7)
+        # this should still be the same as before
+        check_product('Mars', -10, False, False)
+
+        # test update with duplicate name
+        prod8 = Product(id=1, name="Bounty")
+        with self.assertRaises(DuplicateObject):
+            self.api.update_product(prod8)
+        # this should still be the same as before
+        check_product('Mars', -10, False, False)

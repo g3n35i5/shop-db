@@ -62,14 +62,13 @@ class ForbiddenField(DatabaseApiException):
 
 
 class ObjectNotFound(DatabaseApiException):
-    def __init__(self, table, id, name):
-        self.table = table
+    def __init__(self, model, id):
+        self.model = model
         self.id = id
-        self.name = name
 
     def __str__(self):
-        return '{0.table.__name__} with \
-            id={0.id}/name={0.name} not found.'.format(self)
+        return '{0.model.__name__} with ' + \
+            'id={0.id} not found.'.format(self)
 
 
 class DuplicateObject(DatabaseApiException):
@@ -287,6 +286,36 @@ class DatabaseApi(object):
 
         cur.execute('SELECT * FROM {};'.format(table))
         return cur.fetchall()
+
+    def update_product(self, product):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(product, ['id'])
+        # TODO: what happens here if product.name is None?
+        self._check_uniqueness(product, 'product', ['name'])
+
+        # TODO: maybe we should outsource the query generation
+        #       into an own helper function later
+        updateable_fields = ['name', 'price', 'active',
+                             'on_stock']
+
+        params = []
+        query_parts = []
+
+        for field in updateable_fields:
+            if getattr(product, field) is None:
+                continue
+            query_parts.append('{}=?'.format(field))
+            params.append(getattr(product, field))
+
+        res = cur.execute(
+            'UPDATE product SET {} WHERE id=?'
+            .format(', '.join(query_parts)),
+            params + [product.id]
+        )
+
+        if res.rowcount != 1:
+            raise ObjectNotFound(Product, product.id)
 
     def update_consumer(self, consumer):
         if consumer.id is None:
