@@ -22,6 +22,10 @@ class TestDatabaseApi(unittest.TestCase):
 
         self.api = DatabaseApi(self.con)
 
+    def tearDown(self):
+        # all actions should be committed after the tests
+        self.assertFalse(self.con.in_transaction)
+
     def test_insert_consumer(self):
         # insert correctly
         c = Consumer(name='Hans Müller', active=True, credit=250)
