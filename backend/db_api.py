@@ -152,6 +152,7 @@ class DatabaseApi(object):
         )
 
         if res.rowcount != 1:
+            self.con.rollback()
             raise ObjectNotFound(type(object), object.id)
 
     def insert_product(self, product):
