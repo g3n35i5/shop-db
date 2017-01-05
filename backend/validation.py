@@ -97,7 +97,7 @@ class ValidatableObject(object):
         field_validators = self._validators.get(field_name, None)
 
         if field_validators is None:
-            raise UnknownField(field_name, None)
+            raise UnknownField(field_name)
 
         for v in field_validators:
             v.validate(field_name, field_value)
@@ -106,6 +106,6 @@ class ValidatableObject(object):
 
     def __getattr__(self, field_name):
         if field_name not in self._validators.keys():
-            raise UnknownField(field_name, None)
+            raise UnknownField(field_name)
 
         return self._data.get(field_name, None)
