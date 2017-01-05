@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import json
 
 
 class FieldBasedException(Exception):
@@ -35,6 +36,20 @@ class MaximumValueExceeded(FieldBasedException):
 
 def fields(object):
     return object._validators.keys()
+
+
+def to_dict(object):
+    d = {}
+    for f in fields(object):
+        d[f] = getattr(object, f)
+    return d
+
+
+def to_json(converable):
+    if type(converable) is list:
+        return json.dumps([to_dict(obj) for obj in converable])
+    else:
+        return json.dumps(to_dict(converable))
 
 
 class LessThan(object):
