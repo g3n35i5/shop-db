@@ -30,7 +30,7 @@ class TestDatabaseApi(unittest.TestCase):
         # insert correctly
         c = Consumer(name='Hans Müller', active=True, credit=250)
         self.api.insert_consumer(c)
-        consumer = self.api.get_one(table='consumer', id=1)
+        consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.name, 'Hans Müller')
         self.assertEqual(consumer.credit, 250)
         self.assertTrue(consumer.active)
@@ -57,7 +57,7 @@ class TestDatabaseApi(unittest.TestCase):
         # insert correctly
         p = Product(name='Twix', active=True, on_stock=True, price=90)
         self.api.insert_product(p)
-        product = self.api.get_one(table='product', id=1)
+        product = self.api.get_product(id=1)
         self.assertEqual(product.name, 'Twix')
         self.assertEqual(product.price, 90)
         self.assertTrue(product.active)
@@ -86,30 +86,17 @@ class TestDatabaseApi(unittest.TestCase):
     def test_update_consumer(self):
         c = Consumer(name='Hans Müller', active=True, credit=250)
         self.api.insert_consumer(c)
-        consumer = self.api.get_one(table='consumer', id=1)
+        consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.name, 'Hans Müller')
         consumer.name = 'Peter Meier'
         self.api.update_consumer(consumer)
-        consumer = self.api.get_one(table='consumer', id=1)
+        consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.name, 'Peter Meier')
-
-    def test_access_wrong_table(self):
-        with self.assertRaises(NonExistentTable):
-            product = self.api.get_one(table='wrongtable', id=1)
-
-    def test_get_product_by_name(self):
-        p = Product(name='Mars', active=True, on_stock=False, price=30)
-        self.api.insert_product(p)
-        product = self.api.get_one(table='product', name='Mars')
-        self.assertEqual(product.name, 'Mars')
-        self.assertEqual(product.price, 30)
-        self.assertTrue(product.active)
-        self.assertFalse(product.on_stock)
 
     def test_get_product_by_id(self):
         p = Product(name='Twix', active=True, on_stock=True, price=90)
         self.api.insert_product(p)
-        product = self.api.get_one(table='product', id=1)
+        product = self.api.get_product(id=1)
         self.assertEqual(product.name, 'Twix')
         self.assertEqual(product.price, 90)
         self.assertTrue(product.active)
@@ -141,7 +128,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.api.insert_consumer(c)
 
         # check the consumers credit
-        consumer = self.api.get_one(table='consumer', name='Hans Müller')
+        consumer = self.api.get_consumer(1)
         self.assertEqual(consumer.credit, 250)
 
         # create deposit
@@ -149,11 +136,11 @@ class TestDatabaseApi(unittest.TestCase):
         self.api.insert_deposit(dep1)
 
         # check, if the consumers credit has been increased
-        consumer = self.api.get_one(table='consumer', id=1)
+        consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.credit, 500)
 
         # check the results
-        deposit = self.api.get_one(table='deposit', id=1)
+        deposit = self.api.get_deposit(id=1)
         self.assertEqual(deposit.amount, 250)
         self.assertEqual(deposit.consumer_id, consumer.id)
 
@@ -181,8 +168,8 @@ class TestDatabaseApi(unittest.TestCase):
         self.api.insert_consumer(c)
 
         # check, if the objects are correct
-        consumer = self.api.get_one(table='consumer', name='Hans Müller')
-        product = self.api.get_one(table='product', name='Coffee')
+        consumer = self.api.get_consumer(id=1)
+        product = self.api.get_product(id=1)
         self.assertEqual(consumer.credit, 250)
         self.assertEqual(product.price, 20)
 
@@ -191,13 +178,13 @@ class TestDatabaseApi(unittest.TestCase):
         # TODO: pur.id is still None here. Should we change this?
 
         # test whether the purchase was inserted correctly
-        pur2 = self.api.get_one(table='purchase', id=1)
+        pur2 = self.api.get_purchase(id=1)
         # paid_price should have been filled
         self.assertEqual(pur2.paid_price, 20)
         # timestamp should have been added
         self.assertIsNotNone(pur2.timestamp)
 
-        consumer = self.api.get_one(table='consumer', name='Hans Müller')
+        consumer = self.api.get_consumer(1)
         self.assertEqual(consumer.credit, 230)
 
         # test with wrong foreign key consumer_id
@@ -217,7 +204,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(len(self.api.get_all(table='purchase')), 1)
 
         # the credit of the consumer must not have to be changed
-        consumer = self.api.get_one(table='consumer', id=1)
+        consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.credit, 230)
 
         # purchase.id should be forbidden
@@ -251,7 +238,7 @@ class TestDatabaseApi(unittest.TestCase):
         # define a shortcut to test the state of the product with id=1
         def check_product(name, price, active, on_stock):
             # check whether the product was inserted correctly
-            prod = self.api.get_one(table='product', id=1)
+            prod = self.api.get_product(id=1)
             self.assertEqual(prod.name, name)
             self.assertEqual(prod.price, price)
             self.assertEqual(prod.active, active)

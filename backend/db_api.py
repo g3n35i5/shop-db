@@ -29,22 +29,6 @@ class ForeignKeyNotExisting(FieldBasedException):
                 .format(self))
 
 
-class NonExistentModel(DatabaseApiException):
-    def __init__(self, model):
-        self.model = model
-
-    def __str__(self):
-        return 'non existent Model {0.model.__name__}.'.format(self)
-
-
-class NonExistentTable(DatabaseApiException):
-    def __init__(self, table):
-        self.table = table
-
-    def __str__(self):
-        return 'non existent table {0.table.__name__}.'.format(self)
-
-
 class FieldIsNone(FieldBasedException):
     def __init__(self, model, field):
         self.model = model
@@ -252,34 +236,26 @@ class DatabaseApi(object):
 
         self.con.commit()
 
-    def get_one(self, table, id=None, name=None):
-        if id is None and name is None:
-            raise("get_object: at least one identifier required")
-        cur = cur = self.con.cursor()
+    def get_consumer(self, id):
+        return self._get_one(model=Consumer, table='consumer', id=id)
 
-        if table not in ['consumer', 'product', 'purchase', 'deposit']:
-            raise NonExistentTable(table)
+    def get_product(self, id):
+        return self._get_one(model=Product, table='product', id=id)
 
-        if table is 'consumer':
-            cur.row_factory = factory(Consumer)
-        elif table is 'product':
-            cur.row_factory = factory(Product)
-        elif table is 'purchase':
-            cur.row_factory = factory(Purchase)
-        elif table is 'deposit':
-            cur.row_factory = factory(Deposit)
+    def get_purchase(self, id):
+        return self._get_one(model=Purchase, table='purchase', id=id)
 
-        if id is not None:
-            cur.execute('SELECT * FROM {} WHERE id=?;'.format(table), (id,))
-        else:
-            if table is not 'deposit':
-                cur.execute('SELECT * FROM {} WHERE name=?;'.format(table),
-                            (name,))
-            else:
-                raise 'field name is not available for deposit'
+    def get_deposit(self, id):
+        return self._get_one(model=Deposit, table='deposit', id=id)
+
+    def _get_one(self, model, table, id):
+        cur = self.con.cursor()
+        cur.row_factory = factory(model)
+        cur.execute('SELECT * FROM {} WHERE id=?;'.format(table), (id,))
+
         res = cur.fetchone()
         if res is None:
-            raise ObjectNotFound(table=table, id=id, name=name)
+            raise ObjectNotFound(model=model, id=id)
         return res
 
     def get_all(self, table):
