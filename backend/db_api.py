@@ -258,21 +258,21 @@ class DatabaseApi(object):
             raise ObjectNotFound(model=model, id=id)
         return res
 
-    def get_all(self, table):
-        if table not in ['consumer', 'product', 'purchase', 'deposit']:
-            raise NonExistentTable(table)
+    def list_consumers(self):
+        return self._list(model=Consumer, table='consumer')
 
+    def list_products(self):
+        return self._list(model=Product, table='product')
+
+    def list_purchases(self):
+        return self._list(model=Purchase, table='purchase')
+
+    def list_deposits(self):
+        return self._list(model=Deposit, table='deposit')
+
+    def _list(self, model, table):
         cur = self.con.cursor()
-
-        if table is 'consumer':
-            cur.row_factory = factory(Consumer)
-        elif table is 'product':
-            cur.row_factory = factory(Product)
-        elif table is 'purchase':
-            cur.row_factory = factory(Purchase)
-        elif table is 'deposit':
-            cur.row_factory = factory(Deposit)
-
+        cur.row_factory = factory(model)
         cur.execute('SELECT * FROM {};'.format(table))
         return cur.fetchall()
 

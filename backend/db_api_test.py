@@ -108,7 +108,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.api.insert_product(p1)
         self.api.insert_product(p2)
 
-        products = self.api.get_all('product')
+        products = self.api.list_products()
         self.assertIs(type(products), list)
         self.assertEqual(len(products), 2)
         # Mars
@@ -193,7 +193,7 @@ class TestDatabaseApi(unittest.TestCase):
             self.api.insert_purchase(pur3)
 
         # no new purchase should have been created
-        self.assertEqual(len(self.api.get_all(table='purchase')), 1)
+        self.assertEqual(len(self.api.list_purchases()), 1)
 
         # test with wrong foreign key product_id
         pur4 = Purchase(consumer_id=1, product_id=2)
@@ -201,7 +201,7 @@ class TestDatabaseApi(unittest.TestCase):
             self.api.insert_purchase(pur4)
 
         # no new purchase should have been created
-        self.assertEqual(len(self.api.get_all(table='purchase')), 1)
+        self.assertEqual(len(self.api.list_purchases()), 1)
 
         # the credit of the consumer must not have to be changed
         consumer = self.api.get_consumer(id=1)
