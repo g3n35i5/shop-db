@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from .validation import ValidatableObject, Type, fields
+from .validation import ValidatableObject, Type, MaxLength, fields
 import datetime
 
 
@@ -25,7 +25,7 @@ def representation(obj):
 class Consumer(ValidatableObject):
     _validators = {
         'id': [Type(int)],
-        'name': [Type(str)],
+        'name': [Type(str), MaxLength(128)],
         'credit': [Type(int)],
         'active': [Type(bool)]
     }
@@ -37,7 +37,7 @@ class Consumer(ValidatableObject):
 class Product(ValidatableObject):
     _validators = {
         'id': [Type(int)],
-        'name': [Type(str)],
+        'name': [Type(str), MaxLength(128)],
         'price': [Type(int)],
         'active': [Type(bool)],
         'on_stock': [Type(bool)]
