@@ -2,6 +2,7 @@
 
 import sqlite3
 from .models import Consumer, Product, Purchase, Deposit
+from .validation import FieldBasedException
 import pdb
 import datetime
 
@@ -16,14 +17,16 @@ class DatabaseApiException(Exception):
         self.model = model
 
 
-class ForeignKeyNotExisting(DatabaseApiException):
-    def __init__(self, foreign_key, foreign_id):
-        self.foreign_key = foreign_key
+class ForeignKeyNotExisting(FieldBasedException):
+    type = 'foreign-key-not-existing'
+
+    def __init__(self, field, foreign_id):
+        self.field = field
         self.foreign_id = foreign_id
 
     def __str__(self):
-        return 'Foreign key {0.foreign_key} with ' + \
-               'id={0.foreign_id} does not exist.'.format(self)
+        return ('Foreign {0.field} with id {0.foreign_id} does not exist.'
+                .format(self))
 
 
 class NonExistentModel(DatabaseApiException):
@@ -42,23 +45,19 @@ class NonExistentTable(DatabaseApiException):
         return 'non existent table {0.table.__name__}.'.format(self)
 
 
-class FieldIsNone(DatabaseApiException):
+class FieldIsNone(FieldBasedException):
     def __init__(self, model, field):
         self.model = model
         self.field = field
 
     def __str__(self):
-        return '{0.model.__name__}: field {0.field} is None'.format(self)
+        return '{0.field} is missing'.format(self)
 
 
-class ForbiddenField(DatabaseApiException):
-    def __init__(self, model, field):
-        self.model = model
-        self.field = field
-
+class ForbiddenField(FieldBasedException):
     def __str__(self):
-        return '{0.model.__name__}: field {0.field}' + \
-               'is not allowed'.format(self)
+        return ('Field "{0.field}" is not allowed for {model.__name__}.'
+                .format(self, **self.kwargs))
 
 
 class ObjectNotFound(DatabaseApiException):
@@ -67,19 +66,13 @@ class ObjectNotFound(DatabaseApiException):
         self.id = id
 
     def __str__(self):
-        return '{0.model.__name__} with ' + \
-            'id={0.id} not found.'.format(self)
+        return ('{0.model.__name__} with id {0.id} not found.').format(self)
 
 
-class DuplicateObject(DatabaseApiException):
-    def __init__(self, model, unique_field_name, unique_field_value):
-        self.model = model
-        self.unique_field_name = unique_field_name
-        self.unique_field_value = unique_field_value
-
+class DuplicateObject(FieldBasedException):
     def __str__(self):
-        return 'There is already a {0.model.__name__} with ' + \
-               '{0.unique_field_name}="self.unique_field_value"'
+        return ('There is already a {model.__name__} with {0.field} '
+                '"{unique_field_value}".'.format(self, **self.kwargs))
 
 
 def factory(cls):
@@ -117,8 +110,8 @@ class DatabaseApi(object):
             )
             if res.fetchone() is not None:
                 raise DuplicateObject(
+                    field=field_name,
                     model=type(object),
-                    unique_field_name=field_name,
                     unique_field_value=getattr(object, field_name)
                 )
 
