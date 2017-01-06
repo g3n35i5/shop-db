@@ -2,7 +2,7 @@
 
 import sqlite3
 from .models import Consumer, Product, Purchase, Deposit
-from .validation import FieldBasedException
+from .validation import FieldBasedException, InputException
 import pdb
 import datetime
 
@@ -12,51 +12,29 @@ sqlite3.register_adapter(bool, int)
 sqlite3.register_converter("BOOLEAN", lambda v: bool(int(v)))
 
 
-class DatabaseApiException(Exception):
-    def __init__(self, model):
-        self.model = model
-
-
 class ForeignKeyNotExisting(FieldBasedException):
-    type = 'foreign-key-not-existing'
-
-    def __init__(self, field, foreign_id):
-        self.field = field
-        self.foreign_id = foreign_id
-
-    def __str__(self):
-        return ('Foreign {0.field} with id {0.foreign_id} does not exist.'
-                .format(self))
+    def __init__(self, field):
+        FieldBasedException.__init__(self, field)
 
 
 class FieldIsNone(FieldBasedException):
-    def __init__(self, model, field):
-        self.model = model
-        self.field = field
-
-    def __str__(self):
-        return '{0.field} is missing'.format(self)
+    def __init__(self, field):
+        FieldBasedException.__init__(self, field)
 
 
 class ForbiddenField(FieldBasedException):
-    def __str__(self):
-        return ('Field "{0.field}" is not allowed for {model.__name__}.'
-                .format(self, **self.kwargs))
+    def __init__(self, field):
+        FieldBasedException.__init__(self, field)
 
 
-class ObjectNotFound(DatabaseApiException):
-    def __init__(self, model, id):
-        self.model = model
-        self.id = id
-
-    def __str__(self):
-        return ('{0.model.__name__} with id {0.id} not found.').format(self)
+class ObjectNotFound(InputException):
+    def __init__(self):
+        InputException.__init__(self)
 
 
 class DuplicateObject(FieldBasedException):
-    def __str__(self):
-        return ('There is already a {model.__name__} with {0.field} '
-                '"{unique_field_value}".'.format(self, **self.kwargs))
+    def __init__(self, field):
+        FieldBasedException.__init__(self, field)
 
 
 def factory(cls):
@@ -78,12 +56,12 @@ class DatabaseApi(object):
     def _assert_mandatory_fields(self, object, fields):
         for field_name in fields:
             if getattr(object, field_name, None) is None:
-                raise FieldIsNone(model=type(object), field=field_name)
+                raise FieldIsNone(field_name)
 
     def _assert_forbidden_fields(self, object, fields):
         for field_name in fields:
             if getattr(object, field_name, None) is not None:
-                raise ForbiddenField(model=type(object), field=field_name)
+                raise ForbiddenField(field=field_name)
 
     def _check_uniqueness(self, object, table, fields):
         cur = self.con.cursor()
@@ -93,11 +71,7 @@ class DatabaseApi(object):
                 (getattr(object, field_name),)
             )
             if res.fetchone() is not None:
-                raise DuplicateObject(
-                    field=field_name,
-                    model=type(object),
-                    unique_field_value=getattr(object, field_name)
-                )
+                raise DuplicateObject(field=field_name)
 
     def _check_foreign_key(self, object, foreign_key, foreign_table):
         cur = self.con.cursor()
@@ -109,8 +83,7 @@ class DatabaseApi(object):
                         (getattr(object, foreign_key),))
 
         if c.fetchone() is None:
-            raise ForeignKeyNotExisting(foreign_key,
-                                        getattr(object, foreign_key))
+            raise ForeignKeyNotExisting(foreign_key)
 
     def _simple_update(self, cur, object, table, updateable_fields):
         params = []
@@ -130,7 +103,7 @@ class DatabaseApi(object):
 
         if res.rowcount != 1:
             self.con.rollback()
-            raise ObjectNotFound(type(object), object.id)
+            raise ObjectNotFound()
 
     def insert_product(self, product):
         cur = self.con.cursor()
@@ -261,7 +234,7 @@ class DatabaseApi(object):
 
         res = cur.fetchone()
         if res is None:
-            raise ObjectNotFound(model=model, id=id)
+            raise ObjectNotFound()
         return res
 
     def list_consumers(self):

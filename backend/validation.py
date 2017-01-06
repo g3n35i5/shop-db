@@ -2,36 +2,34 @@
 
 import json
 
+class InputException(Exception):
+    def __init__(self, **kwargs):
+        self.info = kwargs
 
-class FieldBasedException(Exception):
-    type = 'field-based'
-
+class FieldBasedException(InputException):
     def __init__(self, field, **kwargs):
-        self.field = field
-        self.kwargs = kwargs
+        InputException.__init__(self, field=field, **kwargs)
 
 
 class WrongType(FieldBasedException):
-    def __str__(self):
-        return ('The {0.field} must be of type {expected_type.__name__}.'
-                .format(self, **self.kwargs))
+    def __init__(self, field, expected_type):
+        FieldBasedException.__init__(self, field, expected_type=expected_type)
 
 
 class MaxLengthExceeded(FieldBasedException):
-    def __str__(self):
-        return ('Maximum allowed length for {0.field} is {max_length}.'
-                .format(self, **self.kwargs))
+    def __init__(self, field, max_allowed_length):
+        FieldBasedException.__init__(self, field,
+                                     max_allowed_length=max_allowed_length)
 
 
 class UnknownField(FieldBasedException):
-    def __str__(self):
-        return '{0.field} is an unknown field.'.format(self)
+    def __init__(self, field):
+        FieldBasedException.__init__(self, field)
 
 
 class MaximumValueExceeded(FieldBasedException):
-    def __str__(self):
-        return ('{0.field} has to be less than {max_val}, but is {value}.'
-                .format(self, **self.kwargs))
+    def __init__(self, field, upper_bound):
+        FieldBasedException.__init__(self, field, upper_bound=upper_bound)
 
 
 def fields(object):
@@ -59,7 +57,7 @@ class LessThan(object):
 
     def validate(self, field, value):
         if value >= self.other:
-            raise MaximumValueExceeded(field, value=value, max_val=self.other)
+            raise MaximumValueExceeded(field, upper_bound=self.other)
 
 
 class MaxLength(object):
@@ -68,7 +66,7 @@ class MaxLength(object):
 
     def validate(self, field, value):
         if len(value) > self.length:
-            raise MaxLengthExceeded(field, value=value, max_length=self.length)
+            raise MaxLengthExceeded(field, max_allowed_length=self.length)
 
 
 class Type(object):
@@ -78,7 +76,7 @@ class Type(object):
 
     def validate(self, field, value):
         if type(value) is not self.type:
-            raise WrongType(field, value=value, expected_type=self.type)
+            raise WrongType(field, expected_type=self.type)
 
 
 class ValidatableObject(object):
