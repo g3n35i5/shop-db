@@ -165,9 +165,11 @@ class DatabaseApi(object):
     def insert_purchase(self, purchase):
         cur = self.con.cursor()
 
-        self._assert_mandatory_fields(purchase, ['product_id', 'consumer_id'])
+        self._assert_mandatory_fields(purchase, ['product_id',
+                                                 'consumer_id',
+                                                 'amount'])
         self._assert_forbidden_fields(
-            purchase, ['id', 'timestamp', 'revoked', 'paid_price']
+            purchase, ['id', 'timestamp', 'revoked', 'paid_price_per_product']
         )
 
         # TODO: purchase should be only allowed if the product and the consumer
@@ -184,8 +186,10 @@ class DatabaseApi(object):
             '    product_id, '
             '    revoked, '
             '    timestamp,'
-            '    paid_price) '
+            '    amount,'
+            '    paid_price_per_product) '
             'VALUES ('
+            '    ?, '
             '    ?, '
             '    ?, '
             '    ?, '
@@ -196,14 +200,16 @@ class DatabaseApi(object):
              purchase.product_id,
              purchase.revoked,
              purchase.timestamp,
+             purchase.amount,
              purchase.product_id)
         )
 
         cur.execute(
             'UPDATE consumer '
-            'SET credit = credit - (SELECT price from product where id=?) '
+            'SET credit = credit - ?*(SELECT price from product where id=?) '
             'WHERE id=?;',
-            (purchase.product_id,
+            (purchase.amount,
+             purchase.product_id,
              purchase.consumer_id)
         )
 
@@ -305,12 +311,14 @@ class DatabaseApi(object):
         if purchase.id is None:
             raise("Purchase has no id")
         cur = self.con.cursor()
-        consumer = self.get_one(table='consumer', id=purchase.consumer_id)
+        consumer = self.get_consumer(id=purchase.consumer_id)
 
         if purchase.revoked is True:
-            consumer.credit = consumer.credit + purchase.paid_price
+            refund = purchase.amount * purchase.paid_price_per_product
+            consumer.credit = consumer.credit + refund
         if purchase.revoked is False:
-            consumer.credit = consumer.credit - purchase.paid_price
+            paid = purchase.amount * purchase.paid_price_per_product
+            consumer.credit = consumer.credit - paid
 
         self.update_consumer(consumer)
         cur.execute('UPDATE purchase SET revoked=? \

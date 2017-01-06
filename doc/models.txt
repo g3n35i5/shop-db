@@ -17,16 +17,17 @@
 | on_stock: bool     |
 |____________________|
 
- --------------------------
-| purchase                 |
-|--------------------------|
-| id: int                  |
-| consumer_id: foreign_key |
-| product_id: foreign_key  |
-| timestamp: timestamp     |
-| revoked: bool            |
-| paid_price: int          |
-|__________________________|
+ --------------------------------------
+| purchase                             |
+|--------------------------------------|
+| id: int                              |
+| amount: int                          |
+| consumer_id: foreign_key             |
+| product_id: foreign_key              |
+| timestamp: timestamp                 |
+| revoked: bool                        |
+| paid_price_per_product: int          |
+|______________________________________|
 
  --------------------------
 | deposit                  |

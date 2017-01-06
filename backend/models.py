@@ -52,9 +52,10 @@ class Purchase(ValidatableObject):
         'id': [Type(int)],
         'consumer_id': [Type(int)],
         'product_id': [Type(int)],
+        'amount': [Type(int)],
         'timestamp': [Type(datetime.datetime)],
         'revoked': [Type(bool)],
-        'paid_price': [Type(int)]
+        'paid_price_per_product': [Type(int)]
     }
 
     def __repr__(self):

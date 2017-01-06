@@ -173,22 +173,24 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(consumer.credit, 250)
         self.assertEqual(product.price, 20)
 
-        pur1 = Purchase(consumer_id=1, product_id=1)
+        pur1 = Purchase(consumer_id=1, product_id=1, amount=5)
         self.api.insert_purchase(pur1)
         # TODO: pur.id is still None here. Should we change this?
 
         # test whether the purchase was inserted correctly
         pur2 = self.api.get_purchase(id=1)
         # paid_price should have been filled
-        self.assertEqual(pur2.paid_price, 20)
+        self.assertEqual(pur2.paid_price_per_product, 20)
+        self.assertEqual(pur2.amount, 5)
         # timestamp should have been added
         self.assertIsNotNone(pur2.timestamp)
 
         consumer = self.api.get_consumer(1)
-        self.assertEqual(consumer.credit, 230)
+        self.assertEqual(consumer.credit,
+                         250 - pur2.amount * pur2.paid_price_per_product)
 
         # test with wrong foreign key consumer_id
-        pur3 = Purchase(consumer_id=2, product_id=1)
+        pur3 = Purchase(consumer_id=2, product_id=1, amount=1)
         with self.assertRaises(ForeignKeyNotExisting):
             self.api.insert_purchase(pur3)
 
@@ -196,7 +198,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(len(self.api.list_purchases()), 1)
 
         # test with wrong foreign key product_id
-        pur4 = Purchase(consumer_id=1, product_id=2)
+        pur4 = Purchase(consumer_id=1, product_id=2, amount=1)
         with self.assertRaises(ForeignKeyNotExisting):
             self.api.insert_purchase(pur4)
 
@@ -205,28 +207,64 @@ class TestDatabaseApi(unittest.TestCase):
 
         # the credit of the consumer must not have to be changed
         consumer = self.api.get_consumer(id=1)
-        self.assertEqual(consumer.credit, 230)
+        self.assertEqual(consumer.credit,
+                         250 - pur2.amount * pur2.paid_price_per_product)
 
         # purchase.id should be forbidden
-        pur5 = Purchase(consumer_id=1, product_id=1, id=1337)
+        pur5 = Purchase(consumer_id=1, product_id=1, id=1337, amount=1)
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur5)
 
         # purchase.paid_price should be forbidden
-        pur6 = Purchase(consumer_id=1, product_id=1, paid_price=200)
+        pur6 = Purchase(consumer_id=1, product_id=1,
+                        paid_price_per_product=200, amount=1)
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur6)
 
         # purchase.revoked should be forbidden
-        pur7 = Purchase(consumer_id=1, product_id=1, revoked=True)
+        pur7 = Purchase(consumer_id=1, product_id=1, revoked=True, amount=1)
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur7)
 
         # purchase.revoked should be forbidden
-        pur8 = Purchase(consumer_id=1, product_id=1,
+        pur8 = Purchase(consumer_id=1, product_id=1, amount=1,
                         timestamp=datetime.datetime.now())
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur8)
+
+    def test_update_purchase(self):
+        # insert consumer and product
+        p = Product(name='Coffee', price=20, active=True, on_stock=True)
+        c = Consumer(name='Hans Müller', active=True, credit=250)
+        self.api.insert_product(p)
+        self.api.insert_consumer(c)
+
+        # check, if the objects are correct
+        consumer = self.api.get_consumer(id=1)
+        product = self.api.get_product(id=1)
+        self.assertEqual(consumer.credit, 250)
+        self.assertEqual(product.price, 20)
+
+        pur = Purchase(consumer_id=1, product_id=1, amount=5)
+        self.api.insert_purchase(pur)
+
+        # check if the consumers credit has decreased
+        pur = self.api.get_purchase(id=1)
+        consumer = self.api.get_consumer(id=1)
+        self.assertEqual(consumer.credit,
+                         250 - pur.amount * pur.paid_price_per_product)
+
+        # revoke purchase
+        pur.revoked = True
+        self.api.update_purchase(pur)
+
+        # check if the purchase has been updated
+        pur2 = self.api.get_purchase(id=1)
+        self.assertTrue(pur2.revoked)
+
+        # check if the consumers credit has increased
+        consumer = self.api.get_consumer(id=1)
+        self.assertEqual(consumer.credit, 250)
 
     def test_update_product(self):
         # create test products
