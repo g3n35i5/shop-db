@@ -76,7 +76,7 @@ class Type(object):
 
     def validate(self, field, value):
         if type(value) is not self.type:
-            raise WrongType(field, expected_type=self.type)
+            raise WrongType(field, expected_type=self.type.__name__)
 
 
 class ValidatableObject(object):
