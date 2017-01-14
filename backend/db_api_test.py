@@ -255,14 +255,25 @@ class TestDatabaseApi(unittest.TestCase):
                          250 - pur.amount * pur.paid_price_per_product)
 
         # revoke purchase
-        pur.revoked = True
+        pur = Purchase(id=1, revoked=True)
         self.api.update_purchase(pur)
+        # do it twice to check whether it's indeponent
+        with self.assertRaises(PurchaseCanOnlyBeRevokedOnce):
+            self.api.update_purchase(pur)
 
         # check if the purchase has been updated
         pur2 = self.api.get_purchase(id=1)
         self.assertTrue(pur2.revoked)
 
         # check if the consumers credit has increased
+        consumer = self.api.get_consumer(id=1)
+        self.assertEqual(consumer.credit, 250)
+
+        # this should do nothing
+        pur = Purchase(id=1)
+        self.api.update_purchase(pur)
+
+        # check if the consumers credit is the same
         consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.credit, 250)
 

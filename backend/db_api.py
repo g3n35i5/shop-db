@@ -37,6 +37,11 @@ class DuplicateObject(FieldBasedException):
         FieldBasedException.__init__(self, field)
 
 
+class PurchaseCanOnlyBeRevokedOnce(FieldBasedException):
+    def __init__(self):
+        FieldBasedException.__init__(self, 'revoked')
+
+
 def factory(cls):
     """ Helper function for ORM Mapping """
     def fun(cursor, row):
@@ -286,19 +291,32 @@ class DatabaseApi(object):
         self.con.commit()
 
     def update_purchase(self, purchase):
-        if purchase.id is None:
-            raise("Purchase has no id")
+        self._assert_mandatory_fields(purchase, ['id'])
+        self._assert_forbidden_fields(purchase, ['consumer_id', 'amount',
+                                                 'product_id', 'timestamp',
+                                                 'paid_price_per_product'])
+
+        if purchase.revoked is None:
+            # nothing to do
+            return
+
         cur = self.con.cursor()
-        consumer = self.get_consumer(id=purchase.consumer_id)
+        cur.execute(
+            'WITH p AS ('
+            '    SELECT consumer_id, amount, paid_price_per_product '
+            '    FROM purchase WHERE id=? and revoked=0'
+            ') '
+            'UPDATE consumer '
+            'SET credit=credit+(SELECT amount*paid_price_per_product FROM p) '
+            'WHERE id IN (SELECT consumer_id FROM p);',
+            (purchase.id, )
+        )
 
-        if purchase.revoked is True:
-            refund = purchase.amount * purchase.paid_price_per_product
-            consumer.credit = consumer.credit + refund
-        if purchase.revoked is False:
-            paid = purchase.amount * purchase.paid_price_per_product
-            consumer.credit = consumer.credit - paid
+        if cur.rowcount == 0:
+            self.con.rollback()
+            raise PurchaseCanOnlyBeRevokedOnce()
 
-        self.update_consumer(consumer)
-        cur.execute('UPDATE purchase SET revoked=? \
-                    WHERE id=?;', (purchase.revoked, purchase.id))
+        self._simple_update(cur, object=purchase, table='purchase',
+                            updateable_fields=['revoked'])
+
         self.con.commit()
