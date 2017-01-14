@@ -274,13 +274,15 @@ class DatabaseApi(object):
         self.con.commit()
 
     def update_consumer(self, consumer):
-        if consumer.id is None:
-            raise("Consumer has no id")
+        self._assert_mandatory_fields(consumer, ['id'])
+        self._assert_forbidden_fields(consumer, ['credit'])
+        self._check_uniqueness(consumer, 'consumer', ['name'])
         cur = self.con.cursor()
 
-        cur.execute('UPDATE consumer SET name=?, active=?, credit=? \
-                    WHERE id=?;', (consumer.name, consumer.active,
-                                   consumer.credit, consumer.id))
+        self._simple_update(
+            cur=cur, object=consumer, table='consumer',
+            updateable_fields=['name', 'active']
+        )
         self.con.commit()
 
     def update_purchase(self, purchase):
