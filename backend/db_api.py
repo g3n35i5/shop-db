@@ -95,6 +95,9 @@ class DatabaseApi(object):
             query_parts.append('{}=?'.format(field))
             params.append(getattr(object, field))
 
+        if len(query_parts) == 0:
+            return
+
         res = cur.execute(
             'UPDATE {} SET {} WHERE id=?'
             .format(table, ', '.join(query_parts)),
