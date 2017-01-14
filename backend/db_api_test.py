@@ -88,10 +88,20 @@ class TestDatabaseApi(unittest.TestCase):
         self.api.insert_consumer(c)
         consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.name, 'Hans Müller')
-        consumer.name = 'Peter Meier'
+        consumer = Consumer(id=1, name='Peter Meier')
         self.api.update_consumer(consumer)
         consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.name, 'Peter Meier')
+
+        c = Consumer(id=1, credit=1337)
+        with self.assertRaises(ForbiddenField):
+            self.api.update_consumer(c)
+        consumer = self.api.get_consumer(id=1)
+        self.assertEqual(consumer.credit, 250)
+
+        c = Consumer(active=False)
+        with self.assertRaises(FieldIsNone):
+            self.api.update_consumer(c)
 
     def test_get_product_by_id(self):
         p = Product(name='Twix', active=True, on_stock=True, price=90)
