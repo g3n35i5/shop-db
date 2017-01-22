@@ -7,7 +7,7 @@ from backend.db_api import DatabaseApi, ObjectNotFound, DuplicateObject, \
 from backend.validation import to_dict, FieldBasedException, InputException, \
                                WrongType, MaxLengthExceeded, UnknownField, \
                                MaximumValueExceeded
-from backend.models import Consumer, Product, Purchase
+from backend.models import Consumer, Product, Purchase, Deposit
 import sqlite3
 import json
 from werkzeug.local import LocalProxy
@@ -145,9 +145,22 @@ def create_purchase():
 def get_purchase(id):
     return jsonify(to_dict(api.get_purchase(id)))
 
+
 @app.route('/purchases/<int:id>', methods=['PUT'])
 def put_purchase(id):
     p = Purchase(**request.get_json())
     p.id = id
     api.update_purchase(p)
     return jsonify(result='updated'), 200
+
+
+@app.route('/deposits', methods=['GET'])
+def list_deposits():
+    return jsonify(list(map(to_dict, api.list_deposits())))
+
+
+@app.route('/deposits', methods=['POST'])
+def create_deposit():
+    d = Deposit(**request.get_json())
+    api.insert_deposit(d)
+    return jsonify(result='created'), 201
