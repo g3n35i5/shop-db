@@ -296,8 +296,9 @@ class DatabaseApi(object):
                                                  'product_id', 'timestamp',
                                                  'paid_price_per_product'])
 
-        if purchase.revoked is None:
+        if purchase.revoked is None or not purchase.revoked:
             # nothing to do
+            # TODO: maybe we should return something like "nothing to do"
             return
 
         cur = self.con.cursor()
