@@ -1,18 +1,21 @@
 #!/usr/bin/python3
 
-from flask import Flask, request, jsonify, Request, g
-from backend.db_api import DatabaseApi, ObjectNotFound, DuplicateObject, \
-                           ForeignKeyNotExisting, FieldIsNone, ForbiddenField, \
-                           PurchaseCanOnlyBeRevokedOnce
-from backend.validation import to_dict, FieldBasedException, InputException, \
-                               WrongType, MaxLengthExceeded, UnknownField, \
-                               MaximumValueExceeded
-from backend.models import Consumer, Product, Purchase, Deposit
-import sqlite3
 import json
+import sqlite3
+
+from flask import Flask, Request, g, jsonify, request
 from werkzeug.local import LocalProxy
 
+from backend.db_api import (DatabaseApi, DuplicateObject, FieldIsNone,
+                            ForbiddenField, ForeignKeyNotExisting,
+                            ObjectNotFound, PurchaseCanOnlyBeRevokedOnce)
+from backend.models import Consumer, Deposit, Product, Purchase
+from backend.validation import (FieldBasedException, InputException,
+                                MaximumValueExceeded, MaxLengthExceeded,
+                                UnknownField, WrongType, to_dict)
+
 app = Flask(__name__)
+
 
 def get_api():
     api = getattr(g, '_api', None)
@@ -23,19 +26,23 @@ def get_api():
 
 api = LocalProxy(get_api)
 
+
 @app.teardown_appcontext
 def teardown_db(exception):
     db = getattr(g, '_database', None)
     if db is not None:
         db.close()
 
+
 class InvalidJSON(InputException):
     pass
+
 
 def handle_json_error(self, e):
     raise InvalidJSON()
 
 Request.on_json_loading_failed = handle_json_error
+
 
 @app.errorhandler(404)
 def not_found(error):
@@ -48,18 +55,20 @@ def internal_error(error):
 
 
 exception_mapping = {
-    WrongType: { "types": ["input-exception", "field-based-exception", "wrong-type"], "code": 400 },
-    MaxLengthExceeded: { "types": ["input-exception", "field-based-exception", "max-length-exceeded"], "code": 400},
-    UnknownField: { "types": ["input-exception", "field-based-exception", "unknown-field"], "code": 400 },
-    MaximumValueExceeded: { "types": ["input-exception", "field-based-exception", "maximum-value-exceeded"], "code": 400},
-    InvalidJSON: { "types": ["input-exception", "invalid-json"], "code": 400 },
-    DuplicateObject: { "types": ["input-exception", "field-based-exception", "duplicate-object"], "code": 400 },
-    ForeignKeyNotExisting: { "types": ["input-exception", "field-based-exception", "foreign-key-not-existing"], "code": 400 },
-    FieldIsNone: { "types": ["input-exception", "field-based-exception", "field-is-none"], "code": 400 },
-    ForbiddenField: { "types": ["input-exception", "field-based-exception", "forbidden-field"], "code": 400 },
-    ObjectNotFound: { "types": ["input-exception", "object-not-found"], "code": 404 }, # TODO: field based?
-    DuplicateObject: { "types": ["input-exception", "field-based-exception", "duplicate-object"], "code": 400 },
-    PurchaseCanOnlyBeRevokedOnce: { "types": ["input-exception", "field-based-exception", "purchase-can-only-be-revoked-once"], "code": 400 }
+    WrongType: {"types": ["input-exception", "field-based-exception", "wrong-type"], "code": 400},
+    MaxLengthExceeded: {"types": ["input-exception", "field-based-exception", "max-length-exceeded"], "code": 400},
+    UnknownField: {"types": ["input-exception", "field-based-exception", "unknown-field"], "code": 400},
+    MaximumValueExceeded: {"types": ["input-exception", "field-based-exception", "maximum-value-exceeded"], "code": 400},
+    InvalidJSON: {"types": ["input-exception", "invalid-json"], "code": 400},
+    DuplicateObject: {"types": ["input-exception", "field-based-exception", "duplicate-object"], "code": 400},
+    ForeignKeyNotExisting: {"types": ["input-exception", "field-based-exception", "foreign-key-not-existing"], "code": 400},
+    FieldIsNone: {"types": ["input-exception", "field-based-exception", "field-is-none"], "code": 400},
+    ForbiddenField: {"types": ["input-exception", "field-based-exception", "forbidden-field"], "code": 400},
+    # TODO: field based?
+    ObjectNotFound: {"types": ["input-exception", "object-not-found"], "code": 404},
+    DuplicateObject: {"types": ["input-exception", "field-based-exception", "duplicate-object"], "code": 400},
+    PurchaseCanOnlyBeRevokedOnce: {"types": [
+        "input-exception", "field-based-exception", "purchase-can-only-be-revoked-once"], "code": 400}
 }
 
 
@@ -101,7 +110,7 @@ def put_consumer(id):
     c = Consumer(**request.get_json())
     c.id = id
     api.update_consumer(c)
-    return jsonify(result='updated'), 200 # TODO: another status code?
+    return jsonify(result='updated'), 200  # TODO: another status code?
 
 
 @app.route('/products', methods=['GET'])
