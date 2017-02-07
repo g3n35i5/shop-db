@@ -15,6 +15,7 @@ from backend.validation import (FieldBasedException, InputException,
                                 UnknownField, WrongType, to_dict)
 
 app = Flask(__name__)
+CORS(app)
 
 CORS(app)
 
