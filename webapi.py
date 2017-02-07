@@ -4,6 +4,7 @@ import json
 import sqlite3
 
 from flask import Flask, Request, g, jsonify, request
+from flask_cors import CORS
 from werkzeug.local import LocalProxy
 
 from backend.db_api import (DatabaseApi, DuplicateObject, FieldIsNone,
@@ -15,6 +16,7 @@ from backend.validation import (FieldBasedException, InputException,
                                 UnknownField, WrongType, to_dict)
 
 app = Flask(__name__)
+CORS(app)
 
 
 def get_api():
