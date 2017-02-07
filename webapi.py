@@ -56,6 +56,13 @@ def internal_error(error):
     return jsonify(types=["internal-server-error"], info="Please contact the admin!"), 500
 
 
+def json_body():
+    jb = request.get_json()
+    if jb is None:
+        raise InvalidJSON()
+    return jb
+
+
 exception_mapping = {
     WrongType: {"types": ["input-exception", "field-based-exception", "wrong-type"], "code": 400},
     MaxLengthExceeded: {"types": ["input-exception", "field-based-exception", "max-length-exceeded"], "code": 400},
@@ -97,7 +104,7 @@ def list_consumers():
 
 @app.route('/consumers', methods=['POST'])
 def create_consumer():
-    c = Consumer(**request.get_json())
+    c = Consumer(**json_body())
     api.insert_consumer(c)
     return jsonify(result='created'), 201
 
@@ -109,7 +116,7 @@ def get_consumer(id):
 
 @app.route('/consumers/<int:id>', methods=['PUT'])
 def put_consumer(id):
-    c = Consumer(**request.get_json())
+    c = Consumer(**json_body())
     c.id = id
     api.update_consumer(c)
     return jsonify(result='updated'), 200  # TODO: another status code?
@@ -122,7 +129,7 @@ def list_products():
 
 @app.route('/products', methods=['POST'])
 def create_product():
-    p = Product(**request.get_json())
+    p = Product(**json_body())
     api.insert_product(p)
     return jsonify(result='created'), 201
 
@@ -134,7 +141,7 @@ def get_product(id):
 
 @app.route('/products/<int:id>', methods=['PUT'])
 def put_product(id):
-    p = Product(**request.get_json())
+    p = Product(**json_body())
     p.id = id
     api.update_product(p)
     return jsonify(result='updated'), 200
@@ -147,7 +154,7 @@ def list_purchases():
 
 @app.route('/purchases', methods=['POST'])
 def create_purchase():
-    p = Purchase(**request.get_json())
+    p = Purchase(**json_body())
     api.insert_purchase(p)
     return jsonify(result='created'), 201
 
@@ -159,7 +166,7 @@ def get_purchase(id):
 
 @app.route('/purchases/<int:id>', methods=['PUT'])
 def put_purchase(id):
-    p = Purchase(**request.get_json())
+    p = Purchase(**json_body())
     p.id = id
     api.update_purchase(p)
     return jsonify(result='updated'), 200
@@ -172,6 +179,6 @@ def list_deposits():
 
 @app.route('/deposits', methods=['POST'])
 def create_deposit():
-    d = Deposit(**request.get_json())
+    d = Deposit(**json_body())
     api.insert_deposit(d)
     return jsonify(result='created'), 201
