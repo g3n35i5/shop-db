@@ -129,7 +129,7 @@ def get_consumer_purchases(id):
 
 
 @app.route('/consumer/deposits/<int:id>', methods=['GET'])
-def get_consumer_purchases(id):
+def get_consumer_deposits(id):
     return jsonify(to_dict(api.get_deposits_of_consumer(id)))
 
 
