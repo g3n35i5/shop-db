@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
-import sqlite3
-from .models import Consumer, Product, Purchase, Deposit
-from .validation import FieldBasedException, InputException
-import pdb
 import datetime
+import pdb
+import sqlite3
+
+from .models import Consumer, Deposit, Product, Purchase
+from .validation import FieldBasedException, InputException
 
 # convert booleans since sqlite3 has no booleans
 # see: https://www.sqlite.org/datatype3.html#boolean_datatype
@@ -13,31 +14,37 @@ sqlite3.register_converter("BOOLEAN", lambda v: bool(int(v)))
 
 
 class ForeignKeyNotExisting(FieldBasedException):
+
     def __init__(self, field):
         FieldBasedException.__init__(self, field)
 
 
 class FieldIsNone(FieldBasedException):
+
     def __init__(self, field):
         FieldBasedException.__init__(self, field)
 
 
 class ForbiddenField(FieldBasedException):
+
     def __init__(self, field):
         FieldBasedException.__init__(self, field)
 
 
 class ObjectNotFound(InputException):
+
     def __init__(self):
         InputException.__init__(self)
 
 
 class DuplicateObject(FieldBasedException):
+
     def __init__(self, field):
         FieldBasedException.__init__(self, field)
 
 
 class PurchaseCanOnlyBeRevokedOnce(FieldBasedException):
+
     def __init__(self):
         FieldBasedException.__init__(self, 'revoked')
 
