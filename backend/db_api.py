@@ -252,6 +252,19 @@ class DatabaseApi(object):
             raise ObjectNotFound()
         return res
 
+    def get_purchases_of_consumer(self, id):
+        return self._get_consumer_data(model=Purchase, table='purchase', id=id)
+
+    def get_deposits_of_consumer(self, id):
+        return self._get_consumer_data(model=Deposit, table='deposit', id=id)
+
+    def _get_consumer_data(self, model, table, id):
+        cur = self.con.cursor()
+        cur.row_factory = factory(model)
+        cur.execute(
+            'SELECT * FROM {} WHERE consumer_id=?;'.format(table), (id,))
+        return cur.fetchall()
+
     def list_consumers(self):
         return self._list(model=Consumer, table='consumer')
 
