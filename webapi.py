@@ -193,3 +193,6 @@ def create_deposit():
     d = Deposit(**json_body())
     api.insert_deposit(d)
     return jsonify(result='created'), 201
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0")
