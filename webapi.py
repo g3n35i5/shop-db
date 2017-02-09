@@ -125,12 +125,12 @@ def put_consumer(id):
 
 @app.route('/consumer/purchases/<int:id>', methods=['GET'])
 def get_consumer_purchases(id):
-    return jsonify(to_dict(api.get_purchases_of_consumer(id)))
+    return jsonify(list(map(to_dict, api.get_purchases_of_consumer(id))))
 
 
 @app.route('/consumer/deposits/<int:id>', methods=['GET'])
 def get_consumer_deposits(id):
-    return jsonify(to_dict(api.get_deposits_of_consumer(id)))
+    return jsonify(list(map(to_dict, api.get_deposits_of_consumer(id))))
 
 
 @app.route('/products', methods=['GET'])
