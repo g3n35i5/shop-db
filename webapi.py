@@ -123,12 +123,12 @@ def put_consumer(id):
     return jsonify(result='updated'), 200  # TODO: another status code?
 
 
-@app.route('/consumer/purchases/<int:id>', methods=['GET'])
+@app.route('/consumer/<int:id>/purchases', methods=['GET'])
 def get_consumer_purchases(id):
     return jsonify(list(map(to_dict, api.get_purchases_of_consumer(id))))
 
 
-@app.route('/consumer/deposits/<int:id>', methods=['GET'])
+@app.route('/consumer/<int:id>/deposits', methods=['GET'])
 def get_consumer_deposits(id):
     return jsonify(list(map(to_dict, api.get_deposits_of_consumer(id))))
 
