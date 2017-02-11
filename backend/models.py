@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
-from .validation import ValidatableObject, Type, MaxLength, fields
 import datetime
+
+from .validation import MaxLength, Type, ValidatableObject, fields
 
 
 def representation(obj):
