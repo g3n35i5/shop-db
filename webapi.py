@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 import json
+import logging
 import sqlite3
+from logging.handlers import RotatingFileHandler
 
 from flask import Flask, Request, g, jsonify, request
 from flask_cors import CORS
@@ -87,6 +89,8 @@ def handle_error(e):
     if type(e) in exception_mapping:
         foo = exception_mapping[type(e)]
         # TODO: json content type?
+        app.logger.warning('errorcode {} error_types {}'.format(
+            foo['code'], foo['types']))
 
         return jsonify(
             result='error',
@@ -95,6 +99,7 @@ def handle_error(e):
             info=e.info
         ), foo['code']
     else:
+        app.logger.error('ERROR: {}'.format(e))
         raise e
 
 
@@ -107,6 +112,7 @@ def list_consumers():
 def create_consumer():
     c = Consumer(**json_body())
     api.insert_consumer(c)
+    app.logger.info('created consumer: {}'.format(c))
     return jsonify(result='created'), 201
 
 
@@ -120,6 +126,7 @@ def put_consumer(id):
     c = Consumer(**json_body())
     c.id = id
     api.update_consumer(c)
+    app.logger.info('updated consumer: {}'.format(c))
     return jsonify(result='updated'), 200  # TODO: another status code?
 
 
@@ -135,6 +142,7 @@ def get_consumer_deposits(id):
 
 @app.route('/products', methods=['GET'])
 def list_products():
+    app.logger.warning('listing products')
     return jsonify(list(map(to_dict, api.list_products())))
 
 
@@ -142,6 +150,7 @@ def list_products():
 def create_product():
     p = Product(**json_body())
     api.insert_product(p)
+    app.logger.warning('created product: {}'.format(p))
     return jsonify(result='created'), 201
 
 
@@ -155,6 +164,7 @@ def put_product(id):
     p = Product(**json_body())
     p.id = id
     api.update_product(p)
+    app.logger.warning('updated product: {}'.format(p))
     return jsonify(result='updated'), 200
 
 
@@ -167,6 +177,7 @@ def list_purchases():
 def create_purchase():
     p = Purchase(**json_body())
     api.insert_purchase(p)
+    app.logger.warning('purchase created {}'.format(p))
     return jsonify(result='created'), 201
 
 
@@ -180,6 +191,7 @@ def put_purchase(id):
     p = Purchase(**json_body())
     p.id = id
     api.update_purchase(p)
+    app.logger.warning('updated purchase: {}'.format(p))
     return jsonify(result='updated'), 200
 
 
@@ -192,7 +204,11 @@ def list_deposits():
 def create_deposit():
     d = Deposit(**json_body())
     api.insert_deposit(d)
+    app.logger.warning('created deposit: {}'.format(d))
     return jsonify(result='created'), 201
 
 if __name__ == "__main__":
+    handler = RotatingFileHandler('backend.log', maxBytes=60000, backupCount=1)
+    handler.setLevel(logging.DEBUG)
+    app.logger.addHandler(handler)
     app.run(host="0.0.0.0")
