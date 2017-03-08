@@ -265,6 +265,15 @@ class DatabaseApi(object):
             'SELECT * FROM {} WHERE consumer_id=?;'.format(table), (id,))
         return cur.fetchall()
 
+    def get_favorite_products(self, id):
+        cur = self.con.cursor()
+        cur.row_factory = factory(Purchase)
+        cur.execute(
+            'SELECT * FROM purchase WHERE consumer_id=? \
+            GROUP BY product_id ORDER BY COUNT(product_id) DESC \
+            LIMIT 10', (id,))
+        return cur.fetchall()
+
     def list_consumers(self):
         return self._list(model=Consumer, table='consumer')
 

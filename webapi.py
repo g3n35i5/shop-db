@@ -146,6 +146,12 @@ def list_products():
     return jsonify(list(map(to_dict, api.list_products())))
 
 
+@app.route('/favorites/<int:id>', methods=['GET'])
+def get_favorite_products(id):
+    app.logger.warning('listing favorites')
+    return jsonify(list(map(to_dict, api.get_favorite_products(id))))
+
+
 @app.route('/products', methods=['POST'])
 def create_product():
     p = Product(**json_body())
