@@ -269,7 +269,7 @@ class DatabaseApi(object):
         cur = self.con.cursor()
         cur.row_factory = factory(Purchase)
         cur.execute(
-            'SELECT * FROM purchase WHERE consumer_id=? \
+            'SELECT * FROM purchase WHERE consumer_id=? AND revoked=0 \
             GROUP BY product_id ORDER BY COUNT(product_id) DESC \
             LIMIT 10', (id,))
         return cur.fetchall()
