@@ -1,39 +1,31 @@
- --------------------
-| consumer           |
-|--------------------|
-| id: int            |
-| credit: int        |
-| name: varchar[128] |
-| active: bool       |
-|____________________|
+consumer
 
- --------------------
-| product            |
-|--------------------|
-| id: int            |
-| name: varchar[128] |
-| price: int         |
-| active: bool       |
-| on_stock: bool     |
-|____________________|
+- id: int
+- credit: int
+- name: varchar[128]
+- active: bool
 
- --------------------------------------
-| purchase                             |
-|--------------------------------------|
-| id: int                              |
-| amount: int                          |
-| consumer_id: foreign_key             |
-| product_id: foreign_key              |
-| timestamp: timestamp                 |
-| revoked: bool                        |
-| paid_price_per_product: int          |
-|______________________________________|
+product
 
- --------------------------
-| deposit                  |
-|--------------------------|
-| id: int                  |
-| consumer_id: foreign_key |
-| amount: int              |
-| timestamp: timestamp     |
-|__________________________|
+- id: int
+- name: varchar[128]
+- price: int
+- active: bool
+- onstock: bool
+
+purchase
+
+- id: int
+- amount: int
+- consumer_id: foreignkey
+- productid: foreignkey
+- timestamp: timestamp
+- revoked: bool
+- paid_price_per_product: int
+
+deposit
+
+- id: int
+- consumer_id: foreignkey
+- amount: int
+- timestamp: timestamp
