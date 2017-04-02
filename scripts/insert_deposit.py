@@ -21,8 +21,8 @@ def get_consumer(_name):
         pass
 
 
-def send_request(_id, _amount):
-    data = {"consumer_id": _id, "amount": _amount}
+def send_request(_id, _amount, _comment):
+    data = {"consumer_id": _id, "amount": _amount, "comment": _comment}
     params = json.dumps(data).encode('utf8')
     req = urllib.request.Request("{}/deposits".format(server), data=params,
                                  headers={'content-type': 'application/json'})
@@ -41,18 +41,21 @@ if __name__ == "__main__":
     parser.add_argument('-a', '--amount',
                         help='deposit amount in cents',
                         default=None)
+    parser.add_argument('-c', '--comment',
+                        help='deposit comment',
+                        default=None)
     parser.add_argument('-f', '--file',
                         help='text file with names and amounts',
                         default=None)
     args = vars(parser.parse_args())
 
     if args['file'] is not None:
-        if args['name'] is None and args['amount'] is None:
+        if args['name'] is None and args['amount'] is None and args['comment'] is None:
             if not os.path.exists(args['file']):
                 sys.exit("{} does not exists".format(args['file']))
 
         else:
-            sys.exit("If you specify a file the -n and -a option is invalid")
+            sys.exit("If you specify a file, the -n, -a and -c options are invalid")
 
         try:
             with open(args['file']) as _file:
@@ -78,12 +81,14 @@ if __name__ == "__main__":
         except:
             sys.exit("Could not parse file")
 
-    elif args['name'] is not None and args['amount'] is not None:
+    elif args['name'] is not None and args['amount'] is not None and args['comment'] is not None:
         if args['file'] is None:
             consumer = get_consumer(args['name'])
             amount = int(args['amount'])
+            comment = args['comment']
             if consumer is not None:
-                send_request(_id=consumer['id'], _amount=amount)
+                send_request(_id=consumer['id'],
+                             _amount=amount, _comment=comment)
         else:
             sys.exit("If you specify the name and an amount the - f \
                      option is invalid")

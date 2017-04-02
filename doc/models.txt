@@ -28,4 +28,5 @@ deposit
 - id: int
 - consumer_id: foreignkey
 - amount: int
+- comment: varchar[128]
 - timestamp: timestamp

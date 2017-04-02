@@ -67,6 +67,7 @@ class Deposit(ValidatableObject):
     _validators = {
         'id': [Type(int)],
         'consumer_id': [Type(int)],
+        'comment': [Type(str), MaxLength(128)],
         'timestamp': [Type(datetime.datetime)],
         'amount': [Type(int)]
     }

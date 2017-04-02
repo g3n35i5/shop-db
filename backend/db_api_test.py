@@ -1,10 +1,12 @@
+import pdb
 import sqlite3
 import unittest
+
 import app
-from .models import Consumer, Product, Purchase, Deposit
+
 from .db_api import *
+from .models import Consumer, Deposit, Product, Purchase
 from .validation import WrongType
-import pdb
 
 
 class TestDatabaseApi(unittest.TestCase):
@@ -142,7 +144,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(consumer.credit, 250)
 
         # create deposit
-        dep1 = Deposit(consumer_id=1, amount=250)
+        dep1 = Deposit(consumer_id=1, amount=250, comment="testcomment")
         self.api.insert_deposit(dep1)
 
         # check, if the consumers credit has been increased
@@ -152,20 +154,21 @@ class TestDatabaseApi(unittest.TestCase):
         # check the results
         deposit = self.api.get_deposit(id=1)
         self.assertEqual(deposit.amount, 250)
+        self.assertEqual(deposit.comment, "testcomment")
         self.assertEqual(deposit.consumer_id, consumer.id)
 
         # test with wrong foreign_key consumer_id
-        dep2 = Deposit(consumer_id=2, amount=240)
+        dep2 = Deposit(consumer_id=2, amount=240, comment="testcomment")
         with self.assertRaises(ForeignKeyNotExisting):
             self.api.insert_deposit(dep2)
 
         # deposit.id should be forbidden
-        dep3 = Deposit(consumer_id=2, amount=20, id=12)
+        dep3 = Deposit(consumer_id=2, amount=20, id=12, comment="testcomment")
         with self.assertRaises(ForbiddenField):
             self.api.insert_deposit(dep3)
 
         # deposit.timestamp should be forbidden
-        dep4 = Deposit(consumer_id=2, amount=20,
+        dep4 = Deposit(consumer_id=2, amount=20, comment="testcomment",
                        timestamp=datetime.datetime.now())
         with self.assertRaises(ForbiddenField):
             self.api.insert_deposit(dep3)

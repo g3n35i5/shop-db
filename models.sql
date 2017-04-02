@@ -38,6 +38,7 @@ CREATE TABLE deposit (
 	id INTEGER NOT NULL,
 	consumer_id INTEGER NOT NULL,
 	amount INTEGER NOT NULL,
+	comment VARCHAR(128) NOT NULL,
 	timestamp TIMESTAMP NOT NULL,
 	PRIMARY KEY (id),
 	FOREIGN KEY(consumer_id) REFERENCES consumer (id)

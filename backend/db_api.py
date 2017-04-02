@@ -206,7 +206,8 @@ class DatabaseApi(object):
     def insert_deposit(self, deposit):
         cur = self.con.cursor()
 
-        self._assert_mandatory_fields(deposit, ['consumer_id', 'amount'])
+        self._assert_mandatory_fields(
+            deposit, ['consumer_id', 'amount', 'comment'])
         self._assert_forbidden_fields(deposit, ['id', 'timestamp'])
 
         # default values
@@ -215,9 +216,10 @@ class DatabaseApi(object):
         self._check_foreign_key(deposit, 'consumer_id', 'consumer')
 
         cur.execute(
-            'INSERT INTO deposit (consumer_id, amount, timestamp) '
-            'VALUES (?,?,?);',
-            (deposit.consumer_id, deposit.amount, deposit.timestamp)
+            'INSERT INTO deposit (consumer_id, amount, comment, timestamp) '
+            'VALUES (?,?,?,?);',
+            (deposit.consumer_id, deposit.amount,
+             deposit.comment, deposit.timestamp)
         )
 
         cur.execute(
