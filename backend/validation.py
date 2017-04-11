@@ -2,32 +2,47 @@
 
 import json
 
+
 class InputException(Exception):
+
     def __init__(self, **kwargs):
         self.info = kwargs
 
+
 class FieldBasedException(InputException):
+
     def __init__(self, field, **kwargs):
         InputException.__init__(self, field=field, **kwargs)
 
 
 class WrongType(FieldBasedException):
+
     def __init__(self, field, expected_type):
         FieldBasedException.__init__(self, field, expected_type=expected_type)
 
 
 class MaxLengthExceeded(FieldBasedException):
+
     def __init__(self, field, max_allowed_length):
         FieldBasedException.__init__(self, field,
                                      max_allowed_length=max_allowed_length)
 
 
+class MinLengthUndershot(FieldBasedException):
+
+    def __init__(self, field, min_allowed_length):
+        FieldBasedException.__init__(self, field,
+                                     min_allowed_length=min_allowed_length)
+
+
 class UnknownField(FieldBasedException):
+
     def __init__(self, field):
         FieldBasedException.__init__(self, field)
 
 
 class MaximumValueExceeded(FieldBasedException):
+
     def __init__(self, field, upper_bound):
         FieldBasedException.__init__(self, field, upper_bound=upper_bound)
 
@@ -61,12 +76,23 @@ class LessThan(object):
 
 
 class MaxLength(object):
+
     def __init__(self, length):
         self.length = length
 
     def validate(self, field, value):
         if len(value) > self.length:
             raise MaxLengthExceeded(field, max_allowed_length=self.length)
+
+
+class MinLength(object):
+
+    def __init__(self, length):
+        self.length = length
+
+    def validate(self, field, value):
+        if len(value) < self.length:
+            raise MinLengthUndershot(field, min_allowed_length=self.length)
 
 
 class Type(object):

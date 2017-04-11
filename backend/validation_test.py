@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
+
 from .validation import *
 
 
@@ -9,7 +10,7 @@ class TestValidatableObject(unittest.TestCase):
     def setUp(self):
         class TestClass(ValidatableObject):
             _validators = {
-                'name': [Type(str), MaxLength(20)],
+                'name': [Type(str), MaxLength(20), MinLength(4)],
                 'amount': [Type(int), LessThan(5)]
             }
 
@@ -18,6 +19,10 @@ class TestValidatableObject(unittest.TestCase):
     def test_string_too_long(self):
         with self.assertRaises(MaxLengthExceeded):
             self.test_obj.name = "thisfieldismuchtoolong"
+
+    def test_string_too_short(self):
+        with self.assertRaises(MinLengthUndershot):
+            self.test_obj.name = "abc"
 
     def test_set_unknown_field(self):
         with self.assertRaises(UnknownField):
