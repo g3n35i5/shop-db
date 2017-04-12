@@ -245,6 +245,42 @@ class TestDatabaseApi(unittest.TestCase):
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur8)
 
+    def test_limit_list_purchases(self):
+        # insert consumer and product
+        p = Product(name='Coffee', price=20, active=True, on_stock=True)
+        c = Consumer(name='Hans Müller', active=True, credit=250)
+        self.api.insert_product(p)
+        self.api.insert_consumer(c)
+
+        # check, if the objects are correct
+        consumer = self.api.get_consumer(id=1)
+        product = self.api.get_product(id=1)
+        self.assertEqual(consumer.credit, 250)
+        self.assertEqual(product.price, 20)
+
+        pur = Purchase(consumer_id=1, product_id=1, amount=1)
+        self.api.insert_purchase(pur)
+        pur = Purchase(consumer_id=1, product_id=1, amount=2)
+        self.api.insert_purchase(pur)
+        pur = Purchase(consumer_id=1, product_id=1, amount=3)
+        self.api.insert_purchase(pur)
+        pur = Purchase(consumer_id=1, product_id=1, amount=4)
+        self.api.insert_purchase(pur)
+
+        # get all purchases
+        purchases = self.api.list_purchases()
+        self.assertEqual(len(purchases), 4)
+        self.assertEqual(purchases[0].amount, 1)
+        self.assertEqual(purchases[1].amount, 2)
+        self.assertEqual(purchases[2].amount, 3)
+        self.assertEqual(purchases[3].amount, 4)
+
+        # get purchases with limit
+        purchases = self.api.list_purchases(limit=2)
+        self.assertEqual(len(purchases), 2)
+        self.assertEqual(purchases[0].amount, 4)
+        self.assertEqual(purchases[1].amount, 3)
+
     def test_update_purchase(self):
         # insert consumer and product
         p = Product(name='Coffee', price=20, active=True, on_stock=True)

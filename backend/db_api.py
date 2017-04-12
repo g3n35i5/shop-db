@@ -277,21 +277,28 @@ class DatabaseApi(object):
         return cur.fetchall()
 
     def list_consumers(self):
-        return self._list(model=Consumer, table='consumer')
+        return self._list(model=Consumer, table='consumer', limit=None)
 
     def list_products(self):
-        return self._list(model=Product, table='product')
+        return self._list(model=Product, table='product', limit=None)
 
-    def list_purchases(self):
-        return self._list(model=Purchase, table='purchase')
+    def list_purchases(self, limit=None):
+        return self._list(model=Purchase, table='purchase', limit=limit)
 
-    def list_deposits(self):
-        return self._list(model=Deposit, table='deposit')
+    def list_deposits(self, limit=None):
+        return self._list(model=Deposit, table='deposit', limit=limit)
 
-    def _list(self, model, table):
+    def _list(self, model, table, limit):
         cur = self.con.cursor()
         cur.row_factory = factory(model)
-        cur.execute('SELECT * FROM {};'.format(table))
+        if limit is None:
+            cur.execute('SELECT * FROM {};'.format(table))
+        else:
+            limit = int(limit)
+            cur.execute(
+                'SELECT * FROM {} ORDER BY id  DESC LIMIT ?;'.format(
+                    table), (limit,)
+            )
         return cur.fetchall()
 
     def update_product(self, product):
