@@ -14,12 +14,19 @@ from backend.db_api import (DatabaseApi, DuplicateObject, FieldIsNone,
 from backend.models import Consumer, Deposit, Product, Purchase
 from backend.validation import (FieldBasedException, InputException,
                                 MaximumValueExceeded, MaxLengthExceeded,
-                                UnknownField, WrongType, to_dict)
+                                MinLengthUndershot, UnknownField, WrongType,
+                                to_dict)
 
 app = Flask(__name__)
 CORS(app)
 
 CORS(app)
+
+
+def convert_js_bool(_dict, field):
+    if field in _dict:
+        _dict[field] = True if _dict[field] == 'true' else False
+    return _dict
 
 
 def get_api():
@@ -69,6 +76,7 @@ def json_body():
 exception_mapping = {
     WrongType: {"types": ["input-exception", "field-based-exception", "wrong-type"], "code": 400},
     MaxLengthExceeded: {"types": ["input-exception", "field-based-exception", "max-length-exceeded"], "code": 400},
+    MinLengthUndershot: {"types": ["input-exception", "field-based-exception", "min-length-undercut"], "code": 400},
     UnknownField: {"types": ["input-exception", "field-based-exception", "unknown-field"], "code": 400},
     MaximumValueExceeded: {"types": ["input-exception", "field-based-exception", "maximum-value-exceeded"], "code": 400},
     InvalidJSON: {"types": ["input-exception", "invalid-json"], "code": 400},
@@ -179,6 +187,11 @@ def list_purchases():
     return jsonify(list(map(to_dict, api.list_purchases())))
 
 
+@app.route('/purchases/<int:limit>', methods=['GET'])
+def get_purchases_limit(limit):
+    return jsonify(list(map(to_dict, api.list_purchases(limit=limit))))
+
+
 @app.route('/purchases', methods=['POST'])
 def create_purchase():
     p = Purchase(**json_body())
@@ -204,6 +217,11 @@ def put_purchase(id):
 @app.route('/deposits', methods=['GET'])
 def list_deposits():
     return jsonify(list(map(to_dict, api.list_deposits())))
+
+
+@app.route('/deposits/<int:limit>', methods=['GET'])
+def get_deposits_limit(limit):
+    return jsonify(list(map(to_dict, api.list_deposits(limit=limit))))
 
 
 @app.route('/deposits', methods=['POST'])
