@@ -116,7 +116,7 @@ def create_consumer():
     return jsonify(result='created'), 201
 
 
-@app.route('/consumers/<int:id>', methods=['GET'])
+@app.route('/consumer/<int:id>', methods=['GET'])
 def get_consumer(id):
     return jsonify(to_dict(api.get_consumer(id)))
 
@@ -160,7 +160,7 @@ def create_product():
     return jsonify(result='created'), 201
 
 
-@app.route('/products/<int:id>', methods=['GET'])
+@app.route('/product/<int:id>', methods=['GET'])
 def get_product(id):
     return jsonify(to_dict(api.get_product(id)))
 
@@ -187,7 +187,7 @@ def create_purchase():
     return jsonify(result='created'), 201
 
 
-@app.route('/purchases/<int:id>', methods=['GET'])
+@app.route('/purchase/<int:id>', methods=['GET'])
 def get_purchase(id):
     return jsonify(to_dict(api.get_purchase(id)))
 
