@@ -10,6 +10,15 @@ server = "http://10.12.42.9:5000"
 consumer = None
 
 
+def index_of_number_in_list(_list):
+    for index in range(0, len(_list)):
+        try:
+            number = int(_list[index])
+            return index
+        except ValueError:
+            pass
+
+
 def get_consumer(_name):
     try:
         with urllib.request.urlopen("{}/consumers".format(server)) as response:
@@ -61,22 +70,29 @@ if __name__ == "__main__":
             with open(args['file']) as _file:
                 data = _file.readlines()
                 for entity in data:
-                    entity = entity.split('/')
-                    name = entity[0]
-                    amount = entity[1]
+                    entity = entity.strip().split(' ')
                     try:
-                        consumer = get_consumer(_name=name)
-                        if consumer is not None:
-                            print("sending request")
-                            send_request(_id=consumer['id'],
-                                         _amount=int(amount))
-                            consumer = None
+                        amount_ind = index_of_number_in_list(entity)
+                        amount = int(entity[amount_ind])
+                        name = ' '.join(entity[0: amount_ind])
+                        comment = ' '.join(entity[amount_ind + 1:])
 
-                        else:
-                            print("The consumer with the name {} \
-                                   does not exist".format(name))
+                        try:
+                            consumer = get_consumer(_name=name)
+                            if consumer is not None:
+                                print("sending request")
+                                send_request(_id=consumer['id'],
+                                             _amount=amount,
+                                             _comment=comment)
+                                consumer = None
+
+                            else:
+                                print("The consumer with the name {} \
+                                       does not exist".format(name))
+                        except:
+                            print('error while fetching consumer, skipping')
                     except:
-                        pass
+                        print('error while fetching line, skipping')
 
         except:
             sys.exit("Could not parse file")
