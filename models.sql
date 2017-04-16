@@ -25,6 +25,7 @@ CREATE TABLE purchase (
 	consumer_id INTEGER NOT NULL,
 	amount INTEGER NOT NULL,
 	product_id INTEGER NOT NULL,
+	comment VARCHAR(128) NOT NULL,
 	revoked BOOLEAN NOT NULL,
 	timestamp TIMESTAMP NOT NULL,
 	paid_price_per_product INTEGER NOT NULL,

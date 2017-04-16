@@ -19,6 +19,7 @@ purchase
 - amount: int
 - consumer_id: foreignkey
 - productid: foreignkey
+- comment: varchar[128]
 - timestamp: timestamp
 - revoked: bool
 - paid_price_per_product: int

@@ -53,6 +53,7 @@ class Purchase(ValidatableObject):
         'id': [Type(int)],
         'consumer_id': [Type(int)],
         'product_id': [Type(int)],
+        'comment': [Type(str), MaxLength(128), MinLength(8)],
         'amount': [Type(int)],
         'timestamp': [Type(datetime.datetime)],
         'revoked': [Type(bool)],

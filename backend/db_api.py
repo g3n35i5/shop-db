@@ -155,7 +155,8 @@ class DatabaseApi(object):
 
         self._assert_mandatory_fields(purchase, ['product_id',
                                                  'consumer_id',
-                                                 'amount'])
+                                                 'amount',
+                                                 'comment'])
         self._assert_forbidden_fields(
             purchase, ['id', 'timestamp', 'revoked', 'paid_price_per_product']
         )
@@ -172,6 +173,7 @@ class DatabaseApi(object):
             'INSERT INTO purchase('
             '    consumer_id, '
             '    product_id, '
+            '    comment, '
             '    revoked, '
             '    timestamp,'
             '    amount,'
@@ -182,10 +184,12 @@ class DatabaseApi(object):
             '    ?, '
             '    ?, '
             '    ?, '
+            '    ?, '
             '    (SELECT price from product where id=?)'
             ');',
             (purchase.consumer_id,
              purchase.product_id,
+             purchase.comment,
              purchase.revoked,
              purchase.timestamp,
              purchase.amount,
@@ -356,6 +360,6 @@ class DatabaseApi(object):
             raise PurchaseCanOnlyBeRevokedOnce()
 
         self._simple_update(cur, object=purchase, table='purchase',
-                            updateable_fields=['revoked'])
+                            updateable_fields=['revoked', 'comment'])
 
         self.con.commit()

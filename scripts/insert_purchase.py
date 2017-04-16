@@ -21,7 +21,9 @@ def get_consumer(_name):
 
 
 def send_request(_id, _amount):
-    data = {"amount": _amount, "consumer_id": _id, "product_id": product_id}
+    comment = 'purchase inserted via insert_purchase script'
+    data = {"amount": _amount, "consumer_id": _id,
+            "product_id": product_id, "comment": comment}
     params = json.dumps(data).encode('utf8')
     req = urllib.request.Request("{}/purchases".format(server), data=params,
                                  headers={'content-type': 'application/json'})

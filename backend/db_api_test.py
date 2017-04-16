@@ -186,7 +186,8 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(consumer.credit, 250)
         self.assertEqual(product.price, 20)
 
-        pur1 = Purchase(consumer_id=1, product_id=1, amount=5)
+        pur1 = Purchase(consumer_id=1, product_id=1, amount=5,
+                        comment="purchase done by unittest")
         self.api.insert_purchase(pur1)
         # TODO: pur.id is still None here. Should we change this?
 
@@ -195,6 +196,7 @@ class TestDatabaseApi(unittest.TestCase):
         # paid_price should have been filled
         self.assertEqual(pur2.paid_price_per_product, 20)
         self.assertEqual(pur2.amount, 5)
+        self.assertEqual(pur2.comment, "purchase done by unittest")
         # timestamp should have been added
         self.assertIsNotNone(pur2.timestamp)
 
@@ -203,7 +205,8 @@ class TestDatabaseApi(unittest.TestCase):
                          250 - pur2.amount * pur2.paid_price_per_product)
 
         # test with wrong foreign key consumer_id
-        pur3 = Purchase(consumer_id=2, product_id=1, amount=1)
+        pur3 = Purchase(consumer_id=2, product_id=1, amount=1,
+                        comment="purchase done by unittest")
         with self.assertRaises(ForeignKeyNotExisting):
             self.api.insert_purchase(pur3)
 
@@ -211,7 +214,8 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(len(self.api.list_purchases()), 1)
 
         # test with wrong foreign key product_id
-        pur4 = Purchase(consumer_id=1, product_id=2, amount=1)
+        pur4 = Purchase(consumer_id=1, product_id=2, amount=1,
+                        comment="purchase done by unittest")
         with self.assertRaises(ForeignKeyNotExisting):
             self.api.insert_purchase(pur4)
 
@@ -224,24 +228,28 @@ class TestDatabaseApi(unittest.TestCase):
                          250 - pur2.amount * pur2.paid_price_per_product)
 
         # purchase.id should be forbidden
-        pur5 = Purchase(consumer_id=1, product_id=1, id=1337, amount=1)
+        pur5 = Purchase(consumer_id=1, product_id=1, id=1337, amount=1,
+                        comment="purchase done by unittest")
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur5)
 
         # purchase.paid_price should be forbidden
         pur6 = Purchase(consumer_id=1, product_id=1,
-                        paid_price_per_product=200, amount=1)
+                        paid_price_per_product=200, amount=1,
+                        comment="purchase done by unittest")
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur6)
 
         # purchase.revoked should be forbidden
-        pur7 = Purchase(consumer_id=1, product_id=1, revoked=True, amount=1)
+        pur7 = Purchase(consumer_id=1, product_id=1, revoked=True, amount=1,
+                        comment="purchase done by unittest")
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur7)
 
         # purchase.revoked should be forbidden
         pur8 = Purchase(consumer_id=1, product_id=1, amount=1,
-                        timestamp=datetime.datetime.now())
+                        timestamp=datetime.datetime.now(),
+                        comment="purchase done by unittest")
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur8)
 
@@ -258,13 +266,17 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(consumer.credit, 250)
         self.assertEqual(product.price, 20)
 
-        pur = Purchase(consumer_id=1, product_id=1, amount=1)
+        pur = Purchase(consumer_id=1, product_id=1, amount=1,
+                       comment="purchase done by unittest")
         self.api.insert_purchase(pur)
-        pur = Purchase(consumer_id=1, product_id=1, amount=2)
+        pur = Purchase(consumer_id=1, product_id=1, amount=2,
+                       comment="purchase done by unittest")
         self.api.insert_purchase(pur)
-        pur = Purchase(consumer_id=1, product_id=1, amount=3)
+        pur = Purchase(consumer_id=1, product_id=1, amount=3,
+                       comment="purchase done by unittest")
         self.api.insert_purchase(pur)
-        pur = Purchase(consumer_id=1, product_id=1, amount=4)
+        pur = Purchase(consumer_id=1, product_id=1, amount=4,
+                       comment="purchase done by unittest")
         self.api.insert_purchase(pur)
 
         # get all purchases
@@ -294,17 +306,20 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(consumer.credit, 250)
         self.assertEqual(product.price, 20)
 
-        pur = Purchase(consumer_id=1, product_id=1, amount=5)
+        pur = Purchase(consumer_id=1, product_id=1, amount=5,
+                       comment="purchase done by unittest")
         self.api.insert_purchase(pur)
 
         # check if the consumers credit has decreased
         pur = self.api.get_purchase(id=1)
+        self.assertEqual(pur.comment, "purchase done by unittest")
         consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.credit,
                          250 - pur.amount * pur.paid_price_per_product)
 
-        # revoke purchase
-        pur = Purchase(id=1, revoked=True)
+        # revoke purchase and update comment
+        pur = Purchase(id=1, revoked=True,
+                       comment="purchases updated with unittest")
         self.api.update_purchase(pur)
         # do it twice to check whether it's indeponent
         with self.assertRaises(PurchaseCanOnlyBeRevokedOnce):
@@ -312,6 +327,7 @@ class TestDatabaseApi(unittest.TestCase):
 
         # check if the purchase has been updated
         pur2 = self.api.get_purchase(id=1)
+        self.assertEqual(pur2.comment, "purchases updated with unittest")
         self.assertTrue(pur2.revoked)
 
         # check if the consumers credit has increased
