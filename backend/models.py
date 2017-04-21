@@ -26,7 +26,7 @@ def representation(obj):
 class Consumer(ValidatableObject):
     _validators = {
         'id': [Type(int)],
-        'name': [Type(str), MaxLength(128), MinLength(4)],
+        'name': [Type(str), MaxLength(64), MinLength(4)],
         'credit': [Type(int)],
         'active': [Type(bool)]
     }
@@ -38,7 +38,7 @@ class Consumer(ValidatableObject):
 class Product(ValidatableObject):
     _validators = {
         'id': [Type(int)],
-        'name': [Type(str), MaxLength(128), MinLength(4)],
+        'name': [Type(str), MaxLength(64), MinLength(4)],
         'price': [Type(int)],
         'active': [Type(bool)],
         'on_stock': [Type(bool)]
@@ -55,6 +55,7 @@ class Purchase(ValidatableObject):
         'product_id': [Type(int)],
         'comment': [Type(str), MaxLength(128), MinLength(8)],
         'amount': [Type(int)],
+        'comment': [Type(str), MaxLength(64), MinLength(8)],
         'timestamp': [Type(datetime.datetime)],
         'revoked': [Type(bool)],
         'paid_price_per_product': [Type(int)]
@@ -68,9 +69,10 @@ class Deposit(ValidatableObject):
     _validators = {
         'id': [Type(int)],
         'consumer_id': [Type(int)],
-        'comment': [Type(str), MaxLength(128), MinLength(8)],
         'timestamp': [Type(datetime.datetime)],
         'amount': [Type(int)]
+        'comment': [Type(str), MaxLength(64), MinLength(8)],
+        'comment': [Type(str), MaxLength(64), MinLength(8)],
     }
 
     def __repr__(self):

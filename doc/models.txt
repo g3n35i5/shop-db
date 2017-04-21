@@ -2,13 +2,13 @@ consumer
 
 - id: int
 - credit: int
-- name: varchar[128]
+- name: varchar[64]
 - active: bool
 
 product
 
 - id: int
-- name: varchar[128]
+- name: varchar[64]
 - price: int
 - active: bool
 - onstock: bool
@@ -16,10 +16,10 @@ product
 purchase
 
 - id: int
+- consumer_id: int : foreignkey
+- product_id: int : foreignkey
 - amount: int
-- consumer_id: foreignkey
-- productid: foreignkey
-- comment: varchar[128]
+- comment: varchar[64]
 - timestamp: timestamp
 - revoked: bool
 - paid_price_per_product: int
@@ -27,7 +27,7 @@ purchase
 deposit
 
 - id: int
-- consumer_id: foreignkey
+- consumer_id: int : foreignkey
 - amount: int
-- comment: varchar[128]
+- comment: varchar[64]
 - timestamp: timestamp
