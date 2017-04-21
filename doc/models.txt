@@ -1,19 +1,31 @@
-consumer
+consumers
 
 - id: int
 - credit: int
 - name: varchar[64]
 - active: bool
 
-product
+
+departments
+
+- id: int
+- name: varchar[64]
+- income: int
+- expenses: int
+- budget: int
+
+
+products
 
 - id: int
 - name: varchar[64]
 - price: int
+- department_id: int : foreignkey
 - active: bool
 - onstock: bool
 
-purchase
+
+purchases
 
 - id: int
 - consumer_id: int : foreignkey
@@ -24,10 +36,28 @@ purchase
 - revoked: bool
 - paid_price_per_product: int
 
-deposit
+
+deposits
 
 - id: int
 - consumer_id: int : foreignkey
 - amount: int
 - comment: varchar[64]
 - timestamp: timestamp
+
+
+payoffs
+
+- id: int
+- bank_id: int : foreignkey
+- department_id: int : foreignkey
+- comment: varchar[64]
+- amount: int
+- timestamp: timestamp
+
+
+banks
+
+- id: int
+- name: varchar[64]
+- credit: int
