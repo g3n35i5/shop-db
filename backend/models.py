@@ -2,7 +2,8 @@
 
 import datetime
 
-from .validation import MaxLength, MinLength, Type, ValidatableObject, fields
+from .validation import (GreaterOrEqual, LessOrEqual, MaxLength, MinLength,
+                         Type, ValidatableObject, fields)
 
 
 def representation(obj):
@@ -27,6 +28,7 @@ class Consumer(ValidatableObject):
     _validators = {
         'id': [Type(int)],
         'name': [Type(str), MaxLength(64), MinLength(4)],
+        'karma': [Type(int), GreaterOrEqual(-10), LessOrEqual(10)],
         'credit': [Type(int)],
         'active': [Type(bool)]
     }

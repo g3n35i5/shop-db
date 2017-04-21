@@ -2,6 +2,7 @@ consumers
 
 - id: int
 - credit: int
+- karma: int between -10 and 10
 - name: varchar[64]
 - active: bool
 

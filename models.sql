@@ -2,10 +2,12 @@ CREATE TABLE consumers (
 	id INTEGER NOT NULL,
 	name VARCHAR(64) NOT NULL,
 	active BOOLEAN NOT NULL,
+	karma INTEGER NOT NULL,
 	credit INTEGER NOT NULL,
 	PRIMARY KEY (id),
 	UNIQUE (name),
-	CHECK (active IN (0, 1))
+	CHECK (active IN (0, 1)),
+	CHECK (karma BETWEEN -10 AND 10)
 );
 
 CREATE TABLE departments (
