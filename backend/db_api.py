@@ -165,6 +165,59 @@ class DatabaseApi(object):
             (department.name, 0, 0, department.budget)
         )
         self.con.commit()
+
+    def insert_payoff(self, payoff):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(payoff, ['department_id',
+                                               'amount',
+                                               'comment'])
+        self._assert_forbidden_fields(
+            payoff, ['id', 'timestamp', 'revoked']
+        )
+
+        payoff.timestamp = datetime.datetime.now()
+        payoff.revoked = False
+
+        self._check_foreign_key(payoff, 'department_id', 'departments')
+
+        cur.execute(
+            'INSERT INTO payoffs('
+            '    department_id, '
+            '    comment, '
+            '    amount, '
+            '    revoked,'
+            '    timestamp) '
+            'VALUES ('
+            '    ?, '
+            '    ?, '
+            '    ?, '
+            '    ?, '
+            '    ? '
+            ');',
+            (payoff.department_id,
+             payoff.comment,
+             payoff.amount,
+             payoff.revoked,
+             payoff.timestamp)
+        )
+
+        cur.execute(
+            'UPDATE departments '
+            'SET expenses = expenses + ? '
+            'WHERE id=?;',
+            (payoff.amount,
+             payoff.department_id)
+        )
+
+        cur.execute(
+            'UPDATE banks '
+            'SET credit = credit - ?; ',
+            (payoff.amount, )
+        )
+
+        self.con.commit()
+
     def insert_purchase(self, purchase):
         cur = self.con.cursor()
 
@@ -266,6 +319,9 @@ class DatabaseApi(object):
     def get_department(self, id):
         return self._get_one(model=Department, table='departments', id=id)
 
+    def get_payoff(self, id):
+        return self._get_one(model=Payoff, table='payoffs', id=id)
+
     def get_bank(self):
         return self._get_one(model=Bank, table='banks', id=1)
 
@@ -316,6 +372,9 @@ class DatabaseApi(object):
     def list_departments(self):
         return self._list(model=Department, table='departments', limit=None)
 
+    def list_payoffs(self, limit=None):
+        return self._list(model=Payoff, table='payoffs', limit=limit)
+
     def list_banks(self):
         return self._list(model=Bank, table='banks', limit=None)
 
@@ -357,6 +416,48 @@ class DatabaseApi(object):
             cur=cur, object=consumer, table='consumer',
             updateable_fields=['name', 'active']
         )
+        self.con.commit()
+
+    def update_payoff(self, payoff):
+        self._assert_mandatory_fields(payoff, ['id'])
+        self._assert_forbidden_fields(
+            payoff, ['department_id',
+                     'amount']
+        )
+        if payoff.revoked is None or not payoff.revoked:
+            # nothing to do
+            # TODO: maybe we should return something like "nothing to do"
+            return
+
+        cur = self.con.cursor()
+
+        cur.execute(
+            'WITH p AS ('
+            '    SELECT department_id, amount '
+            '    FROM payoffs WHERE id=? and revoked=0'
+            ') '
+            'UPDATE banks '
+            'SET credit=credit+(SELECT amount FROM p);',
+            (payoff.id, )
+        )
+
+        cur.execute(
+            'WITH p AS ('
+            '    SELECT department_id, amount '
+            '    FROM payoffs WHERE id=? and revoked=0'
+            ') '
+            'UPDATE departments '
+            'SET expenses=expenses-(SELECT amount FROM p);',
+            (payoff.id, )
+        )
+
+        if cur.rowcount == 0:
+            self.con.rollback()
+            raise CanOnlyBeRevokedOnce()
+
+        self._simple_update(cur, object=payoff, table='payoffs',
+                            updateable_fields=['revoked', 'comment'])
+
         self.con.commit()
 
     def update_purchase(self, purchase):

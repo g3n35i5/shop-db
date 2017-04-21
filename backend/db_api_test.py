@@ -171,6 +171,30 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertFalse(products[1].active)
         self.assertTrue(products[1].on_stock)
 
+    def test_create_payoff(self):
+        d = Department(name="Kaffeewart", budget=20000)
+        self.api.insert_department(d)
+        department = self.api.get_department(id=1)
+        self.assertEqual(department.expenses, 0)
+        bank = self.api.get_bank()
+        self.assertEqual(bank.credit, 0)
+
+        p = Payoff(department_id=1, amount=2000, comment="payoff test")
+        self.api.insert_payoff(p)
+        bank = self.api.get_bank()
+        self.assertEqual(bank.credit, -2000)
+        department = self.api.get_department(id=1)
+        self.assertEqual(department.expenses, 2000)
+
+        # revoke payoff
+        p = Payoff(id=1, revoked=True)
+        self.api.update_payoff(p)
+
+        bank = self.api.get_bank()
+        self.assertEqual(bank.credit, 0)
+        department = self.api.get_department(id=1)
+        self.assertEqual(department.expenses, 0)
+
     def test_create_deposit(self):
         # create test consumer
         c = Consumer(name='Hans Müller', active=True, credit=250)
