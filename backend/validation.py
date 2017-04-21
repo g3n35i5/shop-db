@@ -47,6 +47,12 @@ class MaximumValueExceeded(FieldBasedException):
         FieldBasedException.__init__(self, field, upper_bound=upper_bound)
 
 
+class MinimumValueUndershot(FieldBasedException):
+
+    def __init__(self, field, lower_bound):
+        FieldBasedException.__init__(self, field, lower_bound=lower_bound)
+
+
 def fields(object):
     return object._validators.keys()
 
@@ -73,6 +79,36 @@ class LessThan(object):
     def validate(self, field, value):
         if value >= self.other:
             raise MaximumValueExceeded(field, upper_bound=self.other)
+
+
+class LessOrEqual(object):
+
+    def __init__(self, other):
+        self.other = other
+
+    def validate(self, field, value):
+        if value > self.other:
+            raise MaximumValueExceeded(field, upper_bound=self.other)
+
+
+class GreaterThan(object):
+
+    def __init__(self, other):
+        self.other = other
+
+    def validate(self, field, value):
+        if value <= self.other:
+            raise MinimumValueUndershot(field, lower_bound=self.other)
+
+
+class GreaterOrEqual(object):
+
+    def __init__(self, other):
+        self.other = other
+
+    def validate(self, field, value):
+        if value < self.other:
+            raise MinimumValueUndershot(field, lower_bound=self.other)
 
 
 class MaxLength(object):
