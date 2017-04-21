@@ -248,6 +248,9 @@ class DatabaseApi(object):
     def get_deposit(self, id):
         return self._get_one(model=Deposit, table='deposit', id=id)
 
+    def get_bank(self):
+        return self._get_one(model=Bank, table='banks', id=1)
+
     def _get_one(self, model, table, id):
         cur = self.con.cursor()
         cur.row_factory = factory(model)
@@ -291,6 +294,9 @@ class DatabaseApi(object):
 
     def list_deposits(self, limit=None):
         return self._list(model=Deposit, table='deposit', limit=limit)
+
+    def list_banks(self):
+        return self._list(model=Bank, table='banks', limit=None)
 
     def _list(self, model, table, limit):
         cur = self.con.cursor()

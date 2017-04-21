@@ -76,3 +76,5 @@ CREATE TABLE banks (
 	credit INTEGER NOT NULL,
 	PRIMARY KEY (id)
 );
+
+INSERT INTO banks (name, credit) VALUES ("Hauptkonto", 0);
