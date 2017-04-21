@@ -3,6 +3,7 @@
 import datetime
 import pdb
 import sqlite3
+from math import floor
 
 from .models import (Bank, Consumer, Department, Deposit, Payoff, Product,
                      Purchase)
@@ -98,6 +99,9 @@ class DatabaseApi(object):
         if c.fetchone() is None:
             raise ForeignKeyNotExisting(foreign_key)
 
+    def _calculate_product_price(self, base_price, karma):
+        return floor(base_price * (1 + (-karma + 10) / 100))
+
     def _simple_update(self, cur, object, table, updateable_fields):
         params = []
         query_parts = []
@@ -125,29 +129,32 @@ class DatabaseApi(object):
         cur = self.con.cursor()
 
         self._assert_mandatory_fields(
-            product, ['name', 'active', 'on_stock', 'price']
+            product, ['name', 'active', 'on_stock', 'price', 'department_id']
         )
         self._assert_forbidden_fields(product, ['id'])
-        self._check_uniqueness(product, 'product', ['name'])
+        self._check_uniqueness(product, 'products', ['name'])
+        self._check_foreign_key(product, 'department_id', 'departments')
 
         cur.execute(
-            'INSERT INTO product (name, active, on_stock, price) '
-            'VALUES (?,?,?,?);',
-            (product.name, product.active, product.on_stock, product.price)
+            'INSERT INTO products (name, active, on_stock, price, department_id) '
+            'VALUES (?,?,?,?,?);',
+            (product.name, product.active, product.on_stock,
+             product.price, product.department_id)
         )
         self.con.commit()
 
     def insert_consumer(self, consumer):
         cur = self.con.cursor()
 
-        self._assert_mandatory_fields(consumer, ['name', 'active', 'credit'])
+        self._assert_mandatory_fields(
+            consumer, ['name', 'active', 'credit', 'karma'])
         self._assert_forbidden_fields(consumer, ['id'])
-        self._check_uniqueness(consumer, 'consumer', ['name'])
+        self._check_uniqueness(consumer, 'consumers', ['name'])
 
         cur.execute(
-            'INSERT INTO consumer (name, active, credit) '
-            'VALUES (?,?,?);',
-            (consumer.name, consumer.active, consumer.credit)
+            'INSERT INTO consumers (name, active, credit, karma) '
+            'VALUES (?,?,?,?);',
+            (consumer.name, consumer.active, consumer.credit, consumer.karma)
         )
         self.con.commit()
 
@@ -234,11 +241,16 @@ class DatabaseApi(object):
         purchase.timestamp = datetime.datetime.now()
         purchase.revoked = False
 
-        self._check_foreign_key(purchase, 'consumer_id', 'consumer')
-        self._check_foreign_key(purchase, 'product_id', 'product')
+        self._check_foreign_key(purchase, 'consumer_id', 'consumers')
+        self._check_foreign_key(purchase, 'product_id', 'products')
+
+        consumer = self.get_consumer(purchase.consumer_id)
+        product = self.get_product(purchase.product_id)
+        price_to_pay = self._calculate_product_price(product.price,
+                                                     consumer.karma)
 
         cur.execute(
-            'INSERT INTO purchase('
+            'INSERT INTO purchases('
             '    consumer_id, '
             '    product_id, '
             '    comment, '
@@ -253,7 +265,7 @@ class DatabaseApi(object):
             '    ?, '
             '    ?, '
             '    ?, '
-            '    (SELECT price from product where id=?)'
+            '    ? '
             ');',
             (purchase.consumer_id,
              purchase.product_id,
@@ -261,17 +273,23 @@ class DatabaseApi(object):
              purchase.revoked,
              purchase.timestamp,
              purchase.amount,
-             purchase.product_id)
+             price_to_pay)
         )
 
         cur.execute(
-            'UPDATE consumer '
-            'SET credit = credit - ?*(SELECT price from product where id=?) '
+            'UPDATE consumers '
+            'SET credit = credit - ?*?'
             'WHERE id=?;',
             (purchase.amount,
-             purchase.product_id,
+             price_to_pay,
              purchase.consumer_id)
         )
+
+        cur.execute('UPDATE departments '
+                    'SET income = income + ?*? '
+                    'WHERE id = ?; ',
+                    (purchase.amount, price_to_pay, product.department_id)
+                    )
 
         self.con.commit()
 
@@ -285,36 +303,42 @@ class DatabaseApi(object):
         # default values
         deposit.timestamp = datetime.datetime.now()
 
-        self._check_foreign_key(deposit, 'consumer_id', 'consumer')
+        self._check_foreign_key(deposit, 'consumer_id', 'consumers')
 
         cur.execute(
-            'INSERT INTO deposit (consumer_id, amount, comment, timestamp) '
+            'INSERT INTO deposits (consumer_id, amount, comment, timestamp) '
             'VALUES (?,?,?,?);',
             (deposit.consumer_id, deposit.amount,
              deposit.comment, deposit.timestamp)
         )
 
         cur.execute(
-            'UPDATE consumer '
+            'UPDATE consumers '
             'SET credit = credit + ? '
             'WHERE id=?;',
             (deposit.amount,
              deposit.consumer_id)
         )
 
+        cur.execute(
+            'UPDATE banks '
+            'SET credit = credit + ? ;',
+            (deposit.amount, )
+        )
+
         self.con.commit()
 
     def get_consumer(self, id):
-        return self._get_one(model=Consumer, table='consumer', id=id)
+        return self._get_one(model=Consumer, table='consumers', id=id)
 
     def get_product(self, id):
-        return self._get_one(model=Product, table='product', id=id)
+        return self._get_one(model=Product, table='products', id=id)
 
     def get_purchase(self, id):
-        return self._get_one(model=Purchase, table='purchase', id=id)
+        return self._get_one(model=Purchase, table='purchases', id=id)
 
     def get_deposit(self, id):
-        return self._get_one(model=Deposit, table='deposit', id=id)
+        return self._get_one(model=Deposit, table='deposits', id=id)
 
     def get_department(self, id):
         return self._get_one(model=Department, table='departments', id=id)
@@ -358,16 +382,16 @@ class DatabaseApi(object):
         return cur.fetchall()
 
     def list_consumers(self):
-        return self._list(model=Consumer, table='consumer', limit=None)
+        return self._list(model=Consumer, table='consumers', limit=None)
 
     def list_products(self):
-        return self._list(model=Product, table='product', limit=None)
+        return self._list(model=Product, table='products', limit=None)
 
     def list_purchases(self, limit=None):
-        return self._list(model=Purchase, table='purchase', limit=limit)
+        return self._list(model=Purchase, table='purchases', limit=limit)
 
     def list_deposits(self, limit=None):
-        return self._list(model=Deposit, table='deposit', limit=limit)
+        return self._list(model=Deposit, table='deposits', limit=limit)
 
     def list_departments(self):
         return self._list(model=Department, table='departments', limit=None)
@@ -396,12 +420,12 @@ class DatabaseApi(object):
 
         self._assert_mandatory_fields(product, ['id'])
         # TODO: what happens here if product.name is None?
-        self._check_uniqueness(product, 'product', ['name'])
+        self._check_uniqueness(product, 'products', ['name'])
 
         self._simple_update(
-            cur=cur, object=product, table='product',
+            cur=cur, object=product, table='products',
             updateable_fields=['name', 'price', 'active',
-                               'on_stock']
+                               'on_stock', 'department_id']
         )
 
         self.con.commit()
@@ -409,12 +433,12 @@ class DatabaseApi(object):
     def update_consumer(self, consumer):
         self._assert_mandatory_fields(consumer, ['id'])
         self._assert_forbidden_fields(consumer, ['credit'])
-        self._check_uniqueness(consumer, 'consumer', ['name'])
+        self._check_uniqueness(consumer, 'consumers', ['name'])
         cur = self.con.cursor()
 
         self._simple_update(
-            cur=cur, object=consumer, table='consumer',
-            updateable_fields=['name', 'active']
+            cur=cur, object=consumer, table='consumers',
+            updateable_fields=['name', 'active', 'karma']
         )
         self.con.commit()
 
@@ -475,11 +499,23 @@ class DatabaseApi(object):
         cur.execute(
             'WITH p AS ('
             '    SELECT consumer_id, amount, paid_price_per_product '
-            '    FROM purchase WHERE id=? and revoked=0'
+            '    FROM purchases WHERE id=? and revoked=0'
             ') '
-            'UPDATE consumer '
+            'UPDATE consumers '
             'SET credit=credit+(SELECT amount*paid_price_per_product FROM p) '
             'WHERE id IN (SELECT consumer_id FROM p);',
+            (purchase.id, )
+        )
+
+        cur.execute(
+            'WITH p AS ('
+            '    SELECT product_id, amount, paid_price_per_product'
+            '    FROM purchases WHERE id=? and revoked=0'
+            ') '
+            'UPDATE departments '
+            'SET income = income-(SELECT amount*paid_price_per_product FROM p) '
+            'WHERE id IN (SELECT department_id FROM products '
+            'WHERE id=(SELECT product_id FROM p));',
             (purchase.id, )
         )
 
@@ -487,7 +523,7 @@ class DatabaseApi(object):
             self.con.rollback()
             raise CanOnlyBeRevokedOnce()
 
-        self._simple_update(cur, object=purchase, table='purchase',
+        self._simple_update(cur, object=purchase, table='purchases',
                             updateable_fields=['revoked', 'comment'])
 
         self.con.commit()

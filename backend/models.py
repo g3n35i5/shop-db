@@ -96,10 +96,10 @@ class Deposit(ValidatableObject):
 class Payoff(ValidatableObject):
     _validators = {
         'id': [Type(int)],
-        'bank_id': [Type(int)],
         'department_id': [Type(int)],
         'comment': [Type(str), MaxLength(64), MinLength(8)],
         'amount': [Type(int)],
+        'revoked': [Type(bool)],
         'timestamp': [Type(datetime.datetime)]
     }
 
