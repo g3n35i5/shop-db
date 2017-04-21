@@ -43,7 +43,7 @@ class DuplicateObject(FieldBasedException):
         FieldBasedException.__init__(self, field)
 
 
-class PurchaseCanOnlyBeRevokedOnce(FieldBasedException):
+class CanOnlyBeRevokedOnce(FieldBasedException):
 
     def __init__(self):
         FieldBasedException.__init__(self, 'revoked')
@@ -357,7 +357,7 @@ class DatabaseApi(object):
 
         if cur.rowcount == 0:
             self.con.rollback()
-            raise PurchaseCanOnlyBeRevokedOnce()
+            raise CanOnlyBeRevokedOnce()
 
         self._simple_update(cur, object=purchase, table='purchase',
                             updateable_fields=['revoked', 'comment'])
