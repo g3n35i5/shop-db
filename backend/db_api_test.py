@@ -5,7 +5,8 @@ import unittest
 import app
 
 from .db_api import *
-from .models import Consumer, Deposit, Product, Purchase
+from .models import (Bank, Consumer, Department, Deposit, Payoff, Product,
+                     Purchase)
 from .validation import WrongType
 
 
@@ -54,6 +55,42 @@ class TestDatabaseApi(unittest.TestCase):
         c = Consumer(name='Hans Müller', active=True, credit=0)
         with self.assertRaises(DuplicateObject):
             self.api.insert_consumer(c)
+
+    def test_insert_department(self):
+        d = Department(name="Kaffeewart", budget=20000)
+        self.api.insert_department(d)
+        d = Department(name="Pizzawart", budget=30000)
+        self.api.insert_department(d)
+        d = Department(name="Getränkewart", budget=40000)
+        self.api.insert_department(d)
+
+        departments = self.api.list_departments()
+        self.assertEqual(len(departments), 3)
+
+        # check id's
+        self.assertEqual(departments[0].id, 1)
+        self.assertEqual(departments[1].id, 2)
+        self.assertEqual(departments[2].id, 3)
+
+        # check names
+        self.assertEqual(departments[0].name, "Kaffeewart")
+        self.assertEqual(departments[1].name, "Pizzawart")
+        self.assertEqual(departments[2].name, "Getränkewart")
+
+        # check incomes
+        self.assertEqual(departments[0].income, 0)
+        self.assertEqual(departments[1].income, 0)
+        self.assertEqual(departments[2].income, 0)
+
+        # check expenses
+        self.assertEqual(departments[0].expenses, 0)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
+
+        # check expenses
+        self.assertEqual(departments[0].budget, 20000)
+        self.assertEqual(departments[1].budget, 30000)
+        self.assertEqual(departments[2].budget, 40000)
 
     def test_insert_product(self):
         # insert correctly

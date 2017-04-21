@@ -4,7 +4,8 @@ import datetime
 import pdb
 import sqlite3
 
-from .models import Consumer, Deposit, Product, Purchase
+from .models import (Bank, Consumer, Department, Deposit, Payoff, Product,
+                     Purchase)
 from .validation import FieldBasedException, InputException
 
 # convert booleans since sqlite3 has no booleans
@@ -150,6 +151,20 @@ class DatabaseApi(object):
         )
         self.con.commit()
 
+    def insert_department(self, department):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(
+            department, ['name', 'budget'])
+        self._assert_forbidden_fields(department, ['id'])
+        self._check_uniqueness(department, 'departments', ['name'])
+
+        cur.execute(
+            'INSERT INTO departments (name, income, expenses, budget) '
+            'VALUES (?,?,?,?);',
+            (department.name, 0, 0, department.budget)
+        )
+        self.con.commit()
     def insert_purchase(self, purchase):
         cur = self.con.cursor()
 
@@ -248,6 +263,9 @@ class DatabaseApi(object):
     def get_deposit(self, id):
         return self._get_one(model=Deposit, table='deposit', id=id)
 
+    def get_department(self, id):
+        return self._get_one(model=Department, table='departments', id=id)
+
     def get_bank(self):
         return self._get_one(model=Bank, table='banks', id=1)
 
@@ -294,6 +312,9 @@ class DatabaseApi(object):
 
     def list_deposits(self, limit=None):
         return self._list(model=Deposit, table='deposit', limit=limit)
+
+    def list_departments(self):
+        return self._list(model=Department, table='departments', limit=None)
 
     def list_banks(self):
         return self._list(model=Bank, table='banks', limit=None)
