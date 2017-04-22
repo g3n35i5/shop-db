@@ -360,10 +360,10 @@ class DatabaseApi(object):
         return res
 
     def get_purchases_of_consumer(self, id):
-        return self._get_consumer_data(model=Purchase, table='purchase', id=id)
+        return self._get_consumer_data(model=Purchase, table='purchases', id=id)
 
     def get_deposits_of_consumer(self, id):
-        return self._get_consumer_data(model=Deposit, table='deposit', id=id)
+        return self._get_consumer_data(model=Deposit, table='deposits', id=id)
 
     def _get_consumer_data(self, model, table, id):
         cur = self.con.cursor()
@@ -376,7 +376,7 @@ class DatabaseApi(object):
         cur = self.con.cursor()
         cur.row_factory = factory(Purchase)
         cur.execute(
-            'SELECT * FROM purchase WHERE consumer_id=? AND revoked=0 \
+            'SELECT * FROM purchases WHERE consumer_id=? AND revoked=0 \
             GROUP BY product_id ORDER BY COUNT(product_id) DESC \
             LIMIT 10', (id,))
         return cur.fetchall()

@@ -8,9 +8,9 @@ from flask import Flask, Request, g, jsonify, request
 from flask_cors import CORS
 from werkzeug.local import LocalProxy
 
-from backend.db_api import (DatabaseApi, DuplicateObject, FieldIsNone,
-                            ForbiddenField, ForeignKeyNotExisting,
-                            ObjectNotFound, PurchaseCanOnlyBeRevokedOnce)
+from backend.db_api import (CanOnlyBeRevokedOnce, DatabaseApi, DuplicateObject,
+                            FieldIsNone, ForbiddenField, ForeignKeyNotExisting,
+                            ObjectNotFound)
 from backend.models import Consumer, Deposit, Product, Purchase
 from backend.validation import (FieldBasedException, InputException,
                                 MaximumValueExceeded, MaxLengthExceeded,
@@ -87,8 +87,8 @@ exception_mapping = {
     # TODO: field based?
     ObjectNotFound: {"types": ["input-exception", "object-not-found"], "code": 404},
     DuplicateObject: {"types": ["input-exception", "field-based-exception", "duplicate-object"], "code": 400},
-    PurchaseCanOnlyBeRevokedOnce: {"types": [
-        "input-exception", "field-based-exception", "purchase-can-only-be-revoked-once"], "code": 400}
+    CanOnlyBeRevokedOnce: {"types": [
+        "input-exception", "field-based-exception", "can-only-be-revoked-once"], "code": 400}
 }
 
 
@@ -114,6 +114,11 @@ def handle_error(e):
 @app.route('/consumers', methods=['GET'])
 def list_consumers():
     return jsonify(list(map(to_dict, api.list_consumers())))
+
+
+@app.route('/departments', methods=['GET'])
+def list_departments():
+    return jsonify(list(map(to_dict, api.list_departments())))
 
 
 @app.route('/consumers', methods=['POST'])
