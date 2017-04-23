@@ -57,6 +57,14 @@ payoffs
 - timestamp: timestamp
 
 
+logs
+
+- id: int
+- table_name: varchar[64]
+- updated_id: int
+- data_inserted: varchar[256]
+- timestamp: timestamp
+
 banks
 
 - id: int

@@ -105,23 +105,35 @@ class DatabaseApi(object):
     def _simple_update(self, cur, object, table, updateable_fields):
         params = []
         query_parts = []
+        log_string = []
 
         for field in updateable_fields:
             if getattr(object, field) is None:
                 continue
             query_parts.append('{}=?'.format(field))
             params.append(getattr(object, field))
+            log_string.append('{}={}'.format(field, getattr(object, field)))
 
         if len(query_parts) == 0:
             return
 
-        res = cur.execute(
-            'UPDATE {} SET {} WHERE id=?'
+        res1 = cur.execute(
+            'UPDATE {} SET {} WHERE id=?;'
             .format(table, ', '.join(query_parts)),
             params + [object.id]
         )
 
-        if res.rowcount != 1:
+        log_string = ', '.join(log_string)
+        log_string.replace("True", "1")
+        log_string.replace("False", "0")
+
+        res2 = cur.execute(
+            'INSERT INTO logs (table_name, updated_id, data_inserted, timestamp) '
+            'VALUES(?,?,?,?);',
+            (table, object.id, log_string, datetime.datetime.now())
+        )
+
+        if res1.rowcount != 1 or res2.rowcount != 1:
             self.con.rollback()
             raise ObjectNotFound()
 

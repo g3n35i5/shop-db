@@ -107,6 +107,19 @@ class Payoff(ValidatableObject):
         return representation(self)
 
 
+class Log(ValidatableObject):
+    _validators = {
+        'id': [Type(int)],
+        'table_name': [Type(str), MaxLength(64), MinLength(4)],
+        'updated_id': [Type(int)],
+        'data_inserted': [Type(str), MaxLength(256), MinLength(4)],
+        'timestamp': [Type(datetime.datetime)]
+    }
+
+    def __repr__(self):
+        return representation(self)
+
+
 class Bank(ValidatableObject):
     _validators = {
         'id': [Type(int)],

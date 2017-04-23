@@ -71,6 +71,15 @@ CREATE TABLE payoffs (
 	CHECK (revoked IN (0, 1))
 );
 
+CREATE TABLE logs (
+	id INTEGER NOT NULL,
+	table_name VARCHAR(64) NOT NULL,
+	updated_id INTEGER NOT NULL,
+	data_inserted VARCHAR(256) NOT NULL,
+	timestamp TIMESTAMP NOT NULL,
+	PRIMARY KEY (id)
+);
+
 CREATE TABLE banks (
 	id INTEGER NOT NULL,
 	name VARCHAR(64) NOT NULL,
