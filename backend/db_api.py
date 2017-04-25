@@ -5,8 +5,8 @@ import pdb
 import sqlite3
 from math import floor
 
-from .models import (Bank, Consumer, Department, Deposit, Payoff, Product,
-                     Purchase)
+from .models import (Bank, Consumer, Deed, Department, Deposit, Flag, Log,
+                     Participation, Payoff, Product, Purchase)
 from .validation import FieldBasedException, InputException
 
 # convert booleans since sqlite3 has no booleans
@@ -122,6 +122,9 @@ class DatabaseApi(object):
             .format(table, ', '.join(query_parts)),
             params + [object.id]
         )
+        if res1.rowcount != 1:
+            self.con.rollback()
+            raise ObjectNotFound()
 
         log_string = ', '.join(log_string)
         log_string.replace("True", "1")
@@ -133,9 +136,20 @@ class DatabaseApi(object):
             (table, object.id, log_string, datetime.datetime.now())
         )
 
-        if res1.rowcount != 1 or res2.rowcount != 1:
+        if res2.rowcount != 1:
             self.con.rollback()
             raise ObjectNotFound()
+
+    def insert_flag(self, flag):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(flag, ['name'])
+        self._assert_forbidden_fields(flag, ['id'])
+        self._check_uniqueness(flag, 'flags', ['name'])
+
+        cur.execute('INSERT INTO flags (name) '
+                    'VALUES(?);', (flag.name,))
+        self.con.commit()
 
     def insert_product(self, product):
         cur = self.con.cursor()
@@ -167,6 +181,41 @@ class DatabaseApi(object):
             'INSERT INTO consumers (name, active, credit, karma) '
             'VALUES (?,?,?,?);',
             (consumer.name, consumer.active, consumer.credit, consumer.karma)
+        )
+        self.con.commit()
+
+    def insert_deed(self, deed):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(
+            deed, ['name', 'timestamp', 'done'])
+        self._assert_forbidden_fields(deed, ['id'])
+
+        cur.execute(
+            'INSERT INTO deeds (name, timestamp, done) '
+            'VALUES (?,?,?);',
+            (deed.name, deed.timestamp, deed.done)
+        )
+
+        self.con.commit()
+
+    def insert_participation(self, participation):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(
+            participation, ['deed_id', 'consumer_id', 'flag_id', 'timestamp'])
+        self._assert_forbidden_fields(participation, ['id'])
+
+        self._check_foreign_key(participation, 'deed_id', 'deeds')
+        self._check_foreign_key(participation, 'consumer_id', 'consumers')
+        self._check_foreign_key(participation, 'flag_id', 'flags')
+
+        cur.execute(
+            'INSERT INTO participations '
+            '(deed_id, consumer_id, flag_id, timestamp) '
+            'VALUES (?,?,?,?);',
+            (participation.deed_id, participation.consumer_id,
+             participation.flag_id, participation.timestamp)
         )
         self.con.commit()
 
@@ -355,6 +404,15 @@ class DatabaseApi(object):
     def get_department(self, id):
         return self._get_one(model=Department, table='departments', id=id)
 
+    def get_deed(self, id):
+        return self._get_one(model=Deed, table='deeds', id=id)
+
+    def get_participation(self, id):
+        return self._get_one(model=Participation, table='participations', id=id)
+
+    def get_flag(self, id):
+        return self._get_one(model=Flag, table='deeds', id=id)
+
     def get_payoff(self, id):
         return self._get_one(model=Payoff, table='payoffs', id=id)
 
@@ -411,6 +469,15 @@ class DatabaseApi(object):
     def list_payoffs(self, limit=None):
         return self._list(model=Payoff, table='payoffs', limit=limit)
 
+    def list_logs(self, limit=None):
+        return self._list(model=Log, table='logs', limit=limit)
+
+    def list_deeds(self, limit=None):
+        return self._list(model=Deed, table='deeds', limit=limit)
+
+    def list_participations(self, limit=None):
+        return self._list(model=Participation, table='participations', limit=limit)
+
     def list_banks(self):
         return self._list(model=Bank, table='banks', limit=None)
 
@@ -451,6 +518,27 @@ class DatabaseApi(object):
         self._simple_update(
             cur=cur, object=consumer, table='consumers',
             updateable_fields=['name', 'active', 'karma']
+        )
+        self.con.commit()
+
+    def update_deed(self, deed):
+        self._assert_mandatory_fields(deed, ['id'])
+        cur = self.con.cursor()
+
+        self._simple_update(
+            cur=cur, object=deed, table='deeds',
+            updateable_fields=['name', 'timestamp', 'done']
+        )
+        self.con.commit()
+
+    def update_participation(self, participation):
+        self._assert_mandatory_fields(participation, ['id'])
+        self._check_foreign_key(participation, 'flag_id', 'flags')
+        cur = self.con.cursor()
+
+        self._simple_update(
+            cur=cur, object=participation, table='participations',
+            updateable_fields=['flag_id']
         )
         self.con.commit()
 

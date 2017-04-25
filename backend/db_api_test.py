@@ -1,3 +1,4 @@
+import datetime
 import pdb
 import sqlite3
 import unittest
@@ -5,8 +6,8 @@ import unittest
 import app
 
 from .db_api import *
-from .models import (Bank, Consumer, Department, Deposit, Payoff, Product,
-                     Purchase)
+from .models import (Bank, Consumer, Deed, Department, Deposit, Flag, Log,
+                     Participation, Payoff, Product, Purchase)
 from .validation import WrongType
 
 
@@ -57,6 +58,38 @@ class TestDatabaseApi(unittest.TestCase):
         c = Consumer(name='Hans Müller', active=True, credit=0, karma=0)
         with self.assertRaises(DuplicateObject):
             self.api.insert_consumer(c)
+
+    def test_insert_deed(self):
+        d = Deed(name="Getränke tragen",
+                 timestamp=datetime.datetime.now(), done=False)
+
+        self.api.insert_deed(d)
+        deed = self.api.get_deed(id=1)
+        self.assertEqual(deed.name, "Getränke tragen")
+        self.assertEqual(deed.done, 0)
+        self.assertIsNotNone(deed.timestamp)
+
+    def test_insert_participation(self):
+        c = Consumer(name='Hans Müller', active=True, credit=250, karma=0)
+        self.api.insert_consumer(c)
+
+        f = Flag(name="Teilgenommen")
+        self.api.insert_flag(f)
+
+        d = Deed(name="Getränke tragen",
+                 timestamp=datetime.datetime.now(), done=False)
+        self.api.insert_deed(d)
+        deed = self.api.get_deed(id=1)
+        self.assertEqual(deed.name, "Getränke tragen")
+        self.assertEqual(deed.done, 0)
+        self.assertIsNotNone(deed.timestamp)
+
+        p = Participation(consumer_id=1, deed_id=1,
+                          timestamp=datetime.datetime.now(), flag_id=1)
+
+        self.api.insert_participation(p)
+        participations = self.api.list_participations()
+        self.assertEqual(len(participations), 1)
 
     def test_insert_department(self):
         d = Department(name="Kaffeewart", budget=20000)
