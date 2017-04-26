@@ -57,7 +57,8 @@ class Product(ValidatableObject):
         'price': [Type(int)],
         'department_id': [Type(int)],
         'active': [Type(bool)],
-        'on_stock': [Type(bool)]
+        'on_stock': [Type(bool)],
+        'revocable': [Type(bool)]
     }
 
     def __repr__(self):

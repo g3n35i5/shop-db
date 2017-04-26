@@ -51,6 +51,12 @@ class CanOnlyBeRevokedOnce(FieldBasedException):
         FieldBasedException.__init__(self, 'revoked')
 
 
+class NotRevocable(FieldBasedException):
+
+    def __init__(self, product):
+        FieldBasedException.__init__(self, product.name)
+
+
 def factory(cls):
     """ Helper function for ORM Mapping """
     def fun(cursor, row):
@@ -155,17 +161,19 @@ class DatabaseApi(object):
         cur = self.con.cursor()
 
         self._assert_mandatory_fields(
-            product, ['name', 'active', 'on_stock', 'price', 'department_id']
+            product, ['name', 'active', 'on_stock',
+                      'price', 'department_id', 'revocable']
         )
         self._assert_forbidden_fields(product, ['id'])
         self._check_uniqueness(product, 'products', ['name'])
         self._check_foreign_key(product, 'department_id', 'departments')
 
         cur.execute(
-            'INSERT INTO products (name, active, on_stock, price, department_id) '
-            'VALUES (?,?,?,?,?);',
+            'INSERT INTO products '
+            '(name, active, on_stock, price, department_id, revocable) '
+            'VALUES (?,?,?,?,?,?);',
             (product.name, product.active, product.on_stock,
-             product.price, product.department_id)
+             product.price, product.department_id, product.revocable)
         )
         self.con.commit()
 
@@ -594,6 +602,12 @@ class DatabaseApi(object):
             # nothing to do
             # TODO: maybe we should return something like "nothing to do"
             return
+
+        p_id = self.get_purchase(id=purchase.id).product_id
+
+        product = self.get_product(id=p_id)
+        if product.revocable == 0:
+            raise NotRevocable(product)
 
         cur = self.con.cursor()
         cur.execute(

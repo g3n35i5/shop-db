@@ -23,7 +23,8 @@ products
 - price: int
 - department_id: int : foreignkey
 - active: bool
-- onstock: bool
+- on_stock: bool
+- revocable: bool
 
 
 purchases

@@ -26,6 +26,7 @@ CREATE TABLE products (
 	department_id INTEGER NOT NULL,
 	active BOOLEAN NOT NULL,
 	on_stock BOOLEAN NOT NULL,
+	revocable BOOLEAN NOT NULL,
 	PRIMARY KEY (id),
 	UNIQUE (name),
 	FOREIGN KEY(department_id) REFERENCES departments (id),
