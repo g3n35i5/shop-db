@@ -41,9 +41,21 @@ class Department(ValidatableObject):
     _validators = {
         'id': [Type(int)],
         'name': [Type(str), MaxLength(64), MinLength(4)],
-        'income': [Type(int)],
+        'income_base': [Type(int)],
+        'income_karma': [Type(int)],
         'expenses': [Type(int)],
         'budget': [Type(int)]
+    }
+
+    def __repr__(self):
+        return representation(self)
+
+
+class KarmaScale(ValidatableObject):
+    _validators = {
+        'id': [Type(int)],
+        'price_bound': [Type(int)],
+        'additional_percent': [Type(int)]
     }
 
     def __repr__(self):
@@ -74,7 +86,8 @@ class Purchase(ValidatableObject):
         'comment': [Type(str), MaxLength(64), MinLength(8)],
         'timestamp': [Type(datetime.datetime)],
         'revoked': [Type(bool)],
-        'paid_price_per_product': [Type(int)]
+        'paid_base_price_per_product': [Type(int)],
+        'paid_karma_per_product': [Type(int)]
     }
 
     def __repr__(self):

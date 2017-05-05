@@ -113,9 +113,13 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(departments[2].name, "Getränkewart")
 
         # check incomes
-        self.assertEqual(departments[0].income, 0)
-        self.assertEqual(departments[1].income, 0)
-        self.assertEqual(departments[2].income, 0)
+        self.assertEqual(departments[0].income_base, 0)
+        self.assertEqual(departments[1].income_base, 0)
+        self.assertEqual(departments[2].income_base, 0)
+
+        self.assertEqual(departments[0].income_karma, 0)
+        self.assertEqual(departments[1].income_karma, 0)
+        self.assertEqual(departments[2].income_karma, 0)
 
         # check expenses
         self.assertEqual(departments[0].expenses, 0)
@@ -302,7 +306,8 @@ class TestDatabaseApi(unittest.TestCase):
         department = self.api.get_department(id=1)
         self.assertEqual(department.id, 1)
         self.assertEqual(department.name, "Kaffeewart")
-        self.assertEqual(department.income, 0)
+        self.assertEqual(department.income_base, 0)
+        self.assertEqual(department.income_karma, 0)
         self.assertEqual(department.expenses, 0)
         self.assertEqual(department.budget, 20000)
 
@@ -341,6 +346,7 @@ class TestDatabaseApi(unittest.TestCase):
 
         pur3 = Purchase(consumer_id=3, product_id=1, amount=1,
                         comment="bad dude buys something")
+
         self.api.insert_purchase(pur1)
         self.api.insert_purchase(pur2)
         self.api.insert_purchase(pur3)
@@ -349,17 +355,20 @@ class TestDatabaseApi(unittest.TestCase):
         purchases = self.api.list_purchases()
         self.assertEqual(len(purchases), 3)
 
-        self.assertEqual(purchases[0].paid_price_per_product, 110)
+        self.assertEqual(purchases[0].paid_base_price_per_product, 100)
+        self.assertEqual(purchases[0].paid_karma_per_product, 10)
         self.assertEqual(purchases[0].amount, 1)
         self.assertEqual(purchases[0].comment, "good dude buys something")
         self.assertIsNotNone(purchases[0].timestamp)
 
-        self.assertEqual(purchases[1].paid_price_per_product, 100)
+        self.assertEqual(purchases[1].paid_base_price_per_product, 100)
+        self.assertEqual(purchases[1].paid_karma_per_product, 0)
         self.assertEqual(purchases[1].amount, 1)
         self.assertEqual(purchases[1].comment, "awesome dude buys something")
         self.assertIsNotNone(purchases[1].timestamp)
 
-        self.assertEqual(purchases[2].paid_price_per_product, 120)
+        self.assertEqual(purchases[2].paid_base_price_per_product, 100)
+        self.assertEqual(purchases[2].paid_karma_per_product, 20)
         self.assertEqual(purchases[2].amount, 1)
         self.assertEqual(purchases[2].comment, "bad dude buys something")
         self.assertIsNotNone(purchases[2].timestamp)
@@ -374,7 +383,8 @@ class TestDatabaseApi(unittest.TestCase):
         department = self.api.get_department(id=1)
         self.assertEqual(department.id, 1)
         self.assertEqual(department.name, "Kaffeewart")
-        self.assertEqual(department.income, 330)
+        self.assertEqual(department.income_base, 300)
+        self.assertEqual(department.income_karma, 30)
         self.assertEqual(department.expenses, 0)
         self.assertEqual(department.budget, 20000)
 
@@ -382,17 +392,20 @@ class TestDatabaseApi(unittest.TestCase):
         pur = Purchase(id=1, revoked=True)
         self.api.update_purchase(pur)
         department = self.api.get_department(id=1)
-        self.assertEqual(department.income, 220)
+        self.assertEqual(department.income_base, 200)
+        self.assertEqual(department.income_karma, 20)
 
         pur = Purchase(id=2, revoked=True)
         self.api.update_purchase(pur)
         department = self.api.get_department(id=1)
-        self.assertEqual(department.income, 120)
+        self.assertEqual(department.income_base, 100)
+        self.assertEqual(department.income_karma, 20)
 
         pur = Purchase(id=3, revoked=True)
         self.api.update_purchase(pur)
         department = self.api.get_department(id=1)
-        self.assertEqual(department.income, 0)
+        self.assertEqual(department.income_base, 0)
+        self.assertEqual(department.income_karma, 0)
 
         # test with wrong foreign key consumer_id
         pur4 = Purchase(consumer_id=4, product_id=1, amount=1,
@@ -422,9 +435,12 @@ class TestDatabaseApi(unittest.TestCase):
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur6)
 
-        # purchase.paid_price should be forbidden
+        # purchase.paid_base_price_per_product and paid_karma_per_product
+        # should be forbidden
         pur7 = Purchase(consumer_id=1, product_id=1,
-                        paid_price_per_product=200, amount=1,
+                        paid_base_price_per_product=200,
+                        paid_karma_per_product=200,
+                        amount=1,
                         comment="purchase done by unittest")
         with self.assertRaises(ForbiddenField):
             self.api.insert_purchase(pur7)
@@ -512,7 +528,8 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(pur.comment, "purchase done by unittest")
         consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.credit,
-                         250 - pur.amount * pur.paid_price_per_product)
+                         250 - pur.amount * pur.paid_base_price_per_product
+                         - pur.amount * pur.paid_karma_per_product)
 
         # revoke purchase and update comment
         pur = Purchase(id=1, revoked=True,

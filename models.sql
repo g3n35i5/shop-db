@@ -13,10 +13,20 @@ CREATE TABLE consumers (
 CREATE TABLE departments (
 	id INTEGER NOT NULL,
 	name VARCHAR(64) NOT NULL,
-	income INTEGER NOT NULL,
+	income_base INTEGER NOT NULL,
+	income_karma INTEGER NOT NULL,
 	expenses INTEGER NOT NULL,
 	budget INTEGER NOT NULL,
 	PRIMARY KEY (id)
+);
+
+CREATE TABLE karmascale (
+	id INTEGER NOT NULL,
+	price_bound INTEGER NOT NULL,
+	additional_percent INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	CHECK (price_bound >= 0),
+	CHECK (additional_percent >=0)
 );
 
 CREATE TABLE products (
@@ -42,7 +52,8 @@ CREATE TABLE purchases (
 	comment VARCHAR(64) NOT NULL,
 	revoked BOOLEAN NOT NULL,
 	timestamp TIMESTAMP NOT NULL,
-	paid_price_per_product INTEGER NOT NULL,
+	paid_base_price_per_product INTEGER NOT NULL,
+	paid_karma_per_product INTEGER NOT NULL,
 	PRIMARY KEY (id),
 	FOREIGN KEY(consumer_id) REFERENCES consumers (id),
 	FOREIGN KEY(product_id) REFERENCES products (id),
@@ -115,3 +126,9 @@ CREATE TABLE banks (
 );
 
 INSERT INTO banks (name, credit) VALUES ("Hauptkonto", 0);
+INSERT INTO karmascale (price_bound, additional_percent) VALUES (10, 50);
+INSERT INTO karmascale (price_bound, additional_percent) VALUES (20, 40);
+INSERT INTO karmascale (price_bound, additional_percent) VALUES (50, 30);
+INSERT INTO karmascale (price_bound, additional_percent) VALUES (80, 25);
+INSERT INTO karmascale (price_bound, additional_percent) VALUES (100, 20);
+INSERT INTO karmascale (price_bound, additional_percent) VALUES (200, 15);

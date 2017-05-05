@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
+import collections
 import datetime
 import pdb
 import sqlite3
 from math import floor
 
-from .models import (Bank, Consumer, Deed, Department, Deposit, Flag, Log,
-                     Participation, Payoff, Product, Purchase)
+from .models import (Bank, Consumer, Deed, Department, Deposit, Flag,
+                     KarmaScale, Log, Participation, Payoff, Product, Purchase)
 from .validation import FieldBasedException, InputException
 
 # convert booleans since sqlite3 has no booleans
@@ -106,7 +107,21 @@ class DatabaseApi(object):
             raise ForeignKeyNotExisting(foreign_key)
 
     def _calculate_product_price(self, base_price, karma):
-        return floor(base_price * (1 + (-karma + 10) / 100))
+        karmascale = self.list_karmascale()
+        bounds = {}
+        percent = 0
+        for scale in karmascale:
+            bounds[scale.price_bound] = scale.additional_percent
+
+        bounds = collections.OrderedDict(sorted(bounds.items()))
+
+        for bound in bounds:
+            if base_price >= bound:
+                percent = bounds[bound]
+            else:
+                break
+
+        return floor(base_price * (1 + percent * (-karma + 10) / 2000))
 
     def _simple_update(self, cur, object, table, updateable_fields):
         params = []
@@ -234,11 +249,16 @@ class DatabaseApi(object):
             department, ['name', 'budget'])
         self._assert_forbidden_fields(department, ['id'])
         self._check_uniqueness(department, 'departments', ['name'])
+        department.income_base = 0
+        department.income_karma = 0
+        department.expenses = 0
 
         cur.execute(
-            'INSERT INTO departments (name, income, expenses, budget) '
-            'VALUES (?,?,?,?);',
-            (department.name, 0, 0, department.budget)
+            'INSERT INTO departments '
+            '(name, income_base, income_karma, expenses, budget) '
+            'VALUES (?,?,?,?,?);',
+            (department.name, department.income_base,
+             department.income_karma, department.expenses, department.budget)
         )
         self.con.commit()
 
@@ -302,7 +322,9 @@ class DatabaseApi(object):
                                                  'amount',
                                                  'comment'])
         self._assert_forbidden_fields(
-            purchase, ['id', 'timestamp', 'revoked', 'paid_price_per_product']
+            purchase, ['id', 'timestamp', 'revoked',
+                       'paid_base_price_per_product',
+                       'paid_karma_per_product']
         )
 
         # TODO: purchase should be only allowed if the product and the consumer
@@ -326,8 +348,10 @@ class DatabaseApi(object):
             '    revoked, '
             '    timestamp,'
             '    amount,'
-            '    paid_price_per_product) '
+            '    paid_base_price_per_product,'
+            '    paid_karma_per_product) '
             'VALUES ('
+            '    ?, '
             '    ?, '
             '    ?, '
             '    ?, '
@@ -342,7 +366,8 @@ class DatabaseApi(object):
              purchase.revoked,
              purchase.timestamp,
              purchase.amount,
-             price_to_pay)
+             product.price,
+             price_to_pay - product.price)
         )
 
         cur.execute(
@@ -354,10 +379,15 @@ class DatabaseApi(object):
              purchase.consumer_id)
         )
 
-        cur.execute('UPDATE departments '
-                    'SET income = income + ?*? '
-                    'WHERE id = ?; ',
-                    (purchase.amount, price_to_pay, product.department_id)
+        cur.execute('UPDATE departments SET '
+                    'income_base = income_base + ?*?, '
+                    'income_karma = income_karma + ?*? '
+                    'WHERE id=?;',
+                    (purchase.amount,
+                     product.price,
+                     purchase.amount,
+                     price_to_pay - product.price,
+                     product.department_id)
                     )
 
         self.con.commit()
@@ -473,6 +503,9 @@ class DatabaseApi(object):
 
     def list_departments(self):
         return self._list(model=Department, table='departments', limit=None)
+
+    def list_karmascale(self):
+        return self._list(model=KarmaScale, table='karmascale', limit=None)
 
     def list_payoffs(self, limit=None):
         return self._list(model=Payoff, table='payoffs', limit=limit)
@@ -596,7 +629,8 @@ class DatabaseApi(object):
         self._assert_mandatory_fields(purchase, ['id'])
         self._assert_forbidden_fields(purchase, ['consumer_id', 'amount',
                                                  'product_id', 'timestamp',
-                                                 'paid_price_per_product'])
+                                                 'paid_base_price_per_product',
+                                                 'paid_karma_per_product'])
 
         if purchase.revoked is None or not purchase.revoked:
             # nothing to do
@@ -612,22 +646,29 @@ class DatabaseApi(object):
         cur = self.con.cursor()
         cur.execute(
             'WITH p AS ('
-            '    SELECT consumer_id, amount, paid_price_per_product '
-            '    FROM purchases WHERE id=? and revoked=0'
+            ' SELECT consumer_id, amount, '
+            ' paid_base_price_per_product, paid_karma_per_product'
+            ' FROM purchases WHERE id=? and revoked=0'
             ') '
             'UPDATE consumers '
-            'SET credit=credit+(SELECT amount*paid_price_per_product FROM p) '
-            'WHERE id IN (SELECT consumer_id FROM p);',
+            'SET credit=credit'
+            ' + (SELECT amount*paid_base_price_per_product FROM p)'
+            ' + (SELECT amount*paid_karma_per_product FROM p)'
+            ' WHERE id IN (SELECT consumer_id FROM p);',
             (purchase.id, )
         )
 
         cur.execute(
             'WITH p AS ('
-            '    SELECT product_id, amount, paid_price_per_product'
-            '    FROM purchases WHERE id=? and revoked=0'
+            ' SELECT product_id, amount, '
+            ' paid_base_price_per_product, paid_karma_per_product'
+            ' FROM purchases WHERE id=? and revoked=0'
             ') '
             'UPDATE departments '
-            'SET income = income-(SELECT amount*paid_price_per_product FROM p) '
+            'SET income_base = income_base'
+            ' - (SELECT amount*paid_base_price_per_product FROM p), '
+            ' income_karma = income_karma'
+            ' - (SELECT amount*paid_karma_per_product FROM p) '
             'WHERE id IN (SELECT department_id FROM products '
             'WHERE id=(SELECT product_id FROM p));',
             (purchase.id, )

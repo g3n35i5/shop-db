@@ -11,9 +11,17 @@ departments
 
 - id: int
 - name: varchar[64]
-- income: int
+- income_base: int
+- income_karma: int
 - expenses: int
 - budget: int
+
+
+karmascale
+
+- id: int
+- price_bound: int
+- additional_percent: int
 
 
 products
