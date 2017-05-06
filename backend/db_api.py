@@ -147,19 +147,17 @@ class DatabaseApi(object):
             self.con.rollback()
             raise ObjectNotFound()
 
-        log_string = ', '.join(log_string)
-        log_string.replace("True", "1")
-        log_string.replace("False", "0")
-
-        res2 = cur.execute(
-            'INSERT INTO logs (table_name, updated_id, data_inserted, timestamp) '
-            'VALUES(?,?,?,?);',
-            (table, object.id, log_string, datetime.datetime.now())
-        )
-
-        if res2.rowcount != 1:
-            self.con.rollback()
-            raise ObjectNotFound()
+        for change in log_string:
+            change.replace("True", "1")
+            change.replace("False", "0")
+            res2 = cur.execute(
+                'INSERT INTO logs (table_name, updated_id, data_inserted, timestamp) '
+                'VALUES(?,?,?,?);',
+                (table, object.id, change, datetime.datetime.now())
+            )
+            if res2.rowcount != 1:
+                self.con.rollback()
+                raise ObjectNotFound()
 
     def insert_flag(self, flag):
         cur = self.con.cursor()
