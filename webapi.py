@@ -236,6 +236,16 @@ def create_deposit():
     app.logger.warning('created deposit: {}'.format(d))
     return jsonify(result='created'), 201
 
+
+@app.route('/karmascale', methods=['GET'])
+def list_karmascale():
+    return jsonify(list(map(to_dict, api.list_karmascale())))
+
+
+@app.route('/karmahistory/<int:id>', methods=['GET'])
+def get_karma_history():
+    return jsonify(list(map(to_dict, api.get_karma_history(id))))
+
 if __name__ == "__main__":
     handler = RotatingFileHandler('backend.log', maxBytes=60000, backupCount=1)
     handler.setLevel(logging.DEBUG)

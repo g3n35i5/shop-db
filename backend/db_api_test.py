@@ -6,8 +6,8 @@ import unittest
 import app
 
 from .db_api import *
-from .models import (Bank, Consumer, Deed, Department, Deposit, Flag, Log,
-                     Participation, Payoff, Product, Purchase)
+from .models import (Bank, Consumer, Deed, Department, Deposit, Flag,
+                     KarmaScale, Log, Participation, Payoff, Product, Purchase)
 from .validation import WrongType
 
 
@@ -180,8 +180,31 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(consumer.name, 'Peter Meier')
         consumer = Consumer(id=1, karma=10)
         self.api.update_consumer(consumer)
+        karmahistory = self.api.get_karma_history(id=1)
+        self.assertEqual(len(karmahistory), 1)
         consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.karma, 10)
+
+        # test karmahistory
+        consumer = Consumer(id=1, karma=9)
+        self.api.update_consumer(consumer)
+        karmahistory = self.api.get_karma_history(id=1)
+        self.assertEqual(len(karmahistory), 2)
+
+        consumer = Consumer(id=1, karma=8)
+        self.api.update_consumer(consumer)
+        karmahistory = self.api.get_karma_history(id=1)
+        self.assertEqual(len(karmahistory), 3)
+
+        consumer = Consumer(id=1, karma=7)
+        self.api.update_consumer(consumer)
+        karmahistory = self.api.get_karma_history(id=1)
+        self.assertEqual(len(karmahistory), 4)
+
+        self.assertEqual(karmahistory[0].data_inserted, 'karma=7')
+        self.assertEqual(karmahistory[1].data_inserted, 'karma=8')
+        self.assertEqual(karmahistory[2].data_inserted, 'karma=9')
+        self.assertEqual(karmahistory[3].data_inserted, 'karma=10')
 
         c = Consumer(id=1, credit=1337)
         with self.assertRaises(ForbiddenField):

@@ -487,6 +487,17 @@ class DatabaseApi(object):
             LIMIT 10', (id,))
         return cur.fetchall()
 
+    def get_karma_history(self, id):
+        cur = self.con.cursor()
+        cur.row_factory = factory(Log)
+        cur.execute(
+            'SELECT * FROM logs WHERE table_name=?'
+            'AND updated_id=? '
+            'AND data_inserted LIKE ? '
+            'ORDER BY id DESC '
+            ' LIMIT 100', ('consumers', id, 'karma=%'))
+        return cur.fetchall()
+
     def list_consumers(self):
         return self._list(model=Consumer, table='consumers', limit=None)
 
