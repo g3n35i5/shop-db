@@ -6,8 +6,8 @@ import pdb
 import sqlite3
 from math import floor
 
-from .models import (Bank, Consumer, Deed, Department, Deposit, Flag,
-                     KarmaScale, Log, Participation, Payoff, Product, Purchase)
+from .models import (Bank, Consumer, Deed, Department, Deposit, Flag, Log,
+                     Participation, Payoff, PriceCategory, Product, Purchase)
 from .validation import FieldBasedException, InputException
 
 # convert booleans since sqlite3 has no booleans
@@ -107,11 +107,11 @@ class DatabaseApi(object):
             raise ForeignKeyNotExisting(foreign_key)
 
     def _calculate_product_price(self, base_price, karma):
-        karmascale = self.list_karmascale()
+        pricecategories = self.list_pricecategories()
         bounds = {}
         percent = 0
-        for scale in karmascale:
-            bounds[scale.price_bound] = scale.additional_percent
+        for scale in pricecategories:
+            bounds[scale.price_lower_bound] = scale.additional_percent
 
         bounds = collections.OrderedDict(sorted(bounds.items()))
 
@@ -513,8 +513,8 @@ class DatabaseApi(object):
     def list_departments(self):
         return self._list(model=Department, table='departments', limit=None)
 
-    def list_karmascale(self):
-        return self._list(model=KarmaScale, table='karmascale', limit=None)
+    def list_pricecategories(self):
+        return self._list(model=PriceCategory, table='pricecategories', limit=None)
 
     def list_payoffs(self, limit=None):
         return self._list(model=Payoff, table='payoffs', limit=limit)

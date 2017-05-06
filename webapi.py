@@ -237,9 +237,9 @@ def create_deposit():
     return jsonify(result='created'), 201
 
 
-@app.route('/karmascale', methods=['GET'])
-def list_karmascale():
-    return jsonify(list(map(to_dict, api.list_karmascale())))
+@app.route('/pricecategories', methods=['GET'])
+def list_pricecategories():
+    return jsonify(list(map(to_dict, api.list_pricecategories())))
 
 
 @app.route('/karmahistory/<int:id>', methods=['GET'])

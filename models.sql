@@ -20,12 +20,12 @@ CREATE TABLE departments (
 	PRIMARY KEY (id)
 );
 
-CREATE TABLE karmascale (
+CREATE TABLE pricecategories (
 	id INTEGER NOT NULL,
-	price_bound INTEGER NOT NULL,
+	price_lower_bound INTEGER NOT NULL,
 	additional_percent INTEGER NOT NULL,
 	PRIMARY KEY (id),
-	CHECK (price_bound >= 0),
+	CHECK (price_lower_bound >= 0),
 	CHECK (additional_percent >=0)
 );
 
@@ -126,9 +126,10 @@ CREATE TABLE banks (
 );
 
 INSERT INTO banks (name, credit) VALUES ("Hauptkonto", 0);
-INSERT INTO karmascale (price_bound, additional_percent) VALUES (10, 50);
-INSERT INTO karmascale (price_bound, additional_percent) VALUES (20, 40);
-INSERT INTO karmascale (price_bound, additional_percent) VALUES (50, 30);
-INSERT INTO karmascale (price_bound, additional_percent) VALUES (80, 25);
-INSERT INTO karmascale (price_bound, additional_percent) VALUES (100, 20);
-INSERT INTO karmascale (price_bound, additional_percent) VALUES (200, 15);
+INSERT INTO pricecategories (price_lower_bound, additional_percent) VALUES (0, 60);
+INSERT INTO pricecategories (price_lower_bound, additional_percent) VALUES (10, 50);
+INSERT INTO pricecategories (price_lower_bound, additional_percent) VALUES (20, 40);
+INSERT INTO pricecategories (price_lower_bound, additional_percent) VALUES (50, 30);
+INSERT INTO pricecategories (price_lower_bound, additional_percent) VALUES (80, 25);
+INSERT INTO pricecategories (price_lower_bound, additional_percent) VALUES (100, 20);
+INSERT INTO pricecategories (price_lower_bound, additional_percent) VALUES (200, 15);

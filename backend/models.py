@@ -51,10 +51,10 @@ class Department(ValidatableObject):
         return representation(self)
 
 
-class KarmaScale(ValidatableObject):
+class PriceCategory(ValidatableObject):
     _validators = {
         'id': [Type(int)],
-        'price_bound': [Type(int)],
+        'price_lower_bound': [Type(int)],
         'additional_percent': [Type(int)]
     }
 
