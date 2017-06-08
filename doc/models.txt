@@ -33,6 +33,7 @@ products
 - active: bool
 - on_stock: bool
 - revocable: bool
+- image: varchar[64]
 
 
 purchases

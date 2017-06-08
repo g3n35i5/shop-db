@@ -181,12 +181,17 @@ class DatabaseApi(object):
         self._check_uniqueness(product, 'products', ['name'])
         self._check_foreign_key(product, 'department_id', 'departments')
 
+        if product.image is None:
+            product.image = 'default.png'
+
         cur.execute(
             'INSERT INTO products '
-            '(name, active, on_stock, price, department_id, revocable) '
-            'VALUES (?,?,?,?,?,?);',
+            '(name, active, on_stock, price, department_id, '
+            'revocable, imagepath) '
+            'VALUES (?,?,?,?,?,?,?);',
             (product.name, product.active, product.on_stock,
-             product.price, product.department_id, product.revocable)
+             product.price, product.department_id,
+             product.revocable, product.imagepath)
         )
         self.con.commit()
 
@@ -554,7 +559,7 @@ class DatabaseApi(object):
         self._simple_update(
             cur=cur, object=product, table='products',
             updateable_fields=['name', 'price', 'active',
-                               'on_stock', 'department_id']
+                               'on_stock', 'department_id', 'image']
         )
 
         self.con.commit()

@@ -70,7 +70,8 @@ class Product(ValidatableObject):
         'department_id': [Type(int)],
         'active': [Type(bool)],
         'on_stock': [Type(bool)],
-        'revocable': [Type(bool)]
+        'revocable': [Type(bool)],
+        'image': [Type(str), MaxLength(64), MinLength(4)]
     }
 
     def __repr__(self):

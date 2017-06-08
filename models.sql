@@ -37,6 +37,7 @@ CREATE TABLE products (
 	active BOOLEAN NOT NULL,
 	on_stock BOOLEAN NOT NULL,
 	revocable BOOLEAN NOT NULL,
+	image VARCHAR(64) NOT NULL,
 	PRIMARY KEY (id),
 	UNIQUE (name),
 	FOREIGN KEY(department_id) REFERENCES departments (id),
