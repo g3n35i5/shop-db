@@ -1,3 +1,10 @@
+CREATE TABLE information (
+  id INTEGER NOT NULL,
+	version_major INTEGER NOT NULL,
+  version_minor INTEGER NOT NULL,
+  PRIMARY KEY (id)
+);
+
 CREATE TABLE consumers (
 	id INTEGER NOT NULL,
 	name VARCHAR(64) NOT NULL,

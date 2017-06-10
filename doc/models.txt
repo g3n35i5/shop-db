@@ -1,3 +1,10 @@
+information:
+
+- id: int
+- version_major: int
+- version_minor: int
+
+
 consumers
 
 - id: int

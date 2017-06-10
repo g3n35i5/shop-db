@@ -24,6 +24,17 @@ def representation(obj):
     return ''.join(r)
 
 
+class Information(ValidatableObject):
+    _validators = {
+        'id': [Type(int)],
+        'version_major': [Type(int)],
+        'version_minor': [Type(int)]
+    }
+
+    def __repr__(self):
+        return representation(self)
+
+
 class Consumer(ValidatableObject):
     _validators = {
         'id': [Type(int)],

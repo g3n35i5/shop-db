@@ -11,7 +11,8 @@ from werkzeug.local import LocalProxy
 from backend.db_api import (CanOnlyBeRevokedOnce, DatabaseApi, DuplicateObject,
                             FieldIsNone, ForbiddenField, ForeignKeyNotExisting,
                             ObjectNotFound)
-from backend.models import Consumer, Deposit, Payoff, Product, Purchase
+from backend.models import (Consumer, Deposit, Information, Payoff, Product,
+                            Purchase)
 from backend.validation import (FieldBasedException, InputException,
                                 MaximumValueExceeded, MaxLengthExceeded,
                                 MinLengthUndershot, UnknownField, WrongType,
@@ -245,6 +246,11 @@ def list_pricecategories():
 @app.route('/karmahistory/<int:id>', methods=['GET'])
 def get_karma_history():
     return jsonify(list(map(to_dict, api.get_karma_history(id))))
+
+
+@app.route('/information', methods=['GET'])
+def get_backend_information():
+    return jsonify(to_dict(api.list_information()[0]))
 
 
 @app.route('/payoff', methods=['POST'])

@@ -1,6 +1,6 @@
 # database shits
 *.db
-
+images/
 # logging
 backend.log*
 # pycache folder

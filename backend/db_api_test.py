@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+
 import datetime
 import pdb
 import sqlite3
@@ -7,7 +9,8 @@ import app
 
 from .db_api import *
 from .models import (Bank, Consumer, Deed, Department, Deposit, Flag,
-                     KarmaScale, Log, Participation, Payoff, Product, Purchase)
+                     Information, Log, Participation, Payoff, PriceCategory,
+                     Product, Purchase)
 from .validation import WrongType
 
 
@@ -29,6 +32,27 @@ class TestDatabaseApi(unittest.TestCase):
     def tearDown(self):
         # all actions should be committed after the tests
         self.assertFalse(self.con.in_transaction)
+
+    def test_information(self):
+        # insert information
+        i = Information(version_major=3, version_minor=1)
+
+        self.api.insert_information(i)
+
+        i = self.api.list_information()
+        self.assertEqual(len(i), 1)
+        self.assertEqual(i[0].version_major, 3)
+        self.assertEqual(i[0].version_minor, 1)
+
+        i2 = Information(version_major=3, version_minor=2)
+
+        with self.assertRaises(OnlyOneRowAllowed):
+            self.api.insert_information(i2)
+
+        i = self.api.list_information()
+        self.assertEqual(len(i), 1)
+        self.assertEqual(i[0].version_major, 3)
+        self.assertEqual(i[0].version_minor, 1)
 
     def test_insert_consumer(self):
         # insert correctly
@@ -558,14 +582,15 @@ class TestDatabaseApi(unittest.TestCase):
         pur = Purchase(id=1, revoked=True,
                        comment="purchases updated with unittest")
         self.api.update_purchase(pur)
-        # do it twice to check whether it's indeponent
-        with self.assertRaises(CanOnlyBeRevokedOnce):
-            self.api.update_purchase(pur)
 
         # check if the purchase has been updated
         pur2 = self.api.get_purchase(id=1)
         self.assertEqual(pur2.comment, "purchases updated with unittest")
         self.assertTrue(pur2.revoked)
+
+        # do it twice to check whether it's indeponent
+        with self.assertRaises(CanOnlyBeRevokedOnce):
+            self.api.update_purchase(pur)
 
         # check if the consumers credit has increased
         consumer = self.api.get_consumer(id=1)

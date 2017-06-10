@@ -6,8 +6,9 @@ import pdb
 import sqlite3
 from math import floor
 
-from .models import (Bank, Consumer, Deed, Department, Deposit, Flag, Log,
-                     Participation, Payoff, PriceCategory, Product, Purchase)
+from .models import (Bank, Consumer, Deed, Department, Deposit, Flag,
+                     Information, Log, Participation, Payoff, PriceCategory,
+                     Product, Purchase)
 from .validation import FieldBasedException, InputException
 
 # convert booleans since sqlite3 has no booleans
@@ -35,6 +36,12 @@ class ForbiddenField(FieldBasedException):
 
 
 class ObjectNotFound(InputException):
+
+    def __init__(self):
+        InputException.__init__(self)
+
+
+class OnlyOneRowAllowed(FieldBasedException):
 
     def __init__(self):
         InputException.__init__(self)
@@ -170,6 +177,24 @@ class DatabaseApi(object):
                     'VALUES(?);', (flag.name,))
         self.con.commit()
 
+    def insert_information(self, information):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(information, ['version_major',
+                                                    'version_minor'])
+
+        self._assert_forbidden_fields(information, ['id'])
+
+        inf = self.list_information()
+        if len(inf) > 0:
+            raise OnlyOneRowAllowed()
+
+        cur.execute('INSERT INTO information '
+                    '(version_major, version_minor) '
+                    'VALUES(?,?);', (information.version_major,
+                                     information.version_minor))
+        self.con.commit()
+
     def insert_product(self, product):
         cur = self.con.cursor()
 
@@ -187,11 +212,11 @@ class DatabaseApi(object):
         cur.execute(
             'INSERT INTO products '
             '(name, active, on_stock, price, department_id, '
-            'revocable, imagepath) '
+            'revocable, image) '
             'VALUES (?,?,?,?,?,?,?);',
             (product.name, product.active, product.on_stock,
              product.price, product.department_id,
-             product.revocable, product.imagepath)
+             product.revocable, product.image)
         )
         self.con.commit()
 
@@ -536,6 +561,9 @@ class DatabaseApi(object):
     def list_banks(self):
         return self._list(model=Bank, table='banks', limit=None)
 
+    def list_information(self):
+        return self._list(model=Information, table='information', limit=None)
+
     def _list(self, model, table, limit):
         cur = self.con.cursor()
         cur.row_factory = factory(model)
@@ -651,46 +679,36 @@ class DatabaseApi(object):
             # TODO: maybe we should return something like "nothing to do"
             return
 
-        p_id = self.get_purchase(id=purchase.id).product_id
+        dbpur = self.get_purchase(id=purchase.id)
 
-        product = self.get_product(id=p_id)
+        product = self.get_product(id=dbpur.product_id)
         if product.revocable == 0:
             raise NotRevocable(product)
 
         cur = self.con.cursor()
-        cur.execute(
-            'WITH p AS ('
-            ' SELECT consumer_id, amount, '
-            ' paid_base_price_per_product, paid_karma_per_product'
-            ' FROM purchases WHERE id=? and revoked=0'
-            ') '
-            'UPDATE consumers '
-            'SET credit=credit'
-            ' + (SELECT amount*paid_base_price_per_product FROM p)'
-            ' + (SELECT amount*paid_karma_per_product FROM p)'
-            ' WHERE id IN (SELECT consumer_id FROM p);',
-            (purchase.id, )
-        )
 
-        cur.execute(
-            'WITH p AS ('
-            ' SELECT product_id, amount, '
-            ' paid_base_price_per_product, paid_karma_per_product'
-            ' FROM purchases WHERE id=? and revoked=0'
-            ') '
-            'UPDATE departments '
-            'SET income_base = income_base'
-            ' - (SELECT amount*paid_base_price_per_product FROM p), '
-            ' income_karma = income_karma'
-            ' - (SELECT amount*paid_karma_per_product FROM p) '
-            'WHERE id IN (SELECT department_id FROM products '
-            'WHERE id=(SELECT product_id FROM p));',
-            (purchase.id, )
-        )
-
-        if cur.rowcount == 0:
-            self.con.rollback()
+        if purchase.revoked and dbpur.revoked:
             raise CanOnlyBeRevokedOnce()
+
+        return_money = dbpur.amount * \
+            (dbpur.paid_base_price_per_product +
+             dbpur.paid_karma_per_product)
+
+        return_base = dbpur.amount * dbpur.paid_base_price_per_product
+        return_karma = dbpur.amount * dbpur.paid_karma_per_product
+
+        cur.execute('UPDATE consumers '
+                    'SET credit=credit + {} WHERE id=?;'.format(
+                        return_karma + return_base),
+                    (dbpur.consumer_id, )
+                    )
+
+        cur.execute('UPDATE departments '
+                    'SET income_base = income_base - {} , '
+                    'income_karma = income_karma - {} '
+                    'WHERE id=?;'.format(return_base, return_karma),
+                    (product.department_id, )
+                    )
 
         self._simple_update(cur, object=purchase, table='purchases',
                             updateable_fields=['revoked', 'comment'])
