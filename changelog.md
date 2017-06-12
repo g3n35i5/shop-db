@@ -11,3 +11,6 @@
   twice. This Bug is fixed now.
 - Inserting the current payoffs of the departments "Kaffeewart" and
   "Süßigkeitenwart"
+
+### Version 3.2
+- Adding Pizzawart
