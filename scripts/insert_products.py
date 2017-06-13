@@ -58,13 +58,12 @@ def parse_line(line):
             on_stock = True if int(line[-1]) == 1 else False
             answer = None
 
-            while answer not in ["yes", "no", "y", "n", ""]:
-                answer = input(
-                    "Is the product name {} correct? (Yes/no): ".format(product_name))
-
-            if answer in ["no", "n"]:
-                product_name = input("Please enter the correct name: ")
-
+            # while answer not in ["yes", "no", "y", "n", ""]:
+            #     answer = input(
+            #         "Is the product name {} correct? (Yes/no): ".format(product_name))
+            #
+            # if answer in ["no", "n"]:
+            #     product_name = input("Please enter the correct name: ")
         except:
             print("cannot parse {}".format(line))
             return None

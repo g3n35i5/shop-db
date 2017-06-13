@@ -6,7 +6,7 @@ import pdb
 import sys
 import urllib.request
 
-server = "http://10.12.42.9:5000"
+server = "http://0.0.0.0:5000"
 consumer = None
 
 
