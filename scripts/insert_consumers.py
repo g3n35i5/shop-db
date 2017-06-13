@@ -4,7 +4,8 @@ import json
 import os.path
 import pdb
 import sys
-import urllib.request
+
+import requests
 
 # server = "http://10.12.42.9:5000"
 server = "http://0.0.0.0:5000"
@@ -14,14 +15,14 @@ def insert_consumer(name, credit, active, karma):
 
     data = {"name": name, "credit": credit, "active": active, "karma": karma}
     params = json.dumps(data).encode('utf8')
-    req = urllib.request.Request("{}/consumers".format(server), data=params,
-                                 headers={'content-type': 'application/json'})
+    req = requests.post("{}/consumers".format(server), data=params,
+                        headers={'content-type': 'application/json'})
     response = urllib.request.urlopen(req)
-    if response.msg != "CREATED":
+    if req.json()['result'] != "created":
         print("Something went wrong:")
-        print(response.msg)
+        print(req.json()['result'])
     else:
-        print("Inserted consumer {}".format(name))
+        print("Success")
 
 
 def main():

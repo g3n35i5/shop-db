@@ -4,7 +4,8 @@ import json
 import os.path
 import pdb
 import sys
-import urllib.request
+
+import requests
 
 server = "http://10.12.42.9:5000"
 consumer = None
@@ -13,11 +14,11 @@ product_id = 18
 
 
 def get_consumer(_name):
-    with urllib.request.urlopen("{}/consumers".format(server)) as response:
-        data = json.loads(response.read())
-        for i in data:
-            if i['name'] == _name:
-                return i
+    response = requests.get("{}/consumers".format(server))
+    data = response.json()
+    for i in data:
+        if i['name'] == _name:
+            return i
 
 
 def send_request(_id, _amount):
@@ -25,12 +26,11 @@ def send_request(_id, _amount):
     data = {"amount": _amount, "consumer_id": _id,
             "product_id": product_id, "comment": comment}
     params = json.dumps(data).encode('utf8')
-    req = urllib.request.Request("{}/purchases".format(server), data=params,
-                                 headers={'content-type': 'application/json'})
-    response = urllib.request.urlopen(req)
-    if response.msg != "CREATED":
+    req = requests.post("{}/purchases".format(server), data=params,
+                        headers={'content-type': 'application/json'})
+    if req.json()['result'] != "created":
         print("Something went wrong:")
-        print(response.msg)
+        print(req.json()['result'])
     else:
         print("Success")
 

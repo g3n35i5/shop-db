@@ -4,7 +4,8 @@ import json
 import os.path
 import pdb
 import sys
-import urllib.request
+
+import requests
 
 server = "http://0.0.0.0:5000"
 consumer = None
@@ -20,25 +21,21 @@ def index_of_number_in_list(_list):
 
 
 def get_consumer(_name):
-    try:
-        with urllib.request.urlopen("{}/consumers".format(server)) as response:
-            data = json.loads(response.read())
-            for i in data:
-                if i['name'] == _name:
-                    return i
-    except:
-        pass
+    response = requests.get("{}/consumers".format(server))
+    data = response.json()
+    for i in data:
+        if i['name'] == _name:
+            return i
 
 
 def send_request(_id, _amount, _comment):
     data = {"consumer_id": _id, "amount": _amount, "comment": _comment}
     params = json.dumps(data).encode('utf8')
-    req = urllib.request.Request("{}/deposits".format(server), data=params,
-                                 headers={'content-type': 'application/json'})
-    response = urllib.request.urlopen(req)
-    if response.msg != "CREATED":
+    req = requests.post("{}/deposits".format(server), data=params,
+                        headers={'content-type': 'application/json'})
+    if req.json()['result'] != "created":
         print("Something went wrong:")
-        print(response.msg)
+        print(req.json()['result'])
     else:
         print("Success")
 

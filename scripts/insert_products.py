@@ -4,7 +4,8 @@ import json
 import os.path
 import pdb
 import sys
-import urllib.request
+
+import requests
 
 # server = "http://10.12.42.9:5000"
 server = "http://0.0.0.0:5000"
@@ -15,22 +16,21 @@ def insert_product(name, price, department, revocable, active, on_stock):
             "department_id": department, "active": active,
             "revocable": revocable, "on_stock": on_stock}
     params = json.dumps(data).encode('utf8')
-    req = urllib.request.Request("{}/products".format(server), data=params,
-                                 headers={'content-type': 'application/json'})
-    response = urllib.request.urlopen(req)
-    if response.msg != "CREATED":
+    req = requests.post("{}/products".format(server), data=params,
+                        headers={'content-type': 'application/json'})
+    if req.json()['result'] != "created":
         print("Something went wrong:")
-        print(response.msg)
+        print(req.json()['result'])
     else:
-        print("Inserted product {}".format(name))
+        print("Success")
 
 
 def get_department(_name):
-    with urllib.request.urlopen("{}/departments".format(server)) as response:
-        data = json.loads(response.read())
-        for i in data:
-            if i['name'] == _name:
-                return int(i['id'])
+    response = requests.get("{}/departments".format(server))
+    data = response.json()
+    for i in data:
+        if i['name'] == _name:
+            return int(i['id'])
 
 
 def parse_line(line):

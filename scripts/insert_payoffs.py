@@ -4,7 +4,8 @@ import json
 import os.path
 import pdb
 import sys
-import urllib.request
+
+import requests
 
 server = "http:/shop.gatrobe.de:5000"
 
