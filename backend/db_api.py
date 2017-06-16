@@ -2,6 +2,7 @@
 
 import collections
 import datetime
+import os
 import pdb
 import sqlite3
 from math import floor
@@ -175,6 +176,10 @@ class DatabaseApi(object):
             if res2.rowcount != 1:
                 self.con.rollback()
                 raise ObjectNotFound()
+
+    def backup_database(self):
+        os.system('echo test >> out')
+        os.system('./backup.sh')
 
     def insert_flag(self, flag):
         cur = self.con.cursor()

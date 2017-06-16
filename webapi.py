@@ -112,6 +112,12 @@ def handle_error(e):
         raise e
 
 
+@app.route('/backup', methods=['POST'])
+def backup_database():
+    api.backup_database()
+    return jsonify(result='created'), 201
+
+
 @app.route('/consumers', methods=['GET'])
 def list_consumers():
     return jsonify(list(map(to_dict, api.list_consumers())))
