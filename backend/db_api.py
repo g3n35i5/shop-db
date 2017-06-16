@@ -94,10 +94,20 @@ class DatabaseApi(object):
     def _check_uniqueness(self, object, table, fields):
         cur = self.con.cursor()
         for field_name in fields:
-            res = cur.execute(
-                'SELECT 1 FROM {} WHERE {}=?'.format(table, field_name),
-                (getattr(object, field_name),)
-            )
+
+            if object.id is not None:
+                res = cur.execute(
+                    'SELECT 1 FROM {} WHERE {}=? AND id!=?;'.format(
+                        table, field_name),
+                    (getattr(object, field_name), object.id)
+                )
+            else:
+                res = cur.execute(
+                    'SELECT 1 FROM {} WHERE {}=?;'.format(
+                        table, field_name),
+                    (getattr(object, field_name),)
+                )
+
             if res.fetchone() is not None:
                 raise DuplicateObject(field=field_name)
 
@@ -203,7 +213,7 @@ class DatabaseApi(object):
                       'price', 'department_id', 'revocable']
         )
         self._assert_forbidden_fields(product, ['id'])
-        self._check_uniqueness(product, 'products', ['name'])
+        self._check_uniqueness(product, 'products', ['name', 'barcode'])
         self._check_foreign_key(product, 'department_id', 'departments')
 
         if product.image is None:
@@ -212,11 +222,11 @@ class DatabaseApi(object):
         cur.execute(
             'INSERT INTO products '
             '(name, active, on_stock, price, department_id, '
-            'revocable, image) '
-            'VALUES (?,?,?,?,?,?,?);',
+            'revocable, image, barcode) '
+            'VALUES (?,?,?,?,?,?,?,?);',
             (product.name, product.active, product.on_stock,
              product.price, product.department_id,
-             product.revocable, product.image)
+             product.revocable, product.image, product.barcode)
         )
         self.con.commit()
 
@@ -586,7 +596,7 @@ class DatabaseApi(object):
 
         self._simple_update(
             cur=cur, object=product, table='products',
-            updateable_fields=['name', 'price', 'active',
+            updateable_fields=['name', 'price', 'active', 'barcode',
                                'on_stock', 'department_id', 'image']
         )
 

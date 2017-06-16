@@ -27,6 +27,7 @@ CREATE TABLE departments (
 	PRIMARY KEY (id)
 );
 
+
 CREATE TABLE pricecategories (
 	id INTEGER NOT NULL,
 	price_lower_bound INTEGER NOT NULL,
@@ -39,6 +40,7 @@ CREATE TABLE pricecategories (
 CREATE TABLE products (
 	id INTEGER NOT NULL,
 	name VARCHAR(64) NOT NULL,
+	barcode VARCHAR(24) NOT NULL,
 	price INTEGER NOT NULL,
 	department_id INTEGER NOT NULL,
 	active BOOLEAN NOT NULL,

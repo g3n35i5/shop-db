@@ -77,6 +77,7 @@ class Product(ValidatableObject):
     _validators = {
         'id': [Type(int)],
         'name': [Type(str), MaxLength(64), MinLength(4)],
+        'barcode': [Type(str), MaxLength(24), MinLength(0)],
         'price': [Type(int)],
         'department_id': [Type(int)],
         'active': [Type(bool)],

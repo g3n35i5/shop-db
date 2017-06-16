@@ -35,6 +35,7 @@ products
 
 - id: int
 - name: varchar[64]
+- barcode: varchar[24]
 - price: int
 - department_id: int : foreignkey
 - active: bool
