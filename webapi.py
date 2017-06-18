@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import json
 import logging
+import pdb
 import sqlite3
 from logging.handlers import RotatingFileHandler
 
@@ -257,6 +258,15 @@ def get_karma_history():
 @app.route('/information', methods=['GET'])
 def get_backend_information():
     return jsonify(to_dict(api.list_information()[0]))
+
+
+@app.route('/information', methods=['PUT'])
+def update_information(id):
+    i = Information(**json_body())
+    i.id = 1
+    api.update_information(i)
+    app.logger.warning('updated information: {}'.format(i))
+    return jsonify(result='updated'), 200
 
 
 @app.route('/payoff', methods=['POST'])

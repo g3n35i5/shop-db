@@ -28,7 +28,8 @@ class Information(ValidatableObject):
     _validators = {
         'id': [Type(int)],
         'version_major': [Type(int)],
-        'version_minor': [Type(int)]
+        'version_minor': [Type(int)],
+        'use_karma': [Type(bool)]
     }
 
     def __repr__(self):

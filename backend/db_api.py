@@ -196,7 +196,8 @@ class DatabaseApi(object):
         cur = self.con.cursor()
 
         self._assert_mandatory_fields(information, ['version_major',
-                                                    'version_minor'])
+                                                    'version_minor',
+                                                    'use_karma'])
 
         self._assert_forbidden_fields(information, ['id'])
 
@@ -205,9 +206,10 @@ class DatabaseApi(object):
             raise OnlyOneRowAllowed()
 
         cur.execute('INSERT INTO information '
-                    '(version_major, version_minor) '
-                    'VALUES(?,?);', (information.version_major,
-                                     information.version_minor))
+                    '(version_major, version_minor, use_karma) '
+                    'VALUES(?,?,?);', (information.version_major,
+                                       information.version_minor,
+                                       information.use_karma))
         self.con.commit()
 
     def insert_product(self, product):
@@ -218,11 +220,13 @@ class DatabaseApi(object):
                       'price', 'department_id', 'revocable']
         )
         self._assert_forbidden_fields(product, ['id'])
-        self._check_uniqueness(product, 'products', ['name', 'barcode'])
+        self._check_uniqueness(product, 'products', ['name'])
         self._check_foreign_key(product, 'department_id', 'departments')
 
         if product.image is None:
             product.image = 'default.png'
+        if product.barcode is None:
+            product.barcode = ''
 
         cur.execute(
             'INSERT INTO products '
@@ -380,8 +384,12 @@ class DatabaseApi(object):
 
         consumer = self.get_consumer(purchase.consumer_id)
         product = self.get_product(purchase.product_id)
-        price_to_pay = self._calculate_product_price(product.price,
-                                                     consumer.karma)
+        information = self.list_information()[0]
+        if information.use_karma:
+            price_to_pay = self._calculate_product_price(product.price,
+                                                         consumer.karma)
+        else:
+            price_to_pay = product.price
 
         cur.execute(
             'INSERT INTO purchases('
@@ -591,6 +599,19 @@ class DatabaseApi(object):
                     table), (limit,)
             )
         return cur.fetchall()
+
+    def update_information(self, information):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(information, ['id'])
+        if information.id != 1:
+            raise OnlyOneRowAllowed()
+
+        self._simple_update(
+            cur=cur, object=information, table='information',
+            updateable_fields=['version_major', 'version_minor', 'use_karma']
+        )
+        self.con.commit()
 
     def update_product(self, product):
         cur = self.con.cursor()

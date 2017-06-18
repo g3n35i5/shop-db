@@ -3,6 +3,7 @@
 - id: int
 - version_major: int
 - version_minor: int
+- use_karma: bool
 
 
 ## consumers
