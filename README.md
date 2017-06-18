@@ -2,10 +2,15 @@
 This is the documentation for shop.db.
 
 Table of content
+
 1. [About shop.db](#about-shopdb)
 2. [Usage](#usage)
 3. [Database schema](#database-schema)
 4. [Models](#models)
+    1. [Consumer](#consumer)
+    2. [Information](#information)
+    3. [Department](#department)
+    4. [PriceCategory](#pricecategory)
 5. [Validatable objects](#validatable-objects)
 5. [The karma system](#the-karma-system)
 6. [shop.db API](#shopdb-api)
@@ -80,6 +85,34 @@ active = True
 c = Consumer(name=name, credit=credit, karma=karma, active=active)
 ```
 
+#### Information
+
+| Key           | Type     | Description              |
+|---------------|----------|--------------------------|
+| id            | integer  | unique identifier        |
+| version_major | integer  | major version of shop.db |
+| version_minor | integer  | minor version of shop.db |
+
+
+#### Department
+
+| Key          | Type                   | Description                     |
+|--------------|------------------------|---------------------------------|
+| id           | integer                | unique identifier               |
+| name         | string, 4 to 64 chars  | name of the department          |
+| income_base  | integer                | income without additional karma |
+| income_karma | integer                | additional karma income         |
+| expenses     | integer                | sum of expenses of department   |
+| buget        | integer                | budget of this department       |
+
+
+#### PriceCategory
+
+| Key                 | Type                   | Description           |
+|---------------------|------------------------|-----------------------|
+| id                  | integer                | unique identifier     |
+| price_lower_bound   | integer                | name of the consumer  |
+| additional_percent  | integer                | karma of the consumer |
 
 ## Validatable objects
 TODO
