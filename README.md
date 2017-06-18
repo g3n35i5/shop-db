@@ -2,14 +2,14 @@
 This is the documentation for shop.db.
 
 Table of content
-1. About shop.db
-2. Usage
-3. Database schema
-4. Models
-5. Validatable objects
-5. The karma system
-6. shop.db API
-7. shop.db internal functions
+1. [About shop.db](#about-shopdb)
+2. [Usage](#usage)
+3. [Database schema](#database-schema)
+4. [Models](#models)
+5. [Validatable objects](#validatable-objects)
+5. [The karma system](#the-karma-system)
+6. [shop.db API](#shopdb-api)
+7. [shop.db internal functions](#shopdb-internal-functions)
 
 
 ### About shop.db
