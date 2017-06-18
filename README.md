@@ -92,6 +92,7 @@ c = Consumer(name=name, credit=credit, karma=karma, active=active)
 | id            | integer  | unique identifier        |
 | version_major | integer  | major version of shop.db |
 | version_minor | integer  | minor version of shop.db |
+| use_karma     | boolean  | bool use karma system    |
 
 
 #### Department
@@ -150,6 +151,8 @@ price = floor(base_price * (1 + percent * (-karma + 10) / 2000))
 ```
 As it turned out, this karma system compensates the loss and appeared as the
 fairest solution for all consumer to us.
+Please note: If you dont want to use the karma system, you can toggle it on
+the fly with changing the use_karma value in the information table to 0.
 
 ## shop.db API
 
