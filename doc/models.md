@@ -1,11 +1,11 @@
-information:
+## information:
 
 - id: int
 - version_major: int
 - version_minor: int
 
 
-consumers
+## consumers
 
 - id: int
 - credit: int
@@ -14,7 +14,7 @@ consumers
 - active: bool
 
 
-departments
+## departments
 
 - id: int
 - name: varchar[64]
@@ -24,14 +24,14 @@ departments
 - budget: int
 
 
-karmascale
+## karmascale
 
 - id: int
 - price_bound: int
 - additional_percent: int
 
 
-products
+## products
 
 - id: int
 - name: varchar[64]
@@ -44,7 +44,7 @@ products
 - image: varchar[64]
 
 
-purchases
+## purchases
 
 - id: int
 - consumer_id: int : foreignkey
@@ -56,7 +56,7 @@ purchases
 - paid_price_per_product: int
 
 
-deposits
+## deposits
 
 - id: int
 - consumer_id: int : foreignkey
@@ -65,7 +65,7 @@ deposits
 - timestamp: timestamp
 
 
-payoffs
+## payoffs
 
 - id: int
 - bank_id: int : foreignkey
@@ -75,7 +75,7 @@ payoffs
 - timestamp: timestamp
 
 
-logs
+## logs
 
 - id: int
 - table_name: varchar[64]
@@ -84,7 +84,7 @@ logs
 - timestamp: timestamp
 
 
-deeds
+## deeds
 
 - id: int
 - name: varchar[64]
@@ -92,7 +92,7 @@ deeds
 - done: bool
 
 
-participations
+## participations
 
 - id: int
 - deed_id: int : foreignkey
@@ -101,12 +101,12 @@ participations
 - timestamp timestamp
 
 
-flags
+## flags
 
 - id: int
 - name: varchar[64]
 
-banks
+## banks
 
 - id: int
 - name: varchar[64]
