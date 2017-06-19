@@ -8,6 +8,7 @@ curl \
 {
 	"name": "$1",
 	"active": true,
-	"credit": 0
+	"credit": 0,
+	"karma": 0
 }
 EOF
