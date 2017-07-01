@@ -14,3 +14,12 @@
 
 ### Version 3.2
 - Adding Pizzawart
+
+### Version 3.3
+
++ Adding Barcodes
+
+### Version 3.4
+
++ Adding department "Getränkewart"
+
