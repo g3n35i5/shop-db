@@ -29,13 +29,8 @@ class TestDatabaseApi(unittest.TestCase):
 
         self.api = DatabaseApi(self.con)
 
-    def tearDown(self):
-        # all actions should be committed after the tests
-        self.assertFalse(self.con.in_transaction)
-
-    def test_information(self):
         # insert information
-        i = Information(version_major=3, version_minor=1)
+        i = Information(version_major=3, version_minor=1, use_karma=True)
 
         self.api.insert_information(i)
 
@@ -44,7 +39,12 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(i[0].version_major, 3)
         self.assertEqual(i[0].version_minor, 1)
 
-        i2 = Information(version_major=3, version_minor=2)
+    def tearDown(self):
+        # all actions should be committed after the tests
+        self.assertFalse(self.con.in_transaction)
+
+    def test_double_information(self):
+        i2 = Information(version_major=3, version_minor=2, use_karma=True)
 
         with self.assertRaises(OnlyOneRowAllowed):
             self.api.insert_information(i2)
@@ -53,6 +53,61 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(len(i), 1)
         self.assertEqual(i[0].version_major, 3)
         self.assertEqual(i[0].version_minor, 1)
+
+    def test_toggle_use_karma(self):
+        c = Consumer(name='Hans Müller', active=True, credit=1000, karma=0)
+        self.api.insert_consumer(c)
+
+        d = Department(name="Kaffeewart", budget=20000)
+        self.api.insert_department(d)
+
+        p = Product(name='Twix', active=True, on_stock=True,
+                    price=100, department_id=1, revocable=True)
+        self.api.insert_product(p)
+
+        i = self.api.list_information()[0]
+        self.assertTrue(i.use_karma)
+
+        pur = Purchase(consumer_id=1, product_id=1, amount=1,
+                       comment="bought with karma")
+
+        self.api.insert_purchase(pur)
+        c = self.api.get_consumer(id=1)
+        self.assertEqual(c.credit, 890)
+        purchases = self.api.list_purchases()
+        self.assertEqual(len(purchases), 1)
+        self.assertEqual(purchases[0].paid_base_price_per_product, 100)
+        self.assertEqual(purchases[0].paid_karma_per_product, 10)
+        self.assertFalse(purchases[0].revoked)
+
+        # revoke this purchase
+        pur = Purchase(id=1, revoked=True)
+        self.api.update_purchase(pur)
+        purchases = self.api.list_purchases()
+        self.assertEqual(len(purchases), 1)
+        self.assertEqual(purchases[0].paid_base_price_per_product, 100)
+        self.assertEqual(purchases[0].paid_karma_per_product, 10)
+        self.assertTrue(purchases[0].revoked)
+
+        c = self.api.get_consumer(id=1)
+        self.assertEqual(c.credit, 1000)
+
+        i = Information(id=1, use_karma=False)
+        self.api.update_information(i)
+        i = self.api.list_information()[0]
+        self.assertFalse(i.use_karma)
+
+        pur = Purchase(consumer_id=1, product_id=1, amount=1,
+                       comment="bought without karma")
+
+        self.api.insert_purchase(pur)
+        c = self.api.get_consumer(id=1)
+        self.assertEqual(c.credit, 900)
+        purchases = self.api.list_purchases()
+        self.assertEqual(len(purchases), 2)
+        self.assertEqual(purchases[1].paid_base_price_per_product, 100)
+        self.assertEqual(purchases[1].paid_karma_per_product, 0)
+        self.assertFalse(purchases[1].revoked)
 
     def test_insert_consumer(self):
         # insert correctly

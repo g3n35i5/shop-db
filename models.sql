@@ -1,8 +1,10 @@
 CREATE TABLE information (
-  id INTEGER NOT NULL,
+	id INTEGER NOT NULL,
 	version_major INTEGER NOT NULL,
-  version_minor INTEGER NOT NULL,
-  PRIMARY KEY (id)
+	version_minor INTEGER NOT NULL,
+	use_karma BOOLEAN NOT NULL,
+	CHECK (use_karma IN (0, 1)),
+	PRIMARY KEY (id)
 );
 
 CREATE TABLE consumers (
@@ -29,7 +31,7 @@ CREATE TABLE departments (
 
 
 CREATE TABLE pricecategories (
-	id INTEGER NOT NULL,
+	id INTEGER NOT NULL,	
 	price_lower_bound INTEGER NOT NULL,
 	additional_percent INTEGER NOT NULL,
 	PRIMARY KEY (id),
