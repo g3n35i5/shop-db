@@ -169,7 +169,8 @@ class DatabaseApi(object):
             change.replace("True", "1")
             change.replace("False", "0")
             res2 = cur.execute(
-                'INSERT INTO logs (table_name, updated_id, data_inserted, timestamp) '
+                'INSERT INTO logs (table_name, updated_id, '
+                'data_inserted, timestamp) '
                 'VALUES(?,?,?,?);',
                 (table, object.id, change, datetime.datetime.now())
             )
@@ -496,7 +497,9 @@ class DatabaseApi(object):
         return self._get_one(model=Deed, table='deeds', id=id)
 
     def get_participation(self, id):
-        return self._get_one(model=Participation, table='participations', id=id)
+        return self._get_one(model=Participation,
+                             table='participations',
+                             id=id)
 
     def get_flag(self, id):
         return self._get_one(model=Flag, table='deeds', id=id)
@@ -518,7 +521,8 @@ class DatabaseApi(object):
         return res
 
     def get_purchases_of_consumer(self, id):
-        return self._get_consumer_data(model=Purchase, table='purchases', id=id)
+        return self._get_consumer_data(model=Purchase,
+                                       table='purchases', id=id)
 
     def get_deposits_of_consumer(self, id):
         return self._get_consumer_data(model=Deposit, table='deposits', id=id)
@@ -575,7 +579,9 @@ class DatabaseApi(object):
         return self._list(model=Department, table='departments', limit=None)
 
     def list_pricecategories(self):
-        return self._list(model=PriceCategory, table='pricecategories', limit=None)
+        return self._list(model=PriceCategory,
+                          table='pricecategories',
+                          limit=None)
 
     def list_payoffs(self, limit=None):
         return self._list(model=Payoff, table='payoffs', limit=limit)
@@ -587,7 +593,9 @@ class DatabaseApi(object):
         return self._list(model=Deed, table='deeds', limit=limit)
 
     def list_participations(self, limit=None):
-        return self._list(model=Participation, table='participations', limit=limit)
+        return self._list(model=Participation,
+                          table='participations',
+                          limit=limit)
 
     def list_banks(self):
         return self._list(model=Bank, table='banks', limit=None)
