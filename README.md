@@ -3,19 +3,7 @@ This is the documentation for shop.db.
 
 Table of content
 
-1. [About shop.db](#about-shopdb)
-2. [Usage](#usage)
-3. [Database schema](#database-schema)
-4. [Models](#models)
-    1. [Consumer](#consumer)
-    2. [Information](#information)
-    3. [Department](#department)
-    4. [PriceCategory](#pricecategory)
-5. [Validatable objects](#validatable-objects)
-5. [The karma system](#the-karma-system)
-6. [shop.db API](#shopdb-api)
-7. [shop.db internal functions](#shopdb-internal-functions)
-
+[TOC]
 
 ### About shop.db
 
@@ -34,6 +22,20 @@ shop.db can be used as a standalone backend and can be accessed via it's API.
 Because this is not an elegant way to use this application, we developed the
 shop.db frontend, which can be found in it's own repository.
 
+### Requirements
+
+You need to install Flask and Flask_cors:
+
+```python
+pip install flask
+pip install flask_cors
+```
+
+### Getting started
+
+There should be the database file in the backend folder. It should be named shop.db and fulfil the requirements which are described in the section Database schema.
+
+Start the backend with `./dev.sh`
 
 ## Database schema
 
@@ -69,12 +71,12 @@ backend folder. Keep in mind, that all these models are a so-called ValidatableO
 
 #### Consumer
 
-| Key    | Type                   | Description           |
-|--------|------------------------|-----------------------|
-| id     | integer                | unique identifier     |
-| name   | string, 4 to 64 chars  | name of the consumer  |
-| karma  | integer, -10 to 10     | karma of the consumer |
-| active | boolean                | state of the consumer |
+| Key    | Type                  | Description           |
+| ------ | --------------------- | --------------------- |
+| id     | integer               | unique identifier     |
+| name   | string, 4 to 64 chars | name of the consumer  |
+| karma  | integer, -10 to 10    | karma of the consumer |
+| active | boolean               | state of the consumer |
 
 To create a consumer in python, you can use this snippet
 ```python
@@ -87,33 +89,33 @@ c = Consumer(name=name, credit=credit, karma=karma, active=active)
 
 #### Information
 
-| Key           | Type     | Description              |
-|---------------|----------|--------------------------|
-| id            | integer  | unique identifier        |
-| version_major | integer  | major version of shop.db |
-| version_minor | integer  | minor version of shop.db |
-| use_karma     | boolean  | bool use karma system    |
+| Key           | Type    | Description              |
+| ------------- | ------- | ------------------------ |
+| id            | integer | unique identifier        |
+| version_major | integer | major version of shop.db |
+| version_minor | integer | minor version of shop.db |
+| use_karma     | boolean | bool use karma system    |
 
 
 #### Department
 
-| Key          | Type                   | Description                     |
-|--------------|------------------------|---------------------------------|
-| id           | integer                | unique identifier               |
-| name         | string, 4 to 64 chars  | name of the department          |
-| income_base  | integer                | income without additional karma |
-| income_karma | integer                | additional karma income         |
-| expenses     | integer                | sum of expenses of department   |
-| buget        | integer                | budget of this department       |
+| Key          | Type                  | Description                     |
+| ------------ | --------------------- | ------------------------------- |
+| id           | integer               | unique identifier               |
+| name         | string, 4 to 64 chars | name of the department          |
+| income_base  | integer               | income without additional karma |
+| income_karma | integer               | additional karma income         |
+| expenses     | integer               | sum of expenses of department   |
+| buget        | integer               | budget of this department       |
 
 
 #### PriceCategory
 
-| Key                 | Type                   | Description           |
-|---------------------|------------------------|-----------------------|
-| id                  | integer                | unique identifier     |
-| price_lower_bound   | integer                | name of the consumer  |
-| additional_percent  | integer                | karma of the consumer |
+| Key                | Type    | Description       |
+| ------------------ | ------- | ----------------- |
+| id                 | integer | unique identifier |
+| price_lower_bound  | integer |                   |
+| additional_percent | integer |                   |
 
 ## Validatable objects
 TODO
@@ -130,14 +132,14 @@ The table "pricecategories" contains an incremental
 percental addition, based on the cost of a product. Below, you see an example
 for a possible pricecategory distribution.
 
-| id  | price_lower_bound | additional_percent |
-|-----|-------------------|--------------------|
-|  1  |         10        |        50          |
-|  2  |         20        |        40          |
-|  3  |         50        |        30          |
-|  4  |         80        |        25          |
-|  5  |         100       |        20          |
-|  6  |         200       |        15          |
+| id   | price_lower_bound | additional_percent |
+| ---- | ----------------- | ------------------ |
+| 1    | 10                | 50                 |
+| 2    | 20                | 40                 |
+| 3    | 50                | 30                 |
+| 4    | 80                | 25                 |
+| 5    | 100               | 20                 |
+| 6    | 200               | 15                 |
 
 Let's say, the consumer, who has a karma of 5, buys a product which costs 40
 cents.
@@ -257,3 +259,18 @@ in any other application as well. Functions which start with an underscore
 are private functions and should NOT be called externally.
 
 TODO
+
+## Scripts
+
+To insert more than one product, purchase, … you can use scripts. Examples are given under `scripts/examples` for use with `insert_element.py`
+
+##### insert_products.py:
+
+Requirements: python requests —> `pip install requests`
+
+To insert products via `insert_procuts.py` script you need to create a textfile with fields showed below separated by whitespaces and each new product separated by a newline.
+
+`name price department revocable active on_stock`
+
+After that you can import the textfile with `scripts/insert_products.py -f products.txt`
+
