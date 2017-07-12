@@ -531,6 +531,15 @@ class DatabaseApi(object):
             'SELECT * FROM {} WHERE consumer_id=?;'.format(table), (id,))
         return cur.fetchall()
 
+    def get_top_products(self, num_products):
+        cur = self.con.cursor()
+        cur.execute('SELECT product_id, count(product_id) '
+                    'FROM purchases GROUP BY product_id '
+                    'ORDER BY count(product_id) '
+                    'DESC LIMIT ?;', (num_products,)
+                    )
+        return cur.fetchall()
+
     def get_favorite_products(self, id):
         cur = self.con.cursor()
         cur.row_factory = factory(Purchase)

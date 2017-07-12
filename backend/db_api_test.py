@@ -109,6 +109,36 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(purchases[1].paid_karma_per_product, 0)
         self.assertFalse(purchases[1].revoked)
 
+    def test_get_top_products(self):
+        c = Consumer(name='Hans Müller', active=True, credit=1000, karma=0)
+        self.api.insert_consumer(c)
+        d = Department(name="Kaffeewart", budget=20000)
+        self.api.insert_department(d)
+
+        p = Product(name='Twix', active=True, on_stock=True,
+                    price=100, department_id=1, revocable=True)
+        self.api.insert_product(p)
+        p = Product(name='Mars', active=True, on_stock=True,
+                    price=100, department_id=1, revocable=True)
+        self.api.insert_product(p)
+
+        # buy 3x Twix and 1x Snickers
+        for i in range(0, 3):
+            pur = Purchase(consumer_id=1, product_id=1, amount=1,
+                           comment="bought with karma")
+            self.api.insert_purchase(pur)
+        for i in range(0, 2):
+            pur = Purchase(consumer_id=1, product_id=2, amount=1,
+                           comment="bought with karma")
+            self.api.insert_purchase(pur)
+
+        top = self.api.get_top_products(2)
+        self.assertEqual(len(top), 2)
+        self.assertEqual(top[0][0], 1)
+        self.assertEqual(top[0][1], 3)
+        self.assertEqual(top[1][0], 2)
+        self.assertEqual(top[1][1], 2)
+
     def test_insert_consumer(self):
         # insert correctly
         c = Consumer(name='Hans Müller', active=True, credit=250, karma=0)

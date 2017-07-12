@@ -271,12 +271,18 @@ def update_information(id):
     return jsonify(result='updated'), 200
 
 
+@app.route('/top_products/<int:num_products>', methods=['GET'])
+def get_top_products(num_products):
+    return jsonify(api.get_top_products(num_products=num_products))
+
+
 @app.route('/payoff', methods=['POST'])
 def insert_payoff():
     p = Paypff(**json_body())
     api.insert_payoff(p)
     app.logger.warning('created payoff: {}'.format(p))
     return jsonify(result='created'), 201
+
 
 if __name__ == "__main__":
     handler = RotatingFileHandler('backend.log', maxBytes=60000, backupCount=1)
