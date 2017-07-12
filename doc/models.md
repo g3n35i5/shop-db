@@ -40,7 +40,8 @@
 - price: int
 - department_id: int : foreignkey
 - active: bool
-- on_stock: bool
+- stock: int
+- countable: bool
 - revocable: bool
 - image: varchar[64]
 

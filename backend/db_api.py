@@ -216,7 +216,7 @@ class DatabaseApi(object):
         cur = self.con.cursor()
 
         self._assert_mandatory_fields(
-            product, ['name', 'active', 'on_stock',
+            product, ['name', 'active', 'countable',
                       'price', 'department_id', 'revocable']
         )
         self._assert_forbidden_fields(product, ['id'])
@@ -227,15 +227,21 @@ class DatabaseApi(object):
             product.image = 'default.png'
         if product.barcode is None:
             product.barcode = ''
+        if product.countable:
+            if product.stock is None:
+                product.stock = 0
+        else:
+            product.stock = 0
 
         cur.execute(
             'INSERT INTO products '
-            '(name, active, on_stock, price, department_id, '
-            'revocable, image, barcode) '
-            'VALUES (?,?,?,?,?,?,?,?);',
-            (product.name, product.active, product.on_stock,
+            '(name, active, stock, price, department_id, '
+            'revocable, countable, image, barcode) '
+            'VALUES (?,?,?,?,?,?,?,?,?);',
+            (product.name, product.active, product.stock,
              product.price, product.department_id,
-             product.revocable, product.image, product.barcode)
+             product.revocable, product.countable,
+             product.image, product.barcode)
         )
         self.con.commit()
 
@@ -429,6 +435,14 @@ class DatabaseApi(object):
              price_to_pay,
              purchase.consumer_id)
         )
+        if product.countable:
+            cur.execute(
+                'UPDATE products '
+                'SET stock = stock - ?'
+                'WHERE id=?;',
+                (purchase.amount,
+                 product.id)
+            )
 
         cur.execute('UPDATE departments SET '
                     'income_base = income_base + ?*?, '
@@ -639,7 +653,7 @@ class DatabaseApi(object):
         self._simple_update(
             cur=cur, object=product, table='products',
             updateable_fields=['name', 'price', 'active', 'barcode',
-                               'on_stock', 'department_id', 'image']
+                               'stock', 'department_id', 'image']
         )
 
         self.con.commit()
@@ -754,6 +768,12 @@ class DatabaseApi(object):
                         return_karma + return_base),
                     (dbpur.consumer_id, )
                     )
+
+        if product.countable:
+            cur.execute('UPDATE products '
+                        'SET stock=stock + ? WHERE id=?;',
+                        (dbpur.amount, dbpur.product_id)
+                        )
 
         cur.execute('UPDATE departments '
                     'SET income_base = income_base - {} , '

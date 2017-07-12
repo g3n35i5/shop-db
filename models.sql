@@ -31,7 +31,7 @@ CREATE TABLE departments (
 
 
 CREATE TABLE pricecategories (
-	id INTEGER NOT NULL,	
+	id INTEGER NOT NULL,
 	price_lower_bound INTEGER NOT NULL,
 	additional_percent INTEGER NOT NULL,
 	PRIMARY KEY (id),
@@ -46,14 +46,16 @@ CREATE TABLE products (
 	price INTEGER NOT NULL,
 	department_id INTEGER NOT NULL,
 	active BOOLEAN NOT NULL,
-	on_stock BOOLEAN NOT NULL,
+	stock INTEGER,
+	countable BOOLEAN NOT NULL,
 	revocable BOOLEAN NOT NULL,
 	image VARCHAR(64) NOT NULL,
 	PRIMARY KEY (id),
 	UNIQUE (name),
 	FOREIGN KEY(department_id) REFERENCES departments (id),
 	CHECK (active IN (0, 1)),
-	CHECK (on_stock IN (0, 1))
+	CHECK (revocable IN (0, 1)),
+	CHECK (countable IN (0, 1))
 );
 
 CREATE TABLE purchases (
