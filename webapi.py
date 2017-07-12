@@ -278,7 +278,7 @@ def get_top_products(num_products):
 
 @app.route('/payoff', methods=['POST'])
 def insert_payoff():
-    p = Paypff(**json_body())
+    p = Payoff(**json_body())
     api.insert_payoff(p)
     app.logger.warning('created payoff: {}'.format(p))
     return jsonify(result='created'), 201
