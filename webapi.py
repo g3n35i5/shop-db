@@ -144,6 +144,8 @@ def get_consumer(id):
 
 @app.route('/consumers/<int:id>', methods=['PUT'])
 def put_consumer(id):
+    if 'credit' in json_body():
+        del json_body()['credit']
     c = Consumer(**json_body())
     c.id = id
     api.update_consumer(c)
