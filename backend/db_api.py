@@ -178,7 +178,6 @@ class DatabaseApi(object):
                 raise ObjectNotFound()
 
     def backup_database(self):
-        os.system('echo test >> out')
         os.system('./backup.sh')
 
     def insert_flag(self, flag):
