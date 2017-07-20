@@ -253,7 +253,7 @@ def list_pricecategories():
 
 
 @app.route('/karmahistory/<int:id>', methods=['GET'])
-def get_karma_history():
+def get_karma_history(id):
     return jsonify(list(map(to_dict, api.get_karma_history(id))))
 
 
