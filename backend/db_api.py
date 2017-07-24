@@ -653,7 +653,7 @@ class DatabaseApi(object):
         self._simple_update(
             cur=cur, object=product, table='products',
             updateable_fields=['name', 'price', 'active', 'barcode',
-                               'stock', 'department_id', 'image']
+                               'stock', 'countable', 'department_id', 'image']
         )
 
         self.con.commit()
