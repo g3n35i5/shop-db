@@ -283,6 +283,9 @@ def insert_payoff():
     app.logger.warning('created payoff: {}'.format(p))
     return jsonify(result='created'), 201
 
+@app.route('/payoffs', methods=['GET'])
+def list_payoffs():
+    return jsonify(list(map(to_dict, api.list_payoffs())))
 
 if __name__ == "__main__":
     handler = RotatingFileHandler('backend.log', maxBytes=60000, backupCount=1)
