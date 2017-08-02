@@ -14,7 +14,7 @@ server = "http://0.0.0.0:5000"
 def insert_product(name, price, department, revocable, active, on_stock):
     data = {"name": name, "price": price,
             "department_id": department, "active": active,
-            "revocable": revocable, "on_stock": on_stock}
+            "revocable": revocable,  "countable": True}
     params = json.dumps(data).encode('utf8')
     req = requests.post("{}/products".format(server), data=params,
                         headers={'content-type': 'application/json'})
