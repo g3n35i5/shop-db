@@ -270,7 +270,7 @@ Requirements: python requests —> `pip install requests`
 
 To insert products via `insert_procuts.py` script you need to create a textfile with fields showed below separated by whitespaces and each new product separated by a newline.
 
-`name price department revocable active on_stock`
+`name price department revocable active countable`
 
 After that you can import the textfile with `scripts/insert_products.py -f products.txt`
 

@@ -11,7 +11,7 @@ import requests
 server = "http://0.0.0.0:5000"
 
 
-def insert_product(name, price, department, revocable, active, on_stock):
+def insert_product(name, price, department, revocable, active, countable):
     data = {"name": name, "price": price,
             "department_id": department, "active": active,
             "revocable": revocable,  "countable": True}
@@ -43,7 +43,7 @@ def parse_line(line):
             department_name = str(line[2])
             revocable = True if int(line[3]) == 1 else False
             active = True if int(line[4]) == 1 else False
-            on_stock = True if int(line[5]) == 1 else False
+            countable = True if int(line[5]) == 1 else False
         except:
             print("cannot parse {}".format(line))
             return None
@@ -55,7 +55,7 @@ def parse_line(line):
             department_name = str(line[-4])
             revocable = True if int(line[-3]) == 1 else False
             active = True if int(line[-2]) == 1 else False
-            on_stock = True if int(line[-1]) == 1 else False
+            countable = True if int(line[-1]) == 1 else False
             answer = None
 
             # while answer not in ["yes", "no", "y", "n", ""]:
@@ -71,12 +71,12 @@ def parse_line(line):
         print("cannot parse {}".format(line))
         return None
 
-    return [product_name, price, department_name, revocable, active, on_stock]
+    return [product_name, price, department_name, revocable, active, countable]
 
 
 def main():
     # format for each line:
-    # product_name price_in_cents department_name revocable active on_stock
+    # product_name price_in_cents department_name revocable active countable
     parser = argparse.ArgumentParser(description='Insert products to shop.db')
     parser.add_argument('-f', '--file',
                         help='text file with names, products and amounts',
@@ -98,7 +98,7 @@ def main():
                         department = data[2]
                         revocable = data[3]
                         active = data[4]
-                        on_stock = data[5]
+                        countable = data[5]
 
                         department = get_department(_name=department)
                         if department is not None:
@@ -106,7 +106,7 @@ def main():
                                            department=department,
                                            revocable=revocable,
                                            active=active,
-                                           on_stock=on_stock)
+                                           countable=countable)
                         else:
                             print("The department with the name {} \
                                    does not exist".format(department))
