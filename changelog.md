@@ -31,3 +31,7 @@
   - **countable** is a new field which marks wether a product gets counted with every purchase or not.
   - **stock** integer which is counted down with every purchase (if countable is true).
 
+
+### Version 3.6
+
++ Resetting department payoffs to 0, because that payoffs were directly written to the database without the use of the api.
