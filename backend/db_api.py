@@ -249,9 +249,11 @@ class DatabaseApi(object):
         cur = self.con.cursor()
 
         self._assert_mandatory_fields(
-            consumer, ['name', 'active', 'credit', 'karma'])
-        self._assert_forbidden_fields(consumer, ['id'])
+            consumer, ['name', 'active', 'karma'])
+        self._assert_forbidden_fields(consumer, ['id', 'credit'])
         self._check_uniqueness(consumer, 'consumers', ['name'])
+
+        consumer.credit = 0
 
         cur.execute(
             'INSERT INTO consumers (name, active, credit, karma) '

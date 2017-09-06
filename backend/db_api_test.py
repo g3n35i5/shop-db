@@ -55,7 +55,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(i[0].version_minor, 1)
 
     def test_toggle_use_karma(self):
-        c = Consumer(name='Hans Müller', active=True, credit=1000, karma=0)
+        c = Consumer(name='Hans Müller', active=True, karma=0)
         self.api.insert_consumer(c)
 
         d = Department(name="Kaffeewart", budget=20000)
@@ -73,7 +73,7 @@ class TestDatabaseApi(unittest.TestCase):
 
         self.api.insert_purchase(pur)
         c = self.api.get_consumer(id=1)
-        self.assertEqual(c.credit, 890)
+        self.assertEqual(c.credit, -110)
         purchases = self.api.list_purchases()
         self.assertEqual(len(purchases), 1)
         self.assertEqual(purchases[0].paid_base_price_per_product, 100)
@@ -90,7 +90,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertTrue(purchases[0].revoked)
 
         c = self.api.get_consumer(id=1)
-        self.assertEqual(c.credit, 1000)
+        self.assertEqual(c.credit, 0)
 
         i = Information(id=1, use_karma=False)
         self.api.update_information(i)
@@ -102,7 +102,7 @@ class TestDatabaseApi(unittest.TestCase):
 
         self.api.insert_purchase(pur)
         c = self.api.get_consumer(id=1)
-        self.assertEqual(c.credit, 900)
+        self.assertEqual(c.credit, -100)
         purchases = self.api.list_purchases()
         self.assertEqual(len(purchases), 2)
         self.assertEqual(purchases[1].paid_base_price_per_product, 100)
@@ -110,7 +110,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertFalse(purchases[1].revoked)
 
     def test_get_top_products(self):
-        c = Consumer(name='Hans Müller', active=True, credit=1000, karma=0)
+        c = Consumer(name='Hans Müller', active=True, karma=0)
         self.api.insert_consumer(c)
         d = Department(name="Kaffeewart", budget=20000)
         self.api.insert_department(d)
@@ -141,30 +141,36 @@ class TestDatabaseApi(unittest.TestCase):
 
     def test_insert_consumer(self):
         # insert correctly
-        c = Consumer(name='Hans Müller', active=True, credit=250, karma=0)
+        c = Consumer(name='Hans Müller', active=True, karma=0)
         self.api.insert_consumer(c)
         consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.name, 'Hans Müller')
-        self.assertEqual(consumer.credit, 250)
+        self.assertEqual(consumer.credit, 0)
         self.assertEqual(consumer.karma, 0)
         self.assertTrue(consumer.active)
 
         # missing fields
         with self.assertRaises(FieldIsNone):
-            c = Consumer(name='Hans Müller', credit=250)
+            c = Consumer(name='Hans Müller')
             self.api.insert_consumer(c)
 
         # insert wrong types
         with self.assertRaises(WrongType):
-            c = Consumer(name=2, active=True, credit=250, karma=0)
+            c = Consumer(name=2, active=True, karma=0)
 
         # id should be forbidden
-        c = Consumer(id=13, name='Hans', credit=12, active=True, karma=0)
+        c = Consumer(id=13, name='Hans', active=True, karma=0)
         with self.assertRaises(ForbiddenField):
             self.api.insert_consumer(c)
 
+        # credit should be forbidden
+        c = Consumer(name='Hans', credit=12, active=True, karma=0)
+        with self.assertRaises(ForbiddenField):
+            self.api.insert_consumer(c)
+
+
         # duplicate names should be rejected
-        c = Consumer(name='Hans Müller', active=True, credit=0, karma=0)
+        c = Consumer(name='Hans Müller', active=True, karma=0)
         with self.assertRaises(DuplicateObject):
             self.api.insert_consumer(c)
 
@@ -179,7 +185,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertIsNotNone(deed.timestamp)
 
     def test_insert_participation(self):
-        c = Consumer(name='Hans Müller', active=True, credit=250, karma=0)
+        c = Consumer(name='Hans Müller', active=True, karma=0)
         self.api.insert_consumer(c)
 
         f = Flag(name="Teilgenommen")
@@ -278,7 +284,7 @@ class TestDatabaseApi(unittest.TestCase):
             self.api.insert_product(p)
 
     def test_update_consumer(self):
-        c = Consumer(name='Hans Müller', active=True, credit=250, karma=0)
+        c = Consumer(name='Hans Müller', active=True, karma=0)
         self.api.insert_consumer(c)
         consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.name, 'Hans Müller')
@@ -319,7 +325,7 @@ class TestDatabaseApi(unittest.TestCase):
         with self.assertRaises(ForbiddenField):
             self.api.update_consumer(c)
         consumer = self.api.get_consumer(id=1)
-        self.assertEqual(consumer.credit, 250)
+        self.assertEqual(consumer.credit, 0)
 
         c = Consumer(active=False)
         with self.assertRaises(FieldIsNone):
@@ -394,12 +400,12 @@ class TestDatabaseApi(unittest.TestCase):
 
     def test_create_deposit(self):
         # create test consumer
-        c = Consumer(name='Hans Müller', active=True, credit=250, karma=0)
+        c = Consumer(name='Hans Müller', active=True, karma=0)
         self.api.insert_consumer(c)
 
         # check the consumers credit
         consumer = self.api.get_consumer(1)
-        self.assertEqual(consumer.credit, 250)
+        self.assertEqual(consumer.credit, 0)
 
         # create deposit
         dep1 = Deposit(consumer_id=1, amount=250, comment="testcomment")
@@ -407,7 +413,7 @@ class TestDatabaseApi(unittest.TestCase):
 
         # check, if the consumers credit has been increased
         consumer = self.api.get_consumer(id=1)
-        self.assertEqual(consumer.credit, 500)
+        self.assertEqual(consumer.credit, 250)
 
         # check the results
         deposit = self.api.get_deposit(id=1)
@@ -446,9 +452,9 @@ class TestDatabaseApi(unittest.TestCase):
         # insert consumer and product
         p = Product(name='Coffee', active=True, stock=1, countable=True,
                     price=100, department_id=1, revocable=True)
-        c1 = Consumer(name='Dude', active=True, credit=250, karma=0)
-        c2 = Consumer(name='Awesome Dude', active=True, credit=250, karma=10)
-        c3 = Consumer(name='Bad Dude', active=True, credit=250, karma=-10)
+        c1 = Consumer(name='Dude', active=True, karma=0)
+        c2 = Consumer(name='Awesome Dude', active=True, karma=10)
+        c3 = Consumer(name='Bad Dude', active=True, karma=-10)
         self.api.insert_product(p)
 
         self.api.insert_consumer(c1)
@@ -458,9 +464,9 @@ class TestDatabaseApi(unittest.TestCase):
         # check consumers
         consumers = self.api.list_consumers()
         self.assertEqual(len(consumers), 3)
-        self.assertEqual(consumers[0].credit, 250)
-        self.assertEqual(consumers[1].credit, 250)
-        self.assertEqual(consumers[2].credit, 250)
+        self.assertEqual(consumers[0].credit, 0)
+        self.assertEqual(consumers[1].credit, 0)
+        self.assertEqual(consumers[2].credit, 0)
 
         self.assertEqual(consumers[0].karma, 0)
         self.assertEqual(consumers[1].karma, 10)
@@ -508,9 +514,9 @@ class TestDatabaseApi(unittest.TestCase):
         # check consumers
         consumers = self.api.list_consumers()
         self.assertEqual(len(consumers), 3)
-        self.assertEqual(consumers[0].credit, 140)
-        self.assertEqual(consumers[1].credit, 150)
-        self.assertEqual(consumers[2].credit, 130)
+        self.assertEqual(consumers[0].credit, -110)
+        self.assertEqual(consumers[1].credit, -100)
+        self.assertEqual(consumers[2].credit, -120)
 
         department = self.api.get_department(id=1)
         self.assertEqual(department.id, 1)
@@ -559,7 +565,7 @@ class TestDatabaseApi(unittest.TestCase):
 
         # the credit of the consumer must not have to be changed
         consumer = self.api.get_consumer(id=1)
-        self.assertEqual(consumer.credit, 250)
+        self.assertEqual(consumer.credit, 0)
 
         # purchase.id should be forbidden
         pur6 = Purchase(consumer_id=1, product_id=1, id=1337, amount=1,
@@ -597,7 +603,7 @@ class TestDatabaseApi(unittest.TestCase):
         # insert consumer and product
         p = Product(name='Mars', active=True, stock=10, countable=True,
                     price=20, department_id=1, revocable=True)
-        c = Consumer(name='Hans Müller', active=True, credit=250, karma=0)
+        c = Consumer(name='Hans Müller', active=True, karma=0)
         self.api.insert_product(p)
         self.api.insert_consumer(c)
 
@@ -642,14 +648,14 @@ class TestDatabaseApi(unittest.TestCase):
         # insert consumer and product
         p = Product(name='Coffee', active=True, stock=1, countable=True,
                     price=20, department_id=1, revocable=True)
-        c = Consumer(name='Hans Müller', active=True, credit=250, karma=0)
+        c = Consumer(name='Hans Müller', active=True, karma=0)
         self.api.insert_product(p)
         self.api.insert_consumer(c)
 
         # check, if the objects are correct
         consumer = self.api.get_consumer(id=1)
         product = self.api.get_product(id=1)
-        self.assertEqual(consumer.credit, 250)
+        self.assertEqual(consumer.credit, 0)
         self.assertEqual(product.price, 20)
 
         pur = Purchase(consumer_id=1, product_id=1, amount=1,
@@ -686,14 +692,14 @@ class TestDatabaseApi(unittest.TestCase):
         # insert consumer and product
         p = Product(name='Coffee', active=True, stock=1, countable=True,
                     price=20, department_id=1, revocable=True)
-        c1 = Consumer(name='Hans Müller', active=True, credit=250, karma=0)
+        c1 = Consumer(name='Hans Müller', active=True, karma=0)
         self.api.insert_product(p)
         self.api.insert_consumer(c1)
 
         # check, if the objects are correct
         consumer = self.api.get_consumer(id=1)
         product = self.api.get_product(id=1)
-        self.assertEqual(consumer.credit, 250)
+        self.assertEqual(consumer.credit, 0)
         self.assertEqual(product.price, 20)
 
         pur = Purchase(consumer_id=1, product_id=1, amount=5,
@@ -705,7 +711,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(pur.comment, "purchase done by unittest")
         consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.credit,
-                         250 - pur.amount * pur.paid_base_price_per_product
+                         0 - pur.amount * pur.paid_base_price_per_product
                          - pur.amount * pur.paid_karma_per_product)
 
         # revoke purchase and update comment
@@ -724,7 +730,7 @@ class TestDatabaseApi(unittest.TestCase):
 
         # check if the consumers credit has increased
         consumer = self.api.get_consumer(id=1)
-        self.assertEqual(consumer.credit, 250)
+        self.assertEqual(consumer.credit, 0)
 
         # this should do nothing
         pur = Purchase(id=1)
@@ -732,7 +738,7 @@ class TestDatabaseApi(unittest.TestCase):
 
         # check if the consumers credit is the same
         consumer = self.api.get_consumer(id=1)
-        self.assertEqual(consumer.credit, 250)
+        self.assertEqual(consumer.credit, 0)
 
         # check non revocable products
         p = Product(name='Drucken', active=True, countable=False,
@@ -745,7 +751,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.api.insert_purchase(pur)
 
         consumer = self.api.get_consumer(id=1)
-        self.assertEqual(consumer.credit, 245)
+        self.assertEqual(consumer.credit, -5)
 
         # revoke purchase and update comment
         pur = Purchase(id=2, revoked=True, comment="this should fail")
@@ -753,7 +759,7 @@ class TestDatabaseApi(unittest.TestCase):
             self.api.update_purchase(pur)
 
         consumer = self.api.get_consumer(id=1)
-        self.assertEqual(consumer.credit, 245)
+        self.assertEqual(consumer.credit, -5)
 
     def test_update_product(self):
         d = Department(name="Kaffeewart", budget=20000)
