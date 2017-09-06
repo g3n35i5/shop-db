@@ -40,10 +40,10 @@ def calc_theoretical_amount(cid):
     deposits = get_deposits(cid)
 
     d_amount = sum(map(itemgetter('amount'), deposits))
-    p_amount = -sum(map(itemgetter('paid_base_price_per_product'), purchases))
-    k_amount = -sum(map(itemgetter('paid_karma_per_product'), purchases))
+    p_amount = -sum(map(lambda x: x['paid_base_price_per_product'] * x['amount'], purchases))
+    k_amount = -sum(map(lambda x: x['paid_karma_per_product'] * x['amount'], purchases))
 
-    return sum([d_amount, p_amount, k_amount])
+    return [d_amount, p_amount, k_amount]
 
 def actual_amount(cid):
     return get_consumer(cid)['credit']
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     print()
 
     for c in consumers:
-        theoretical = calc_theoretical_amount(c['id']) / 100
+        theoretical = sum(calc_theoretical_amount(c['id'])) / 100
         actual = actual_amount(c['id']) / 100
 
         initial_balance = actual - theoretical
