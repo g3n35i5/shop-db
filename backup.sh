@@ -1,11 +1,11 @@
 #!/usr/bin/sh
-currentDatabase="./shop.db"
-backupName=./backups/database_`date "+%d-%m-%Y_%H-%M"`.dump
+currentDatabase="/root/shop-db-backend/shop.db"
+backupName=/root/backups/database/database_`date "+%d-%m-%Y_%H-%M"`.dump
 if [ -f "$currentDatabase" ]
 then
   echo "$currentDatabase found."
   echo "copy to $backupName"
-  sqlite3 shop.db .dump > $backupName
+  sqlite3 /root/shop-db-backend/shop.db .dump > $backupName
   if [ -f "$backupName" ]
   then
     echo "success"
