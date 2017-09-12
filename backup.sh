@@ -1,4 +1,4 @@
-#!/usr/bin/sh
+#!/bin/sh
 currentDatabase="/root/shop-db-backend/shop.db"
 backupName=/root/backups/database/database_`date "+%d-%m-%Y_%H-%M"`.dump
 if [ -f "$currentDatabase" ]
