@@ -11,10 +11,15 @@ class TestValidatableObject(unittest.TestCase):
         class TestClass(ValidatableObject):
             _validators = {
                 'name': [Type(str), MaxLength(20), MinLength(4)],
-                'amount': [Type(int), LessThan(5)]
+                'amount': [Type(int), LessThan(5)],
+                'canbenone': [SkipIfNone(Type(str))]
             }
 
         self.test_obj = TestClass()
+
+    def test_can_be_none(self):
+        self.test_obj.canbenone = None
+        self.test_obj.canbenone = 'Can be a string'
 
     def test_string_too_long(self):
         with self.assertRaises(MaxLengthExceeded):

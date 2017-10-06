@@ -141,6 +141,19 @@ class Type(object):
             raise WrongType(field, expected_type=self.type.__name__)
 
 
+class SkipIfNone(object):
+
+    def __init__(self, *subvalidators):
+        self.subvalidators = subvalidators
+
+    def validate(self, field, value):
+        if value is None:
+            return
+
+        for v in self.subvalidators:
+            v.validate(field, value)
+
+
 class ValidatableObject(object):
 
     def __init__(self, **kwargs):
