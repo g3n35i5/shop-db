@@ -55,13 +55,13 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(i[0].version_minor, 1)
 
     def test_toggle_use_karma(self):
-        c = Consumer(name='Hans Müller', active=True, karma=0)
+        c = Consumer(name='Hans Müller')
         self.api.insert_consumer(c)
 
         d = Department(name="Kaffeewart", budget=20000)
         self.api.insert_department(d)
 
-        p = Product(name='Twix', active=True, stock=1, countable=True,
+        p = Product(name='Twix', countable=True,
                     price=100, department_id=1, revocable=True)
         self.api.insert_product(p)
 
@@ -110,15 +110,15 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertFalse(purchases[1].revoked)
 
     def test_get_top_products(self):
-        c = Consumer(name='Hans Müller', active=True, karma=0)
+        c = Consumer(name='Hans Müller')
         self.api.insert_consumer(c)
         d = Department(name="Kaffeewart", budget=20000)
         self.api.insert_department(d)
 
-        p = Product(name='Twix', active=True, stock=1, countable=True,
+        p = Product(name='Twix', countable=True,
                     price=100, department_id=1, revocable=True)
         self.api.insert_product(p)
-        p = Product(name='Mars', active=True, stock=1, countable=True,
+        p = Product(name='Mars', countable=True,
                     price=100, department_id=1, revocable=True)
         self.api.insert_product(p)
 
@@ -141,7 +141,7 @@ class TestDatabaseApi(unittest.TestCase):
 
     def test_insert_consumer(self):
         # insert correctly
-        c = Consumer(name='Hans Müller', active=True, karma=0)
+        c = Consumer(name='Hans Müller')
         self.api.insert_consumer(c)
         consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.name, 'Hans Müller')
@@ -151,26 +151,25 @@ class TestDatabaseApi(unittest.TestCase):
 
         # missing fields
         with self.assertRaises(FieldIsNone):
-            c = Consumer(name='Hans Müller')
+            c = Consumer()
             self.api.insert_consumer(c)
 
         # insert wrong types
         with self.assertRaises(WrongType):
-            c = Consumer(name=2, active=True, karma=0)
+            c = Consumer(name=2)
 
         # id should be forbidden
-        c = Consumer(id=13, name='Hans', active=True, karma=0)
+        c = Consumer(id=13, name='Hans')
         with self.assertRaises(ForbiddenField):
             self.api.insert_consumer(c)
 
         # credit should be forbidden
-        c = Consumer(name='Hans', credit=12, active=True, karma=0)
+        c = Consumer(name='Hans', credit=12)
         with self.assertRaises(ForbiddenField):
             self.api.insert_consumer(c)
 
-
         # duplicate names should be rejected
-        c = Consumer(name='Hans Müller', active=True, karma=0)
+        c = Consumer(name='Hans Müller')
         with self.assertRaises(DuplicateObject):
             self.api.insert_consumer(c)
 
@@ -185,7 +184,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertIsNotNone(deed.timestamp)
 
     def test_insert_participation(self):
-        c = Consumer(name='Hans Müller', active=True, karma=0)
+        c = Consumer(name='Hans Müller')
         self.api.insert_consumer(c)
 
         f = Flag(name="Teilgenommen")
@@ -251,15 +250,15 @@ class TestDatabaseApi(unittest.TestCase):
         d = Department(name="Kaffeewart", budget=20000)
         self.api.insert_department(d)
 
-        p = Product(name='Twix', active=True, stock=1, countable=True,
-                    price=90, department_id=1, revocable=True)
+        p = Product(name='Twix', countable=True, price=90,
+                    department_id=1, revocable=True)
         self.api.insert_product(p)
         product = self.api.get_product(id=1)
         self.assertEqual(product.name, 'Twix')
         self.assertEqual(product.price, 90)
         self.assertEqual(product.department_id, 1)
         self.assertTrue(product.active)
-        self.assertTrue(product.stock)
+        self.assertEqual(product.stock, 0)
 
         # missing fields
         with self.assertRaises(FieldIsNone):
@@ -268,23 +267,23 @@ class TestDatabaseApi(unittest.TestCase):
 
         # insert wrong types
         with self.assertRaises(WrongType):
-            p = Product(name=2, active=True, stock=1, countable=True,
+            p = Product(name=2, countable=True,
                         price=100, department_id=1, revocable=True)
 
         # product.id should be forbidden
-        p = Product(id=10, name='Twix', active=True, stock=1, countable=True,
+        p = Product(id=10, name='Twix', countable=True,
                     price=100, department_id=1, revocable=True)
         with self.assertRaises(ForbiddenField):
             self.api.insert_product(p)
 
         # duplicate names should be rejected
-        p = Product(name='Twix', active=True, stock=1, countable=True,
+        p = Product(name='Twix', countable=True,
                     price=100, department_id=1, revocable=True)
         with self.assertRaises(DuplicateObject):
             self.api.insert_product(p)
 
     def test_update_consumer(self):
-        c = Consumer(name='Hans Müller', active=True, karma=0)
+        c = Consumer(name='Hans Müller')
         self.api.insert_consumer(c)
         consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.name, 'Hans Müller')
@@ -335,7 +334,7 @@ class TestDatabaseApi(unittest.TestCase):
         d = Department(name="Kaffeewart", budget=20000)
         self.api.insert_department(d)
 
-        p = Product(name='Twix', active=True, stock=1, countable=True,
+        p = Product(name='Twix', countable=True,
                     price=90, department_id=1, revocable=True)
         self.api.insert_product(p)
         product = self.api.get_product(id=1)
@@ -343,7 +342,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(product.price, 90)
         self.assertEqual(product.department_id, 1)
         self.assertTrue(product.active)
-        self.assertTrue(product.stock)
+        self.assertEqual(product.stock, 0)
 
     def test_get_products(self):
         d = Department(name="Kaffeewart", budget=20000)
@@ -351,9 +350,9 @@ class TestDatabaseApi(unittest.TestCase):
         d = Department(name="Pizzawart", budget=20000)
         self.api.insert_department(d)
 
-        p1 = Product(name='Mars', active=True, stock=1, countable=True,
+        p1 = Product(name='Mars', countable=True,
                      price=30, department_id=1, revocable=True)
-        p2 = Product(name='Twix', active=False, stock=1, countable=True,
+        p2 = Product(name='Twix', countable=True,
                      price=40, department_id=2, revocable=True)
         self.api.insert_product(p1)
         self.api.insert_product(p2)
@@ -366,13 +365,13 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(products[0].price, 30)
         self.assertEqual(products[0].department_id, 1)
         self.assertTrue(products[0].active)
-        self.assertEqual(products[0].stock, 1)
+        self.assertEqual(products[0].stock, 0)
         # Twix
         self.assertEqual(products[1].name, 'Twix')
         self.assertEqual(products[1].price, 40)
         self.assertEqual(products[1].department_id, 2)
-        self.assertFalse(products[1].active)
-        self.assertEqual(products[1].stock, 1)
+        self.assertTrue(products[1].active)
+        self.assertEqual(products[1].stock, 0)
 
     def test_create_payoff(self):
         d = Department(name="Kaffeewart", budget=20000)
@@ -400,7 +399,7 @@ class TestDatabaseApi(unittest.TestCase):
 
     def test_create_deposit(self):
         # create test consumer
-        c = Consumer(name='Hans Müller', active=True, karma=0)
+        c = Consumer(name='Hans Müller')
         self.api.insert_consumer(c)
 
         # check the consumers credit
@@ -450,16 +449,22 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(department.budget, 20000)
 
         # insert consumer and product
-        p = Product(name='Coffee', active=True, stock=1, countable=True,
+        p = Product(name='Coffee', countable=True,
                     price=100, department_id=1, revocable=True)
-        c1 = Consumer(name='Dude', active=True, karma=0)
-        c2 = Consumer(name='Awesome Dude', active=True, karma=10)
-        c3 = Consumer(name='Bad Dude', active=True, karma=-10)
+        c1 = Consumer(name='Dude')
+        c2 = Consumer(name='Awesome Dude')
+        c3 = Consumer(name='Bad Dude')
         self.api.insert_product(p)
 
         self.api.insert_consumer(c1)
         self.api.insert_consumer(c2)
         self.api.insert_consumer(c3)
+
+        c2 = Consumer(id=2, karma=10)
+        c3 = Consumer(id=3, karma=-10)
+
+        self.api.update_consumer(c2)
+        self.api.update_consumer(c3)
 
         # check consumers
         consumers = self.api.list_consumers()
@@ -601,11 +606,14 @@ class TestDatabaseApi(unittest.TestCase):
         self.api.insert_department(d)
 
         # insert consumer and product
-        p = Product(name='Mars', active=True, stock=10, countable=True,
+        p = Product(name='Mars', countable=True,
                     price=20, department_id=1, revocable=True)
-        c = Consumer(name='Hans Müller', active=True, karma=0)
+        c = Consumer(name='Hans Müller')
         self.api.insert_product(p)
         self.api.insert_consumer(c)
+
+        p = Product(id=1, stock=10)
+        self.api.update_product(p)
 
         p = self.api.get_product(id=1)
         self.assertEqual(p.stock, 10)
@@ -627,7 +635,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(p.stock, 4)
 
         # check non countable products
-        p = Product(name='Coffee', active=True, countable=False,
+        p = Product(name='Coffee', countable=False,
                     price=20, department_id=1, revocable=True)
 
         self.api.insert_product(p)
@@ -646,9 +654,9 @@ class TestDatabaseApi(unittest.TestCase):
         self.api.insert_department(d)
 
         # insert consumer and product
-        p = Product(name='Coffee', active=True, stock=1, countable=True,
+        p = Product(name='Coffee', countable=True,
                     price=20, department_id=1, revocable=True)
-        c = Consumer(name='Hans Müller', active=True, karma=0)
+        c = Consumer(name='Hans Müller')
         self.api.insert_product(p)
         self.api.insert_consumer(c)
 
@@ -690,9 +698,9 @@ class TestDatabaseApi(unittest.TestCase):
         self.api.insert_department(d)
 
         # insert consumer and product
-        p = Product(name='Coffee', active=True, stock=1, countable=True,
+        p = Product(name='Coffee', countable=True,
                     price=20, department_id=1, revocable=True)
-        c1 = Consumer(name='Hans Müller', active=True, karma=0)
+        c1 = Consumer(name='Hans Müller')
         self.api.insert_product(p)
         self.api.insert_consumer(c1)
 
@@ -741,7 +749,7 @@ class TestDatabaseApi(unittest.TestCase):
         self.assertEqual(consumer.credit, 0)
 
         # check non revocable products
-        p = Product(name='Drucken', active=True, countable=False,
+        p = Product(name='Drucken', countable=False,
                     price=1, department_id=1, revocable=False)
 
         self.api.insert_product(p)
@@ -768,10 +776,10 @@ class TestDatabaseApi(unittest.TestCase):
         self.api.insert_department(d)
 
         # create test products
-        prod1 = Product(name='Twix', active=True, stock=1, countable=True,
+        prod1 = Product(name='Twix', countable=True,
                         price=90, department_id=1, revocable=True)
         self.api.insert_product(prod1)
-        prod2 = Product(name='Bounty', active=True, stock=1, countable=True,
+        prod2 = Product(name='Bounty', countable=True,
                         price=80, department_id=1, revocable=True)
         self.api.insert_product(prod2)
 
@@ -788,7 +796,7 @@ class TestDatabaseApi(unittest.TestCase):
         # test update name
         prod3 = Product(id=1, name='Mars')
         self.api.update_product(prod3)
-        check_product('Mars', 90, True, True, 1)
+        check_product('Mars', 90, True, 0, 1)
 
         # test update active and stock
         prod4 = Product(id=1, active=False, stock=10)

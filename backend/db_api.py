@@ -216,10 +216,10 @@ class DatabaseApi(object):
         cur = self.con.cursor()
 
         self._assert_mandatory_fields(
-            product, ['name', 'active', 'countable',
-                      'price', 'department_id', 'revocable']
+            product, ['name', 'countable', 'price',
+                      'department_id', 'revocable']
         )
-        self._assert_forbidden_fields(product, ['id'])
+        self._assert_forbidden_fields(product, ['id', 'active', 'stock'])
         self._check_uniqueness(product, 'products', ['name'])
         self._check_foreign_key(product, 'department_id', 'departments')
 
@@ -227,11 +227,9 @@ class DatabaseApi(object):
             product.image = 'default.png'
         if product.barcode is None:
             product.barcode = ''
-        if product.countable:
-            if product.stock is None:
-                product.stock = 0
-        else:
-            product.stock = 0
+
+        product.stock = 0
+        product.active = True
 
         cur.execute(
             'INSERT INTO products '
@@ -249,11 +247,14 @@ class DatabaseApi(object):
         cur = self.con.cursor()
 
         self._assert_mandatory_fields(
-            consumer, ['name', 'active', 'karma'])
-        self._assert_forbidden_fields(consumer, ['id', 'credit'])
+            consumer, ['name'])
+        self._assert_forbidden_fields(consumer,
+                                      ['id', 'credit', 'active', 'karma'])
         self._check_uniqueness(consumer, 'consumers', ['name'])
 
         consumer.credit = 0
+        consumer.active = True
+        consumer.karma = 0
 
         cur.execute(
             'INSERT INTO consumers (name, active, credit, karma) '
