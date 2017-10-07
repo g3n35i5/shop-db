@@ -105,6 +105,15 @@ CREATE TABLE logs (
 	PRIMARY KEY (id)
 );
 
+CREATE TABLE stockhistory (
+	id INTEGER NOT NULL,
+	product_id INTEGER NOT NULL,
+	new_stock INTEGER NOT NULL,
+	timestamp TIMESTAMP NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
 CREATE TABLE deeds (
 	id INTEGER NOT NULL,
 	name VARCHAR(64) NOT NULL,

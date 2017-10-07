@@ -10,7 +10,7 @@ import app
 from .db_api import *
 from .models import (Bank, Consumer, Deed, Department, Deposit, Flag,
                      Information, Log, Participation, Payoff, PriceCategory,
-                     Product, Purchase)
+                     Product, Purchase, StockHistory)
 from .validation import WrongType
 
 
@@ -435,6 +435,58 @@ class TestDatabaseApi(unittest.TestCase):
                        timestamp=datetime.datetime.now())
         with self.assertRaises(ForbiddenField):
             self.api.insert_deposit(dep3)
+
+    def test_stockhistory(self):
+        d = Department(name="Kaffeewart", budget=20000)
+        self.api.insert_department(d)
+
+        p1 = Product(name='Coffee', countable=True,
+                    price=100, department_id=1, revocable=True)
+
+        p2 = Product(name='Mars', countable=False,
+                    price=100, department_id=1, revocable=True)
+
+        c = Consumer(name='Karl')
+        self.api.insert_product(p1)
+        self.api.insert_product(p2)
+
+        self.api.insert_consumer(c)
+
+        sh = self.api.get_stockhistory(product_id=1)
+        self.assertEqual(len(sh), 0)
+
+        for i in range(1, 10):
+            p1 = Purchase(consumer_id=1, product_id=1,
+                          amount=1, comment="purchase")
+
+            p2 = Purchase(consumer_id=1, product_id=2,
+                          amount=1, comment="purchase")
+            self.api.insert_purchase(p1)
+            self.api.insert_purchase(p2)
+
+            # check countable product
+            sh = self.api.get_stockhistory(product_id=1)
+            self.assertEqual(len(sh), i)
+            self.assertEqual(sh[i - 1].new_stock, -i)
+
+            # check non countable product
+            with self.assertRaises(ProductNotCountable):
+                sh = self.api.get_stockhistory(product_id=2)
+
+        # check select timestamps
+        # check without given range of time
+        sh = self.api.get_stockhistory(product_id=1)
+        self.assertEqual(len(sh), 9)
+
+        # check with given range of time
+        date_start = datetime.datetime.now()
+        date_end = datetime.datetime.now() + datetime.timedelta(minutes=1)
+
+        sh = self.api.get_stockhistory(product_id=1,
+                                       date_start=date_start,
+                                       date_end=date_end)
+
+        self.assertEqual(len(sh), 0)
 
 
 

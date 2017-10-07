@@ -9,7 +9,7 @@ from math import floor
 
 from .models import (Bank, Consumer, Deed, Department, Deposit, Flag,
                      Information, Log, Participation, Payoff, PriceCategory,
-                     Product, Purchase)
+                     Product, Purchase, StockHistory)
 from .validation import FieldBasedException, InputException
 
 # convert booleans since sqlite3 has no booleans
@@ -43,6 +43,12 @@ class ObjectNotFound(InputException):
 
 
 class OnlyOneRowAllowed(FieldBasedException):
+
+    def __init__(self):
+        InputException.__init__(self)
+
+
+class ProductNotCountable(FieldBasedException):
 
     def __init__(self):
         InputException.__init__(self)
@@ -446,6 +452,16 @@ class DatabaseApi(object):
                  product.id)
             )
 
+            s = StockHistory(product_id=product.id,
+                             new_stock=product.stock - purchase.amount,
+                             timestamp=datetime.datetime.now())
+
+            cur.execute(
+                'INSERT INTO stockhistory (product_id, new_stock, timestamp) '
+                'VALUES (?,?,?);',
+                (s.product_id, s.new_stock, s.timestamp)
+            )
+
         cur.execute('UPDATE departments SET '
                     'income_base = income_base + ?*?, '
                     'income_karma = income_karma + ?*? '
@@ -559,6 +575,25 @@ class DatabaseApi(object):
                     )
         return cur.fetchall()
 
+    def get_stockhistory(self, product_id, date_start=None, date_end=None):
+        cur = self.con.cursor()
+        cur.row_factory = factory(StockHistory)
+
+        p = self.get_product(id=product_id)
+
+        if not p.countable:
+            raise ProductNotCountable()
+
+        if date_start is None or date_end is None:
+            date_start = datetime.datetime.now() - datetime.timedelta(weeks=4)
+            date_end = datetime.datetime.now()
+
+        cur.execute('SELECT * FROM stockhistory WHERE product_id=? '
+                    'AND timestamp BETWEEN ? AND ?;',
+                    (product_id, date_start, date_end)
+                    )
+        return cur.fetchall()
+
     def get_favorite_products(self, id):
         cur = self.con.cursor()
         cur.row_factory = factory(Purchase)
@@ -624,6 +659,7 @@ class DatabaseApi(object):
         cur.row_factory = factory(model)
         if limit is None:
             cur.execute('SELECT * FROM {};'.format(table))
+
         else:
             limit = int(limit)
             cur.execute(

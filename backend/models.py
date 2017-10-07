@@ -149,6 +149,18 @@ class Log(ValidatableObject):
         return representation(self)
 
 
+class StockHistory(ValidatableObject):
+    _validators = {
+        'id': [Type(int)],
+        'product_id': [Type(int)],
+        'new_stock': [Type(int)],
+        'timestamp': [Type(datetime.datetime)]
+    }
+
+    def __repr__(self):
+        return representation(self)
+
+
 class Deed(ValidatableObject):
     _validators = {
         'id': [Type(int)],

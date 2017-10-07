@@ -257,6 +257,23 @@ def get_karma_history(id):
     return jsonify(list(map(to_dict, api.get_karma_history(id))))
 
 
+@app.route('/stockhistory/<int:id>', methods=['GET'])
+def get_stockhistory(id):
+    try:
+        json_data = request.json
+        date_start = json_data['date_start']
+        date_end = json_data['date_end']
+    except KeyError:
+        date_start = None
+        date_end = None
+
+    sh = api.get_stockhistory(product_id=product_id,
+                              date_start=date_start,
+                              date_end=date_end)
+
+    return jsonify(list(map(to_dict, sh)))
+
+
 @app.route('/information', methods=['GET'])
 def get_backend_information():
     return jsonify(to_dict(api.list_information()[0]))
