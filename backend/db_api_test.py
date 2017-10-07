@@ -436,6 +436,9 @@ class TestDatabaseApi(unittest.TestCase):
         with self.assertRaises(ForbiddenField):
             self.api.insert_deposit(dep3)
 
+
+
+
     def test_insert_purchase(self):
         d = Department(name="Kaffeewart", budget=20000)
         self.api.insert_department(d)
@@ -641,13 +644,13 @@ class TestDatabaseApi(unittest.TestCase):
         self.api.insert_product(p)
         p = self.api.get_product(id=2)
         self.assertFalse(p.countable)
-        self.assertEqual(p.stock, 0)
+        self.assertEqual(p.stock, None)
 
         pur = Purchase(consumer_id=1, product_id=2,
                        amount=5, comment='testing inventory')
 
         p = self.api.get_product(id=2)
-        self.assertEqual(p.stock, 0)
+        self.assertEqual(p.stock, None)
 
     def test_limit_list_purchases(self):
         d = Department(name="Kaffeewart", budget=20000)

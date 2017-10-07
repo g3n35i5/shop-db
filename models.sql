@@ -42,7 +42,7 @@ CREATE TABLE pricecategories (
 CREATE TABLE products (
 	id INTEGER NOT NULL,
 	name VARCHAR(64) NOT NULL,
-	barcode VARCHAR(24) NOT NULL,
+	barcode VARCHAR(24),
 	price INTEGER NOT NULL,
 	department_id INTEGER NOT NULL,
 	active BOOLEAN NOT NULL,

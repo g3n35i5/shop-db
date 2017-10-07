@@ -225,10 +225,9 @@ class DatabaseApi(object):
 
         if product.image is None:
             product.image = 'default.png'
-        if product.barcode is None:
-            product.barcode = ''
 
-        product.stock = 0
+        product.stock = 0 if product.countable else None
+
         product.active = True
 
         cur.execute(

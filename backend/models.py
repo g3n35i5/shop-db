@@ -78,11 +78,11 @@ class Product(ValidatableObject):
     _validators = {
         'id': [Type(int)],
         'name': [Type(str), MaxLength(64), MinLength(4)],
-        'barcode': [Type(str), MaxLength(24), MinLength(0)],
+        'barcode': [SkipIfNone(Type(str), MaxLength(24), MinLength(4))],
         'price': [Type(int)],
         'department_id': [Type(int)],
         'active': [Type(bool)],
-        'stock': [Type(int)],
+        'stock': [SkipIfNone(Type(int))],
         'countable': [Type(bool)],
         'revocable': [Type(bool)],
         'image': [Type(str), MaxLength(64), MinLength(4)]
