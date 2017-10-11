@@ -50,3 +50,7 @@
   - products: active, stock
 
   These fields must be updated manually after insertion.
+
+## Version 3.8
+
+Removing non used Tables and Methods "Participation", "Deed" and "Flag"

@@ -114,33 +114,6 @@ CREATE TABLE stockhistory (
 	FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
-CREATE TABLE deeds (
-	id INTEGER NOT NULL,
-	name VARCHAR(64) NOT NULL,
-	timestamp TIMESTAMP NOT NULL,
-	done BOOLEAN NOT NULL,
-	PRIMARY KEY (id),
-	CHECK (done IN (0, 1))
-);
-
-CREATE TABLE participations (
-	id INTEGER NOT NULL,
-	deed_id INTEGER NOT NULL,
-	consumer_id INTEGER NOT NULL,
-	flag_id INTEGER NOT NULL,
-	timestamp TIMESTAMP NOT NULL,
-	PRIMARY KEY (id),
-	FOREIGN KEY (deed_id) REFERENCES deeds (id),
-	FOREIGN KEY (consumer_id) REFERENCES consumers (id),
-	FOREIGN KEY (flag_id) REFERENCES flags (id)
-);
-
-CREATE TABLE flags (
-	id INTEGER NOT NULL,
-	name VARCHAR(64) NOT NULL,
-	PRIMARY KEY (id)
-);
-
 CREATE TABLE banks (
 	id INTEGER NOT NULL,
 	name VARCHAR(64) NOT NULL,

@@ -161,24 +161,8 @@ class StockHistory(ValidatableObject):
         return representation(self)
 
 
-class Deed(ValidatableObject):
     _validators = {
         'id': [Type(int)],
-        'name': [Type(str), MaxLength(64), MinLength(4)],
-        'timestamp': [Type(datetime.datetime)],
-        'done': [Type(bool)]
-    }
-
-    def __repr__(self):
-        return representation(self)
-
-
-class Participation(ValidatableObject):
-    _validators = {
-        'id': [Type(int)],
-        'deed_id': [Type(int)],
-        'consumer_id': [Type(int)],
-        'flag_id': [Type(int)],
         'timestamp': [Type(datetime.datetime)]
     }
 
@@ -186,10 +170,8 @@ class Participation(ValidatableObject):
         return representation(self)
 
 
-class Flag(ValidatableObject):
     _validators = {
         'id': [Type(int)],
-        'name': [Type(str), MaxLength(64), MinLength(4)]
     }
 
     def __repr__(self):

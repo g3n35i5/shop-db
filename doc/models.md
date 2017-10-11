@@ -86,28 +86,6 @@
 - timestamp: timestamp
 
 
-## deeds
-
-- id: int
-- name: varchar[64]
-- timestamp: timestamp
-- done: bool
-
-
-## participations
-
-- id: int
-- deed_id: int : foreignkey
-- consumer_id: int : foreignkey
-- flag_id: int : foreignkey
-- timestamp timestamp
-
-
-## flags
-
-- id: int
-- name: varchar[64]
-
 ## banks
 
 - id: int

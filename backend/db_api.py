@@ -7,9 +7,9 @@ import pdb
 import sqlite3
 from math import floor
 
-from .models import (Bank, Consumer, Deed, Department, Deposit, Flag,
-                     Information, Log, Participation, Payoff, PriceCategory,
-                     Product, Purchase, StockHistory)
+from .models import (Bank, Consumer, Department, DepartmentPurchase,
+                     Deposit, Information, Log, Payoff,
+                     PriceCategory, Product, Purchase, StockHistory)
 from .validation import FieldBasedException, InputException
 
 # convert booleans since sqlite3 has no booleans
@@ -187,17 +187,6 @@ class DatabaseApi(object):
     def backup_database(self):
         os.system('./backup.sh')
 
-    def insert_flag(self, flag):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(flag, ['name'])
-        self._assert_forbidden_fields(flag, ['id'])
-        self._check_uniqueness(flag, 'flags', ['name'])
-
-        cur.execute('INSERT INTO flags (name) '
-                    'VALUES(?);', (flag.name,))
-        self.con.commit()
-
     def insert_information(self, information):
         cur = self.con.cursor()
 
@@ -268,38 +257,6 @@ class DatabaseApi(object):
         )
         self.con.commit()
 
-    def insert_deed(self, deed):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(
-            deed, ['name', 'timestamp', 'done'])
-        self._assert_forbidden_fields(deed, ['id'])
-
-        cur.execute(
-            'INSERT INTO deeds (name, timestamp, done) '
-            'VALUES (?,?,?);',
-            (deed.name, deed.timestamp, deed.done)
-        )
-
-        self.con.commit()
-
-    def insert_participation(self, participation):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(
-            participation, ['deed_id', 'consumer_id', 'flag_id', 'timestamp'])
-        self._assert_forbidden_fields(participation, ['id'])
-
-        self._check_foreign_key(participation, 'deed_id', 'deeds')
-        self._check_foreign_key(participation, 'consumer_id', 'consumers')
-        self._check_foreign_key(participation, 'flag_id', 'flags')
-
-        cur.execute(
-            'INSERT INTO participations '
-            '(deed_id, consumer_id, flag_id, timestamp) '
-            'VALUES (?,?,?,?);',
-            (participation.deed_id, participation.consumer_id,
-             participation.flag_id, participation.timestamp)
         )
         self.con.commit()
 
@@ -525,17 +482,6 @@ class DatabaseApi(object):
     def get_department(self, id):
         return self._get_one(model=Department, table='departments', id=id)
 
-    def get_deed(self, id):
-        return self._get_one(model=Deed, table='deeds', id=id)
-
-    def get_participation(self, id):
-        return self._get_one(model=Participation,
-                             table='participations',
-                             id=id)
-
-    def get_flag(self, id):
-        return self._get_one(model=Flag, table='deeds', id=id)
-
     def get_payoff(self, id):
         return self._get_one(model=Payoff, table='payoffs', id=id)
 
@@ -639,14 +585,6 @@ class DatabaseApi(object):
 
     def list_logs(self, limit=None):
         return self._list(model=Log, table='logs', limit=limit)
-
-    def list_deeds(self, limit=None):
-        return self._list(model=Deed, table='deeds', limit=limit)
-
-    def list_participations(self, limit=None):
-        return self._list(model=Participation,
-                          table='participations',
-                          limit=limit)
 
     def list_banks(self):
         return self._list(model=Bank, table='banks', limit=None)
