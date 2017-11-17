@@ -3,25 +3,7 @@
 import datetime
 
 from .validation import (GreaterOrEqual, LessOrEqual, MaxLength, MinLength,
-                         Type, ValidatableObject, fields)
-
-
-def representation(obj):
-    keys = list(fields(obj))
-    keys.remove('id')
-
-    r = ['<', type(obj).__name__, '(id=', str(obj.id)]
-
-    for k in sorted(keys):
-        v = getattr(obj, k)
-        if type(v) is str:
-            r.append(', {}="{}"'.format(k, v))
-        else:
-            r.append(', {}={}'.format(k, v))
-
-    r.append(')>')
-
-    return ''.join(r)
+                         Type, ValidatableObject, fields, SkipIfNone)
 
 
 class Information(ValidatableObject):
@@ -32,9 +14,6 @@ class Information(ValidatableObject):
         'use_karma': [Type(bool)]
     }
 
-    def __repr__(self):
-        return representation(self)
-
 
 class Consumer(ValidatableObject):
     _validators = {
@@ -44,9 +23,6 @@ class Consumer(ValidatableObject):
         'credit': [Type(int)],
         'active': [Type(bool)]
     }
-
-    def __repr__(self):
-        return representation(self)
 
 
 class Department(ValidatableObject):
@@ -59,9 +35,6 @@ class Department(ValidatableObject):
         'budget': [Type(int)]
     }
 
-    def __repr__(self):
-        return representation(self)
-
 
 class PriceCategory(ValidatableObject):
     _validators = {
@@ -69,9 +42,6 @@ class PriceCategory(ValidatableObject):
         'price_lower_bound': [Type(int)],
         'additional_percent': [Type(int)]
     }
-
-    def __repr__(self):
-        return representation(self)
 
 
 class Product(ValidatableObject):
@@ -88,9 +58,6 @@ class Product(ValidatableObject):
         'image': [Type(str), MaxLength(64), MinLength(4)]
     }
 
-    def __repr__(self):
-        return representation(self)
-
 
 class Purchase(ValidatableObject):
     _validators = {
@@ -105,9 +72,6 @@ class Purchase(ValidatableObject):
         'paid_karma_per_product': [Type(int)]
     }
 
-    def __repr__(self):
-        return representation(self)
-
 
 class Deposit(ValidatableObject):
     _validators = {
@@ -117,9 +81,6 @@ class Deposit(ValidatableObject):
         'comment': [Type(str), MaxLength(64), MinLength(8)],
         'timestamp': [Type(datetime.datetime)]
     }
-
-    def __repr__(self):
-        return representation(self)
 
 
 class Payoff(ValidatableObject):
@@ -132,9 +93,6 @@ class Payoff(ValidatableObject):
         'timestamp': [Type(datetime.datetime)]
     }
 
-    def __repr__(self):
-        return representation(self)
-
 
 class Log(ValidatableObject):
     _validators = {
@@ -145,9 +103,6 @@ class Log(ValidatableObject):
         'timestamp': [Type(datetime.datetime)]
     }
 
-    def __repr__(self):
-        return representation(self)
-
 
 class StockHistory(ValidatableObject):
     _validators = {
@@ -157,25 +112,16 @@ class StockHistory(ValidatableObject):
         'timestamp': [Type(datetime.datetime)]
     }
 
-    def __repr__(self):
-        return representation(self)
-
 
     _validators = {
         'id': [Type(int)],
         'timestamp': [Type(datetime.datetime)]
     }
 
-    def __repr__(self):
-        return representation(self)
-
 
     _validators = {
         'id': [Type(int)],
     }
-
-    def __repr__(self):
-        return representation(self)
 
 
 class Bank(ValidatableObject):
@@ -184,6 +130,3 @@ class Bank(ValidatableObject):
         'name': [Type(str), MaxLength(64), MinLength(4)],
         'credit': [Type(int)]
     }
-
-    def __repr__(self):
-        return representation(self)

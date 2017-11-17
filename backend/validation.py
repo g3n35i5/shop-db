@@ -182,3 +182,20 @@ class ValidatableObject(object):
             raise UnknownField(field_name)
 
         return self._data.get(field_name, None)
+
+    def __repr__(self):
+        keys = list(fields(self))
+        keys.remove('id')
+
+        representation = ['<', type(self).__name__, '(id=', str(self.id)]
+
+        for k in sorted(keys):
+            v = getattr(self, k)
+            if type(v) is str:
+                representation.append(', {}="{}"'.format(k, v))
+            else:
+                representation.append(', {}={}'.format(k, v))
+
+        representation.append(')>')
+
+        return ''.join(representation)
