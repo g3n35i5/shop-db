@@ -4,9 +4,13 @@ import logging
 import pdb
 import sqlite3
 from logging.handlers import RotatingFileHandler
+import datetime
 
-from flask import Flask, Request, g, jsonify, request
+from flask import Flask, Request, g, jsonify, request, make_response
+import jwt
+from functools import wraps
 from flask_cors import CORS
+from flask_bcrypt import Bcrypt
 from werkzeug.local import LocalProxy
 
 from backend.db_api import (CanOnlyBeRevokedOnce, DatabaseApi, DuplicateObject,
@@ -20,6 +24,11 @@ from backend.validation import (FieldBasedException, InputException,
                                 to_dict)
 
 app = Flask(__name__)
+app.config['adminName'] = 'admin'
+app.config['adminPassword'] = 'admin'
+app.config['SECRET_KEY'] = 'supersecretkey'
+
+
 CORS(app)
 
 CORS(app)
@@ -94,6 +103,25 @@ exception_mapping = {
 }
 
 
+def tokenRequired(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if 'token' in request.headers:
+            token = request.headers['token']
+
+        if not token:
+            return jsonify({'message': 'Token is missing!'}), 401
+
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'])
+        except:
+            return jsonify({'message': 'Token is invalid!'}), 401
+
+        return f(*args, **kwargs)
+    return decorated
+
+
 @app.errorhandler(Exception)
 def handle_error(e):
     if type(e) in exception_mapping:
@@ -118,6 +146,37 @@ def backup_database():
     api.backup_database()
     return jsonify(result='created'), 201
 
+@app.route('/login', methods=['POST'])
+def login():
+    try:
+        json_data = request.json
+        username = json_data['email']
+        password = json_data['password']
+    except:
+        return make_response('Could not verify', 401)
+
+    if username == app.config['adminName'] and password == app.config['adminPassword']:
+        token = jwt.encode(
+            {
+            'user': 'Admin',
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+            }, app.config['SECRET_KEY'])
+    else:
+        return make_response('Could not verify', 401)
+
+    admin = {}
+    admin['name'] = 'Admin'
+    departments = list(map(to_dict, api.list_departments()))
+    adminroles = []
+    for d in departments:
+        a = {}
+        a['department_id'] = d['id']
+        adminroles.append(a)
+
+    admin['adminroles'] = adminroles
+
+    return jsonify({'result': True, 'admin': admin, 'token': token.decode('UTF-8')})
+
 
 @app.route('/consumers', methods=['GET'])
 def list_consumers():
@@ -130,6 +189,7 @@ def list_departments():
 
 
 @app.route('/consumers', methods=['POST'])
+@tokenRequired
 def create_consumer():
     c = Consumer(**json_body())
     api.insert_consumer(c)
@@ -143,6 +203,7 @@ def get_consumer(id):
 
 
 @app.route('/consumers/<int:id>', methods=['PUT'])
+@tokenRequired
 def put_consumer(id):
     if 'credit' in json_body():
         del json_body()['credit']
@@ -176,6 +237,7 @@ def get_favorite_products(id):
 
 
 @app.route('/products', methods=['POST'])
+@tokenRequired
 def create_product():
     p = Product(**json_body())
     api.insert_product(p)
@@ -189,6 +251,7 @@ def get_product(id):
 
 
 @app.route('/products/<int:id>', methods=['PUT'])
+@tokenRequired
 def put_product(id):
     p = Product(**json_body())
     p.id = id
@@ -240,6 +303,7 @@ def get_deposits_limit(limit):
 
 
 @app.route('/deposits', methods=['POST'])
+@tokenRequired
 def create_deposit():
     d = Deposit(**json_body())
     api.insert_deposit(d)
@@ -272,6 +336,7 @@ def get_backend_information():
 
 
 @app.route('/information', methods=['PUT'])
+@tokenRequired
 def update_information(id):
     i = Information(**json_body())
     i.id = 1
@@ -286,6 +351,7 @@ def get_top_products(num_products):
 
 
 @app.route('/payoff', methods=['POST'])
+@tokenRequired
 def insert_payoff():
     p = Payoff(**json_body())
     api.insert_payoff(p)
