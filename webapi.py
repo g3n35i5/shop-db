@@ -311,6 +311,10 @@ def create_deposit():
     return jsonify(result='created'), 201
 
 
+@app.route('/statistics/department/<int:id>', methods=['GET'])
+@tokenRequired
+def getDepartmentStatistics(id):
+    return jsonify(api.getDepartmentStatistics(id))
 
 
 @app.route('/stockhistory/<int:id>', methods=['GET'])

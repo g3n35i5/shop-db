@@ -498,6 +498,53 @@ class DatabaseApi(object):
             raise ObjectNotFound()
         return res
 
+    def getDepartmentStatistics(self, id):
+        statistics = {}
+        statistics['department_id'] = id
+        statistics['top_products'] = self._get_top_products(department_id=id,
+                                                          num_products=10)
+        statistics['purchase_times'] = self._get_purchase_times(
+          department_id=id)
+
+        return statistics
+
+    def _get_top_products(self, department_id, num_products):
+        cur = self.con.cursor()
+        cur.execute('SELECT product_id, count(product_id) '
+                  'FROM purchases GROUP BY product_id '
+                  'ORDER BY count(product_id) '
+                  'DESC LIMIT ?;', (num_products,)
+                  )
+        return cur.fetchall()
+
+    def _get_purchase_times(self, department_id):
+        num_purchases = 2000
+        purchases = self._list_purchases_department(
+          department_id=department_id, limit=num_purchases)
+        ranges = [[i, i + 1] for i in range(0, 24)]
+        labels = [str(i + 1) for i in range(0, 24)]
+        labels = []
+
+        for i in range(0, 24):
+          ranges.append([i, i + 1])
+          labels.append(str(i + 1))
+
+        times = [0 for i in range(0, len(labels))]
+
+        for purchase in purchases:
+          i = 0
+          for r in ranges:
+              if purchase.timestamp.hour in range(r[0], r[1] + 1):
+                  times[i] += 1
+                  break
+              i += 1
+        times = [i * 100 / num_purchases for i in times]
+        out = {}
+        out['labels'] = labels
+        out['data'] = times
+
+        return out
+
     def get_purchases_of_consumer(self, id):
         return self._get_consumer_data(model=Purchase,
                                        table='purchases', id=id)
@@ -607,7 +654,13 @@ class DatabaseApi(object):
         return cur.fetchall()
 
     def update_information(self, information):
+    def _list_purchases_department(self, department_id, limit=None):
         cur = self.con.cursor()
+        cur.row_factory = factory(Purchase)
+        if limit is None:
+            cur.execute('SELECT * FROM purchases '
+                        'WHERE product_id IN (SELECT id FROM products '
+                        'WHERE department_id=?) ORDER BY id;', (department_id,))
 
         self._assert_mandatory_fields(information, ['id'])
         if information.id != 1:
@@ -618,6 +671,12 @@ class DatabaseApi(object):
             updateable_fields=['version_major', 'version_minor', 'use_karma']
         )
         self.con.commit()
+        else:
+            limit = int(limit)
+            cur.execute('SELECT * FROM purchases '
+                        'WHERE product_id IN (SELECT id FROM products '
+                        'WHERE department_id=?) ORDER BY id DESC LIMIT ?;', (department_id, limit))
+        return cur.fetchall()
 
     def update_product(self, product):
         cur = self.con.cursor()
