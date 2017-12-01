@@ -33,13 +33,6 @@ CORS(app)
 
 CORS(app)
 
-
-def convert_js_bool(_dict, field):
-    if field in _dict:
-        _dict[field] = True if _dict[field] == 'true' else False
-    return _dict
-
-
 def get_api():
     api = getattr(g, '_api', None)
     if api is None:
