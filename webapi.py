@@ -141,6 +141,9 @@ def handle_error(e):
         raise e
 
 
+@app.route('/status', methods=['GET'])
+def getStatus():
+    return jsonify(result=True), 200
 
 @app.route('/login', methods=['POST'])
 def login():
