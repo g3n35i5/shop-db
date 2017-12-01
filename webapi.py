@@ -114,6 +114,34 @@ def tokenRequired(f):
         return f(*args, **kwargs)
     return decorated
 
+def tokenOptional(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if 'token' in request.headers:
+            token = request.headers['token']
+
+        if not token:
+            return f(False, *args, **kwargs)
+
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'])
+        except:
+            return f(False, *args, **kwargs)
+
+        return f(True, *args, **kwargs)
+    return decorated
+
+def convertMinimal(_list, _fields):
+    out = []
+    for item in _list:
+        element = {}
+        for field in _fields:
+            element[field] = getattr(item, field)
+
+        out.append(element)
+
+    return out
 
 @app.errorhandler(Exception)
 def handle_error(e):
@@ -170,33 +198,60 @@ def login():
     return jsonify({'result': True, 'admin': admin, 'token': token.decode('UTF-8')})
 
 
-@app.route('/consumers', methods=['GET'])
-def list_consumers():
-    return jsonify(list(map(to_dict, api.list_consumers())))
+############################### Department Routes #############################
 
-
+# List departments
 @app.route('/departments', methods=['GET'])
-def list_departments():
-    return jsonify(list(map(to_dict, api.list_departments())))
+@tokenOptional
+def listDepartments(token):
+    departments = api.list_departments()
+    if token:
+        return jsonify(list(map(to_dict, departments)))
+
+    return jsonify(convertMinimal(departments, ['name', 'id']))
 
 
+# Get department statistics
+@app.route('/department/<int:id>/statistics', methods=['GET'])
+@tokenRequired
+def getDepartmentStatistics(id):
+    return jsonify(api.getDepartmentStatistics(id))
+
+
+
+
+############################### Consumer Routes ###############################
+
+@app.route('/consumers', methods=['GET'])
+@tokenOptional
+def listConsumers(token):
+    consumers = api.list_consumers()
+    if token:
+        return jsonify(list(map(to_dict, consumers)))
+
+    return jsonify(convertMinimal(consumers, ['name', 'id']))
+
+
+# Insert consumer
 @app.route('/consumers', methods=['POST'])
 @tokenRequired
-def create_consumer():
+def insertConsumer():
     c = Consumer(**json_body())
     api.insert_consumer(c)
     app.logger.info('created consumer: {}'.format(c))
     return jsonify(result='created'), 201
 
 
+# Get consumer
 @app.route('/consumer/<int:id>', methods=['GET'])
-def get_consumer(id):
-    return jsonify(to_dict(api.get_consumer(id)))
+def getConsumer(id):
+    return jsonify(api.get_consumer(id))
 
 
-@app.route('/consumers/<int:id>', methods=['PUT'])
+# Update consumer
+@app.route('/consumer/<int:id>', methods=['PUT'])
 @tokenRequired
-def put_consumer(id):
+def updateConsumer(id):
     if 'credit' in json_body():
         del json_body()['credit']
     c = Consumer(**json_body())
@@ -206,107 +261,115 @@ def put_consumer(id):
     return jsonify(result='updated'), 200  # TODO: another status code?
 
 
-@app.route('/consumer/<int:id>/purchases', methods=['GET'])
-def get_consumer_purchases(id):
-    return jsonify(list(map(to_dict, api.get_purchases_of_consumer(id))))
-
-
-@app.route('/consumer/<int:id>/deposits', methods=['GET'])
-def get_consumer_deposits(id):
-    return jsonify(list(map(to_dict, api.get_deposits_of_consumer(id))))
-
-
-@app.route('/products', methods=['GET'])
-def list_products():
-    app.logger.warning('listing products')
-    return jsonify(list(map(to_dict, api.list_products())))
-
-
-@app.route('/favorites/<int:id>', methods=['GET'])
-def get_favorite_products(id):
+# Get consumer's favorite products
+@app.route('/consumer/<int:id>/favorites', methods=['GET'])
+def getConsumerFavorites(id):
     app.logger.warning('listing favorites')
     return jsonify(list(map(to_dict, api.get_favorite_products(id))))
 
 
+# Get consumer's purchases
+@app.route('/consumer/<int:id>/purchases', methods=['GET'])
+def getConsumerPurchases(id):
+    app.logger.warning('listing favorites')
+    return jsonify(list(map(to_dict, api.get_purchases_of_consumer(id))))
+
+
+# Get consumer's deposits
+@app.route('/consumer/<int:id>/purchases', methods=['GET'])
+def getConsumerDeposits(id):
+    app.logger.warning('listing favorites')
+    return jsonify(list(map(to_dict, api.get_deposits_of_consumer(id))))
+
+
+
+
+############################### Product Routes ################################
+
+# List products
+@app.route('/products', methods=['GET'])
+@tokenOptional
+def listProducts(token):
+    products = api.list_products()
+    if token:
+        return jsonify(list(map(to_dict, products)))
+
+    return jsonify(convertMinimal(products, ['name', 'id']))
+
+
+# Insert product
 @app.route('/products', methods=['POST'])
 @tokenRequired
-def create_product():
-    p = Product(**json_body())
-    api.insert_product(p)
-    app.logger.warning('created product: {}'.format(p))
+def insertProduct():
+    api.insert_product(Product(**json_body()))
     return jsonify(result='created'), 201
 
 
+# Get product
 @app.route('/product/<int:id>', methods=['GET'])
-def get_product(id):
+def getProduct(id):
     return jsonify(to_dict(api.get_product(id)))
 
 
-@app.route('/products/<int:id>', methods=['PUT'])
+# Update product
+@app.route('/product/<int:id>', methods=['PUT'])
 @tokenRequired
-def put_product(id):
+def updateProduct(id):
     p = Product(**json_body())
     p.id = id
     api.update_product(p)
-    app.logger.warning('updated product: {}'.format(p))
     return jsonify(result='updated'), 200
 
 
+
+
+############################### Purchase Routes ###############################
+
+# List purchases with or without limit
 @app.route('/purchases', methods=['GET'])
-def list_purchases():
-    return jsonify(list(map(to_dict, api.list_purchases())))
-
-
 @app.route('/purchases/<int:limit>', methods=['GET'])
-def get_purchases_limit(limit):
+def listPurchases(limit=None):
     return jsonify(list(map(to_dict, api.list_purchases(limit=limit))))
 
 
+# Insert purchase
 @app.route('/purchases', methods=['POST'])
-def create_purchase():
-    p = Purchase(**json_body())
-    api.insert_purchase(p)
-    app.logger.warning('purchase created {}'.format(p))
+def insertPurchase():
+    api.insert_purchase(Purchase(**json_body()))
     return jsonify(result='created'), 201
 
 
+# Get purchase
 @app.route('/purchase/<int:id>', methods=['GET'])
-def get_purchase(id):
+def getPurchase(id):
     return jsonify(to_dict(api.get_purchase(id)))
 
 
+# Update purchase
 @app.route('/purchases/<int:id>', methods=['PUT'])
-def put_purchase(id):
+def updatePurchase(id):
     p = Purchase(**json_body())
     p.id = id
     api.update_purchase(p)
-    app.logger.warning('updated purchase: {}'.format(p))
     return jsonify(result='updated'), 200
 
 
+
+############################### Deposit Routes ################################
+
+# List deposits with or without limit
 @app.route('/deposits', methods=['GET'])
-def list_deposits():
-    return jsonify(list(map(to_dict, api.list_deposits())))
-
-
 @app.route('/deposits/<int:limit>', methods=['GET'])
-def get_deposits_limit(limit):
+def listDeposits(limit=None):
     return jsonify(list(map(to_dict, api.list_deposits(limit=limit))))
 
 
+# Insert deposit
 @app.route('/deposits', methods=['POST'])
 @tokenRequired
-def create_deposit():
-    d = Deposit(**json_body())
-    api.insert_deposit(d)
-    app.logger.warning('created deposit: {}'.format(d))
+def insertDeposit():
+    api.insert_deposit(Deposit(**json_body()))
     return jsonify(result='created'), 201
-
-
-@app.route('/statistics/department/<int:id>', methods=['GET'])
-@tokenRequired
-def getDepartmentStatistics(id):
-    return jsonify(api.getDepartmentStatistics(id))
 
 
 @app.route('/stockhistory/<int:id>', methods=['GET'])
@@ -325,6 +388,7 @@ def get_stockhistory(id):
 
     return jsonify(list(map(to_dict, sh)))
 
+############################### Payoff Routes #################################
 
 @app.route('/information', methods=['GET'])
 def get_backend_information():
@@ -341,25 +405,19 @@ def update_information(id):
     return jsonify(result='updated'), 200
 
 
-@app.route('/top_products/<int:num_products>', methods=['GET'])
-def get_top_products(num_products):
-    return jsonify(api.get_top_products(num_products=num_products))
-
-
-@app.route('/payoff', methods=['POST'])
-@tokenRequired
-def insert_payoff():
-    p = Payoff(**json_body())
-    api.insert_payoff(p)
-    app.logger.warning('created payoff: {}'.format(p))
-    return jsonify(result='created'), 201
-
+# List payoffs
 @app.route('/payoffs', methods=['GET'])
 def list_payoffs():
     return jsonify(list(map(to_dict, api.list_payoffs())))
 
+
+# Insert payoff
+@app.route('/payoff', methods=['POST'])
+@tokenRequired
+def insertPayoff():
+    api.insert_payoff(Payoff(**json_body()))
+    return jsonify(result='created'), 201
+
+
 if __name__ == "__main__":
-    handler = RotatingFileHandler('backend.log', maxBytes=60000, backupCount=1)
-    handler.setLevel(logging.DEBUG)
-    app.logger.addHandler(handler)
     app.run(host="0.0.0.0")
