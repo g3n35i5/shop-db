@@ -184,8 +184,6 @@ class DatabaseApi(object):
                 self.con.rollback()
                 raise ObjectNotFound()
 
-    def backup_database(self):
-        os.system('./backup.sh')
 
     def insert_information(self, information):
         cur = self.con.cursor()
