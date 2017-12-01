@@ -1,9 +1,7 @@
 #!/usr/bin/python3
 import json
-import logging
 import pdb
 import sqlite3
-from logging.handlers import RotatingFileHandler
 import datetime
 
 from flask import Flask, Request, g, jsonify, request, make_response
@@ -145,12 +143,9 @@ def convertMinimal(_list, _fields):
 
 @app.errorhandler(Exception)
 def handle_error(e):
+    return e
     if type(e) in exception_mapping:
         foo = exception_mapping[type(e)]
-        # TODO: json content type?
-        app.logger.warning('errorcode {} error_types {}'.format(
-            foo['code'], foo['types']))
-
         return jsonify(
             result='error',
             code=foo['code'],
@@ -158,7 +153,6 @@ def handle_error(e):
             info=e.info
         ), foo['code']
     else:
-        app.logger.error('ERROR: {}'.format(e))
         raise e
 
 
@@ -238,14 +232,13 @@ def listConsumers(token):
 def insertConsumer():
     c = Consumer(**json_body())
     api.insert_consumer(c)
-    app.logger.info('created consumer: {}'.format(c))
     return jsonify(result='created'), 201
 
 
 # Get consumer
 @app.route('/consumer/<int:id>', methods=['GET'])
 def getConsumer(id):
-    return jsonify(api.get_consumer(id))
+    return jsonify(to_dict(api.get_consumer(id)))
 
 
 # Update consumer
@@ -257,28 +250,24 @@ def updateConsumer(id):
     c = Consumer(**json_body())
     c.id = id
     api.update_consumer(c)
-    app.logger.info('updated consumer: {}'.format(c))
     return jsonify(result='updated'), 200  # TODO: another status code?
 
 
 # Get consumer's favorite products
 @app.route('/consumer/<int:id>/favorites', methods=['GET'])
 def getConsumerFavorites(id):
-    app.logger.warning('listing favorites')
     return jsonify(list(map(to_dict, api.get_favorite_products(id))))
 
 
 # Get consumer's purchases
 @app.route('/consumer/<int:id>/purchases', methods=['GET'])
 def getConsumerPurchases(id):
-    app.logger.warning('listing favorites')
     return jsonify(list(map(to_dict, api.get_purchases_of_consumer(id))))
 
 
 # Get consumer's deposits
-@app.route('/consumer/<int:id>/purchases', methods=['GET'])
+@app.route('/consumer/<int:id>/deposits', methods=['GET'])
 def getConsumerDeposits(id):
-    app.logger.warning('listing favorites')
     return jsonify(list(map(to_dict, api.get_deposits_of_consumer(id))))
 
 
@@ -288,13 +277,8 @@ def getConsumerDeposits(id):
 
 # List products
 @app.route('/products', methods=['GET'])
-@tokenOptional
-def listProducts(token):
-    products = api.list_products()
-    if token:
-        return jsonify(list(map(to_dict, products)))
-
-    return jsonify(convertMinimal(products, ['name', 'id']))
+def listProducts():
+    return jsonify(list(map(to_dict, api.list_products())))
 
 
 # Insert product
