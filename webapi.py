@@ -229,7 +229,7 @@ def listConsumers(token):
     if token:
         return jsonify(list(map(to_dict, consumers)))
 
-    return jsonify(convertMinimal(consumers, ['name', 'id']))
+    return jsonify(convertMinimal(consumers, ['name', 'id', 'active']))
 
 
 # Insert consumer
