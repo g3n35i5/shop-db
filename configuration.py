@@ -14,6 +14,7 @@ class BaseConfig(object):
     DATABASE_SCHEMA = app.PATH + '/models.sql'
     HOST = '0.0.0.0'
     PORT = 5000
+    USE_KARMA = True
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True

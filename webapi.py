@@ -15,7 +15,7 @@ import configuration as config
 from backend.db_api import (CanOnlyBeRevokedOnce, DatabaseApi, DuplicateObject,
                             FieldIsNone, ForbiddenField, ForeignKeyNotExisting,
                             ObjectNotFound)
-from backend.models import (Consumer, Deposit, Information, Payoff, Product,
+from backend.models import (Consumer, Deposit, Payoff, Product,
                             Purchase)
 from backend.validation import (FieldBasedException, InputException,
                                 MaximumValueExceeded, MaxLengthExceeded,
@@ -31,7 +31,7 @@ def get_api():
     api = getattr(g, '_api', None)
     if api is None:
         db = sqlite3.connect('shop.db', detect_types=sqlite3.PARSE_DECLTYPES)
-        api = g._api = DatabaseApi(db)
+        api = g._api = DatabaseApi(db, app.config)
     return api
 
 api = LocalProxy(get_api)
@@ -405,21 +405,6 @@ def get_stockhistory(id):
     return jsonify(list(map(to_dict, sh)))
 
 ############################### Payoff Routes #################################
-
-@app.route('/information', methods=['GET'])
-def get_backend_information():
-    return jsonify(to_dict(api.list_information()[0]))
-
-
-@app.route('/information', methods=['PUT'])
-@tokenRequired
-def update_information(id):
-    i = Information(**json_body())
-    i.id = 1
-    api.update_information(i)
-    app.logger.warning('updated information: {}'.format(i))
-    return jsonify(result='updated'), 200
-
 
 # List payoffs
 @app.route('/payoffs', methods=['GET'])

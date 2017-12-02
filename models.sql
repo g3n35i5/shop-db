@@ -1,12 +1,3 @@
-CREATE TABLE information (
-	id INTEGER NOT NULL,
-	version_major INTEGER NOT NULL,
-	version_minor INTEGER NOT NULL,
-	use_karma BOOLEAN NOT NULL,
-	CHECK (use_karma IN (0, 1)),
-	PRIMARY KEY (id)
-);
-
 CREATE TABLE consumers (
 	id INTEGER NOT NULL,
 	name VARCHAR(64) NOT NULL,
@@ -124,6 +115,15 @@ CREATE TABLE banks (
 	PRIMARY KEY (id)
 );
 
+CREATE TABLE adminroles (
+	id INTEGER NOT NULL,
+	consumer_id INTEGER NOT NULL,
+	department_id INTEGER NOT NULL,
+	timestamp TIMESTAMP NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY (consumer_id) REFERENCES consumers (id),
+	FOREIGN KEY (department_id) REFERENCES departments (id)
+);
 INSERT INTO banks (name, credit) VALUES ("Hauptkonto", 0);
 INSERT INTO pricecategories (price_lower_bound, additional_percent) VALUES (0, 60);
 INSERT INTO pricecategories (price_lower_bound, additional_percent) VALUES (10, 50);

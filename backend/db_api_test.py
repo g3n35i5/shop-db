@@ -13,6 +13,8 @@ from .models import (Bank, Consumer, Department, Deposit,
                      Product, Purchase, StockHistory)
 from .validation import WrongType
 
+import configuration as config
+
 
 class TestDatabaseApi(unittest.TestCase):
 
@@ -26,33 +28,14 @@ class TestDatabaseApi(unittest.TestCase):
         self.con = sqlite3.connect(
             ':memory:', detect_types=sqlite3.PARSE_DECLTYPES)
         self.con.executescript(self.schema)
+        configuration = {}
+        configuration['USE_KARMA'] = config.BaseConfig.USE_KARMA
 
-        self.api = DatabaseApi(self.con)
-
-        # insert information
-        i = Information(version_major=3, version_minor=1, use_karma=True)
-
-        self.api.insert_information(i)
-
-        i = self.api.list_information()
-        self.assertEqual(len(i), 1)
-        self.assertEqual(i[0].version_major, 3)
-        self.assertEqual(i[0].version_minor, 1)
+        self.api = DatabaseApi(self.con, configuration)
 
     def tearDown(self):
         # all actions should be committed after the tests
         self.assertFalse(self.con.in_transaction)
-
-    def test_double_information(self):
-        i2 = Information(version_major=3, version_minor=2, use_karma=True)
-
-        with self.assertRaises(OnlyOneRowAllowed):
-            self.api.insert_information(i2)
-
-        i = self.api.list_information()
-        self.assertEqual(len(i), 1)
-        self.assertEqual(i[0].version_major, 3)
-        self.assertEqual(i[0].version_minor, 1)
 
     def test_toggle_use_karma(self):
         c = Consumer(name='Hans Müller')
@@ -172,6 +155,45 @@ class TestDatabaseApi(unittest.TestCase):
         c = Consumer(name='Hans Müller')
         with self.assertRaises(DuplicateObject):
             self.api.insert_consumer(c)
+
+    def test_adminroles(self):
+        consumer = Consumer(name='Hans Müller')
+        self.api.insert_consumer(consumer)
+        consumer = self.api.get_consumer(id=1)
+
+        department = Department(name="Kaffeewart", budget=20000)
+        self.api.insert_department(department)
+        department = self.api.get_department(id=1)
+
+        # Make sure, that the consumer is no admin
+        adminroles = self.api.getAdminroles(consumer)
+        self.assertEqual(len(adminroles), 0)
+
+        # Make sure, that the consumer needs email and password to be admin
+        with self.assertRaises(ConsumerNeedsCredentials):
+                self.api.toggleAdmin(consumer, department)
+
+        # Update the consumer, so he can be admin
+        upConsumer = Consumer(id=consumer.id)
+        upConsumer.email = 'me@example.com'
+        upConsumer.password = 'supersecretpassword'.encode()
+
+        self.api.update_consumer(upConsumer)
+        consumer = self.api.get_consumer(id=1)
+
+        # Make consumer admin for department 1
+        self.api.toggleAdmin(consumer, department)
+        adminroles = self.api.getAdminroles(consumer)
+        self.assertEqual(adminroles[0].department_id, 1)
+        self.assertEqual(len(adminroles), 1)
+
+        # Delete consumer admin role for department 1
+        self.api.toggleAdmin(consumer, department)
+        adminroles = self.api.getAdminroles(consumer)
+        self.assertEqual(len(adminroles), 0)
+
+
+
 
     def test_insert_department(self):
         d = Department(name="Kaffeewart", budget=20000)
