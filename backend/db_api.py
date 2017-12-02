@@ -7,10 +7,11 @@ import pdb
 import sqlite3
 from math import floor
 
-from .models import (Bank, Consumer, Department, DepartmentPurchase,
-                     Deposit, Information, Log, Payoff,
+from .models import (AdminRole, Bank, Consumer, Department,
+                     Deposit, Log, Payoff,
                      PriceCategory, Product, Purchase, StockHistory)
-from .validation import FieldBasedException, InputException
+from .validation import FieldBasedException, InputException, to_dict
+
 
 # convert booleans since sqlite3 has no booleans
 # see: https://www.sqlite.org/datatype3.html#boolean_datatype
@@ -43,6 +44,12 @@ class ObjectNotFound(InputException):
 
 
 class OnlyOneRowAllowed(FieldBasedException):
+
+    def __init__(self):
+        InputException.__init__(self)
+
+
+class ConsumerNeedsCredentials(FieldBasedException):
 
     def __init__(self):
         InputException.__init__(self)
@@ -84,8 +91,9 @@ def factory(cls):
 
 class DatabaseApi(object):
 
-    def __init__(self, sqlite3_connection):
+    def __init__(self, sqlite3_connection, configuration):
         self.con = sqlite3_connection
+        self.USE_KARMA = configuration['USE_KARMA']
         self.con.execute('PRAGMA foreign_keys = ON;')
 
     def _assert_mandatory_fields(self, object, fields):
@@ -147,6 +155,45 @@ class DatabaseApi(object):
 
         return floor(base_price * (1 + percent * (-karma + 10) / 2000))
 
+    def toggleAdmin(self, consumer, department):
+        self._check_foreign_key(consumer, 'id', 'consumers')
+        self._check_foreign_key(department, 'id', 'departments')
+
+        cur = self.con.cursor()
+        adminroles = self.getAdminroles(consumer)
+        isAdmin = department.id in [i.department_id for i in adminroles]
+
+        if isAdmin:
+            res = cur.execute('DELETE FROM adminroles WHERE consumer_id = ? '
+                              'AND department_id = ?;',
+                              (consumer.id, department.id)
+                             )
+        else:
+            if consumer.password is not None and consumer.email is not None:
+                adminrole = AdminRole(consumer_id=consumer.id,
+                                      department_id=department.id,
+                                      timestamp=datetime.datetime.now())
+                res = cur.execute('INSERT INTO adminroles '
+                                  '(consumer_id, department_id, timestamp) '
+                                  'VALUES(?,?,?);',
+                                  (adminrole.consumer_id,
+                                   adminrole.department_id,
+                                   adminrole.timestamp)
+                                   )
+            else:
+                raise ConsumerNeedsCredentials()
+
+        self.con.commit()
+
+    def getAdminroles(self, consumer):
+        self._check_foreign_key(consumer, 'id', 'consumers')
+        cur = self.con.cursor()
+        cur.row_factory = factory(AdminRole)
+        res = cur.execute('SELECT * FROM adminroles '
+                          'WHERE consumer_id = ?;', (consumer.id, )
+                         )
+        return cur.fetchall()
+
     def _simple_update(self, cur, object, table, updateable_fields):
         params = []
         query_parts = []
@@ -185,24 +232,11 @@ class DatabaseApi(object):
                 raise ObjectNotFound()
 
 
-    def insert_information(self, information):
         cur = self.con.cursor()
 
-        self._assert_mandatory_fields(information, ['version_major',
-                                                    'version_minor',
-                                                    'use_karma'])
 
-        self._assert_forbidden_fields(information, ['id'])
 
-        inf = self.list_information()
-        if len(inf) > 0:
-            raise OnlyOneRowAllowed()
 
-        cur.execute('INSERT INTO information '
-                    '(version_major, version_minor, use_karma) '
-                    'VALUES(?,?,?);', (information.version_major,
-                                       information.version_minor,
-                                       information.use_karma))
         self.con.commit()
 
     def insert_product(self, product):
@@ -243,6 +277,12 @@ class DatabaseApi(object):
         self._assert_forbidden_fields(consumer,
                                       ['id', 'credit', 'active', 'karma'])
         self._check_uniqueness(consumer, 'consumers', ['name'])
+
+        if consumer.email is not None:
+            self._check_uniqueness(consumer, 'consumers', ['email'])
+
+        if consumer.studentnumber is not None:
+            self._check_uniqueness(consumer, 'consumers', ['studentnumber'])
 
         consumer.credit = 0
         consumer.active = True
@@ -353,8 +393,7 @@ class DatabaseApi(object):
 
         consumer = self.get_consumer(purchase.consumer_id)
         product = self.get_product(purchase.product_id)
-        information = self.list_information()[0]
-        if information.use_karma:
+        if self.USE_KARMA:
             price_to_pay = self._calculate_product_price(product.price,
                                                          consumer.karma)
         else:
@@ -643,9 +682,6 @@ class DatabaseApi(object):
     def list_banks(self):
         return self._list(model=Bank, table='banks', limit=None)
 
-    def list_information(self):
-        return self._list(model=Information, table='information', limit=None)
-
     def _list(self, model, table, limit):
         cur = self.con.cursor()
         cur.row_factory = factory(model)
@@ -660,7 +696,6 @@ class DatabaseApi(object):
             )
         return cur.fetchall()
 
-    def update_information(self, information):
     def _list_purchases_department(self, department_id, limit=None):
         cur = self.con.cursor()
         cur.row_factory = factory(Purchase)
@@ -669,15 +704,6 @@ class DatabaseApi(object):
                         'WHERE product_id IN (SELECT id FROM products '
                         'WHERE department_id=?) ORDER BY id;', (department_id,))
 
-        self._assert_mandatory_fields(information, ['id'])
-        if information.id != 1:
-            raise OnlyOneRowAllowed()
-
-        self._simple_update(
-            cur=cur, object=information, table='information',
-            updateable_fields=['version_major', 'version_minor', 'use_karma']
-        )
-        self.con.commit()
         else:
             limit = int(limit)
             cur.execute('SELECT * FROM purchases '

@@ -6,15 +6,6 @@ from .validation import (GreaterOrEqual, LessOrEqual, MaxLength, MinLength,
                          Type, ValidatableObject, fields, SkipIfNone)
 
 
-class Information(ValidatableObject):
-    _validators = {
-        'id': [Type(int)],
-        'version_major': [Type(int)],
-        'version_minor': [Type(int)],
-        'use_karma': [Type(bool)]
-    }
-
-
 class Consumer(ValidatableObject):
     _validators = {
         'id': [Type(int)],
@@ -118,6 +109,11 @@ class StockHistory(ValidatableObject):
 
     _validators = {
         'id': [Type(int)],
+class AdminRole(ValidatableObject):
+    _validators = {
+        'id': [Type(int)],
+        'consumer_id': [Type(int)],
+        'department_id': [Type(int)],
         'timestamp': [Type(datetime.datetime)]
     }
 

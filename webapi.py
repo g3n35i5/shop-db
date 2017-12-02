@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 import json
 import pdb
 import sqlite3
@@ -9,13 +9,13 @@ from flask_bcrypt import Bcrypt
 import jwt
 from functools import wraps
 from flask_cors import CORS
-from flask_bcrypt import Bcrypt
 from werkzeug.local import LocalProxy
+import configuration as config
 
 from backend.db_api import (CanOnlyBeRevokedOnce, DatabaseApi, DuplicateObject,
                             FieldIsNone, ForbiddenField, ForeignKeyNotExisting,
                             ObjectNotFound)
-from backend.models import (Consumer, Deposit, Information, Payoff, Product,
+from backend.models import (Consumer, Deposit, Payoff, Product,
                             Purchase)
 from backend.validation import (FieldBasedException, InputException,
                                 MaximumValueExceeded, MaxLengthExceeded,
@@ -23,19 +23,15 @@ from backend.validation import (FieldBasedException, InputException,
                                 to_dict)
 
 app = Flask(__name__)
-app.config['adminName'] = 'admin'
-app.config['adminPassword'] = 'admin'
-app.config['SECRET_KEY'] = 'supersecretkey'
-
+app.config.from_object(config.DevelopmentConfig)
 bcrypt = Bcrypt(app)
-
 CORS(app)
 
 def get_api():
     api = getattr(g, '_api', None)
     if api is None:
         db = sqlite3.connect('shop.db', detect_types=sqlite3.PARSE_DECLTYPES)
-        api = g._api = DatabaseApi(db)
+        api = g._api = DatabaseApi(db, app.config)
     return api
 
 api = LocalProxy(get_api)
@@ -156,9 +152,18 @@ def handle_error(e):
         raise e
 
 
+
+
+############################### Backend Status ################################
+
 @app.route('/status', methods=['GET'])
 def getStatus():
     return jsonify(result=True), 200
+
+
+
+
+############################### Login #########################################
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -203,6 +208,7 @@ def login():
             'token': token.decode('UTF-8')
         }
     )
+
 
 
 
@@ -400,21 +406,6 @@ def get_stockhistory(id):
 
 ############################### Payoff Routes #################################
 
-@app.route('/information', methods=['GET'])
-def get_backend_information():
-    return jsonify(to_dict(api.list_information()[0]))
-
-
-@app.route('/information', methods=['PUT'])
-@tokenRequired
-def update_information(id):
-    i = Information(**json_body())
-    i.id = 1
-    api.update_information(i)
-    app.logger.warning('updated information: {}'.format(i))
-    return jsonify(result='updated'), 200
-
-
 # List payoffs
 @app.route('/payoffs', methods=['GET'])
 def list_payoffs():
@@ -430,4 +421,4 @@ def insertPayoff():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0")
+    app.run(host=app.config['HOST'], port=app.config['PORT'])
