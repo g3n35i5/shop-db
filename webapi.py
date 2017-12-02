@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 import json
 import pdb
 import sqlite3
@@ -9,7 +9,6 @@ from flask_bcrypt import Bcrypt
 import jwt
 from functools import wraps
 from flask_cors import CORS
-from flask_bcrypt import Bcrypt
 from werkzeug.local import LocalProxy
 import configuration as config
 
@@ -153,9 +152,18 @@ def handle_error(e):
         raise e
 
 
+
+
+############################### Backend Status ################################
+
 @app.route('/status', methods=['GET'])
 def getStatus():
     return jsonify(result=True), 200
+
+
+
+
+############################### Login #########################################
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -200,6 +208,7 @@ def login():
             'token': token.decode('UTF-8')
         }
     )
+
 
 
 
