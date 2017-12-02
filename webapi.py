@@ -11,6 +11,7 @@ from functools import wraps
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from werkzeug.local import LocalProxy
+import configuration as config
 
 from backend.db_api import (CanOnlyBeRevokedOnce, DatabaseApi, DuplicateObject,
                             FieldIsNone, ForbiddenField, ForeignKeyNotExisting,
@@ -23,12 +24,8 @@ from backend.validation import (FieldBasedException, InputException,
                                 to_dict)
 
 app = Flask(__name__)
-app.config['adminName'] = 'admin'
-app.config['adminPassword'] = 'admin'
-app.config['SECRET_KEY'] = 'supersecretkey'
-
+app.config.from_object(config.DevelopmentConfig)
 bcrypt = Bcrypt(app)
-
 CORS(app)
 
 def get_api():
@@ -430,4 +427,4 @@ def insertPayoff():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0")
+    app.run(host=app.config['HOST'], port=app.config['PORT'])
