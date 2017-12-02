@@ -21,7 +21,10 @@ class Consumer(ValidatableObject):
         'name': [Type(str), MaxLength(64), MinLength(4)],
         'karma': [Type(int), GreaterOrEqual(-10), LessOrEqual(10)],
         'credit': [Type(int)],
-        'active': [Type(bool)]
+        'active': [Type(bool)],
+        'email': [SkipIfNone(Type(str), MaxLength(256), MinLength(6))],
+        'password': [SkipIfNone(Type(bytes), MaxLength(256), MinLength(6))],
+        'studentnumber': [SkipIfNone(Type(int))]
     }
 
 

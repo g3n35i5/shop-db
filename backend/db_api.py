@@ -249,12 +249,12 @@ class DatabaseApi(object):
         consumer.karma = 0
 
         cur.execute(
-            'INSERT INTO consumers (name, active, credit, karma) '
-            'VALUES (?,?,?,?);',
-            (consumer.name, consumer.active, consumer.credit, consumer.karma)
-        )
-        self.con.commit()
-
+            'INSERT INTO consumers '
+            '(name, active, credit, karma, email, password, studentnumber) '
+            'VALUES (?,?,?,?,?,?,?);',
+            (consumer.name, consumer.active, consumer.credit,
+             consumer.karma, consumer.email, consumer.password,
+             consumer.studentnumber)
         )
         self.con.commit()
 
@@ -496,6 +496,15 @@ class DatabaseApi(object):
             raise ObjectNotFound()
         return res
 
+    def get_consumer_by_email(self, email):
+        cur = self.con.cursor()
+        cur.row_factory = factory(Consumer)
+        cur.execute('SELECT * FROM consumers WHERE email=?;', (email, ))
+        res = cur.fetchall()
+        if res is None or len(res) > 1:
+            raise ObjectNotFound()
+        return res[0]
+
     def getDepartmentStatistics(self, id):
         statistics = {}
         statistics['department_id'] = id
@@ -699,7 +708,8 @@ class DatabaseApi(object):
 
         self._simple_update(
             cur=cur, object=consumer, table='consumers',
-            updateable_fields=['name', 'active', 'karma']
+            updateable_fields=['name', 'active', 'karma', 'email',
+                               'password', 'studentnumber']
         )
         self.con.commit()
 

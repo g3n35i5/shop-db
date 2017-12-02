@@ -5,6 +5,7 @@ import sqlite3
 import datetime
 
 from flask import Flask, Request, g, jsonify, request, make_response
+from flask_bcrypt import Bcrypt
 import jwt
 from functools import wraps
 from flask_cors import CORS
@@ -26,8 +27,7 @@ app.config['adminName'] = 'admin'
 app.config['adminPassword'] = 'admin'
 app.config['SECRET_KEY'] = 'supersecretkey'
 
-
-CORS(app)
+bcrypt = Bcrypt(app)
 
 CORS(app)
 
@@ -164,22 +164,29 @@ def getStatus():
 def login():
     try:
         json_data = request.json
-        username = json_data['email']
+        email = json_data['email']
         password = json_data['password']
     except:
         return make_response('Could not verify', 401)
 
-    if username == app.config['adminName'] and password == app.config['adminPassword']:
-        token = jwt.encode(
-            {
-            'user': 'Admin',
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
-            }, app.config['SECRET_KEY'])
-    else:
+    try:
+        consumer = to_dict(api.get_consumer_by_email(email))
+    except:
         return make_response('Could not verify', 401)
 
-    admin = {}
-    admin['name'] = 'Admin'
+    try:
+        if bcrypt.check_password_hash(consumer['password'], password):
+            del consumer['password']
+            exp = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+            token = jwt.encode(
+                {
+                    'exp': exp
+                }, app.config['SECRET_KEY'])
+        else:
+            return make_response('Could not verify', 401)
+    except:
+        return make_response('Could not verify', 401)
+
     departments = list(map(to_dict, api.list_departments()))
     adminroles = []
     for d in departments:
@@ -187,9 +194,16 @@ def login():
         a['department_id'] = d['id']
         adminroles.append(a)
 
-    admin['adminroles'] = adminroles
+    consumer['adminroles'] = adminroles
 
-    return jsonify({'result': True, 'admin': admin, 'token': token.decode('UTF-8')})
+    return jsonify(
+        {
+            'result': True,
+            'admin': consumer,
+            'token': token.decode('UTF-8')
+        }
+    )
+
 
 
 ############################### Department Routes #############################
@@ -216,12 +230,17 @@ def getDepartmentStatistics(id):
 
 ############################### Consumer Routes ###############################
 
+# List consumers
 @app.route('/consumers', methods=['GET'])
 @tokenOptional
 def listConsumers(token):
     consumers = api.list_consumers()
+
     if token:
-        return jsonify(list(map(to_dict, consumers)))
+        consumers = list(map(to_dict, consumers))
+        for consumer in consumers:
+            del consumer['password']
+        return jsonify(consumers)
 
     return jsonify(convertMinimal(consumers, ['name', 'id', 'active']))
 
@@ -238,6 +257,10 @@ def insertConsumer():
 # Get consumer
 @app.route('/consumer/<int:id>', methods=['GET'])
 def getConsumer(id):
+    consumer = to_dict(api.get_consumer(id))
+    if 'password' in consumer:
+        del consumer['password']
+
     return jsonify(to_dict(api.get_consumer(id)))
 
 
@@ -245,8 +268,11 @@ def getConsumer(id):
 @app.route('/consumer/<int:id>', methods=['PUT'])
 @tokenRequired
 def updateConsumer(id):
-    if 'credit' in json_body():
-        del json_body()['credit']
+    data = json_body()
+    if 'credit' in data:
+        del data['credit']
+    if 'password' in data:
+        data['password'] = bcrypt.generate_password_hash(data['password'])
     c = Consumer(**json_body())
     c.id = id
     api.update_consumer(c)
