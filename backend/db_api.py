@@ -7,9 +7,7 @@ import pdb
 import sqlite3
 from math import floor
 
-from .models import (AdminRole, Bank, Consumer, Department,
-                     Deposit, Log, Payoff,
-                     PriceCategory, Product, Purchase, StockHistory)
+from backend import models
 from .validation import FieldBasedException, InputException, to_dict
 
 
@@ -38,6 +36,12 @@ class ForbiddenField(FieldBasedException):
 
 
 class ObjectNotFound(InputException):
+
+    def __init__(self):
+        InputException.__init__(self)
+
+
+class InvalidDates(FieldBasedException):
 
     def __init__(self):
         InputException.__init__(self)
@@ -155,40 +159,46 @@ class DatabaseApi(object):
 
         return floor(base_price * (1 + percent * (-karma + 10) / 2000))
 
-    def toggleAdmin(self, consumer, department):
+    def setAdmin(self, consumer, department, admin):
         self._check_foreign_key(consumer, 'id', 'consumers')
         self._check_foreign_key(department, 'id', 'departments')
 
         cur = self.con.cursor()
-        adminroles = self.getAdminroles(consumer)
-        isAdmin = department.id in [i.department_id for i in adminroles]
+        department = self.get_department(id=department.id)
+        consumer = self.get_consumer(id=consumer.id)
+        adminroles = self.getAdminroles(consumer)#
 
-        if isAdmin:
-            res = cur.execute('DELETE FROM adminroles WHERE consumer_id = ? '
-                              'AND department_id = ?;',
-                              (consumer.id, department.id)
-                             )
-        else:
-            if consumer.password is not None and consumer.email is not None:
-                adminrole = AdminRole(consumer_id=consumer.id,
+        # Check, if the consumer is admin for this department
+        isAdmin = department.id in [a.department_id for a in adminroles]
+
+        # Case one: Make consumer admin
+        if admin and not isAdmin:
+            if consumer.email is not None and consumer.password is not None:
+                adminrole = models.AdminRole(consumer_id=consumer.id,
                                       department_id=department.id,
                                       timestamp=datetime.datetime.now())
-                res = cur.execute('INSERT INTO adminroles '
-                                  '(consumer_id, department_id, timestamp) '
-                                  'VALUES(?,?,?);',
-                                  (adminrole.consumer_id,
-                                   adminrole.department_id,
-                                   adminrole.timestamp)
-                                   )
+                cur.execute('INSERT INTO adminroles '
+                            '(consumer_id, department_id, timestamp) '
+                            'VALUES(?,?,?);',
+                            (adminrole.consumer_id,
+                             adminrole.department_id,
+                             adminrole.timestamp)
+                            )
+                self.con.commit()
             else:
                 raise ConsumerNeedsCredentials()
 
-        self.con.commit()
+        elif not admin and isAdmin:
+            cur.execute('DELETE FROM adminroles WHERE consumer_id = ? '
+                        'AND department_id = ?;',
+                        (consumer.id, department.id)
+                        )
+            self.con.commit()
 
     def getAdminroles(self, consumer):
         self._check_foreign_key(consumer, 'id', 'consumers')
         cur = self.con.cursor()
-        cur.row_factory = factory(AdminRole)
+        cur.row_factory = factory(models.AdminRole)
         res = cur.execute('SELECT * FROM adminroles '
                           'WHERE consumer_id = ?;', (consumer.id, )
                          )
@@ -231,9 +241,46 @@ class DatabaseApi(object):
                 self.con.rollback()
                 raise ObjectNotFound()
 
-
+    def insert_workactivity(self, workactivity):
         cur = self.con.cursor()
 
+        self._assert_mandatory_fields(workactivity, ['name'])
+        self._check_uniqueness(workactivity, 'workactivities',
+                               ['name'])
+        self._assert_forbidden_fields(workactivity, ['id'])
+
+
+        cur.execute('INSERT INTO workactivities '
+                    '(name) VALUES(?);', (workactivity.name, )
+                    )
+        self.con.commit()
+
+    def insert_activity(self, activity):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(activity,
+                                      ['workactivity_id',
+                                       'date_deadline',
+                                       'date_event',
+                                       'created_by'])
+
+        self._assert_forbidden_fields(activity,
+                                      ['id', 'date_created', 'active'])
+        self._check_foreign_key(activity, 'created_by', 'consumers')
+
+        activity.date_created = datetime.datetime.now()
+        activity.active = True
+
+        cur.execute('INSERT INTO activities '
+                    '(created_by, workactivity_id, active, '
+                    'date_created, date_deadline, date_event) '
+                    'VALUES(?,?,?,?,?,?);', (
+                    activity.created_by, activity.workactivity_id,
+                    activity.active, activity.date_created,
+                    activity.date_deadline, activity.date_event)
+                )
+
+        self.con.commit()
 
 
 
@@ -446,7 +493,7 @@ class DatabaseApi(object):
                  product.id)
             )
 
-            s = StockHistory(product_id=product.id,
+            s = models.StockHistory(product_id=product.id,
                              new_stock=product.stock - purchase.amount,
                              timestamp=datetime.datetime.now())
 
@@ -504,26 +551,32 @@ class DatabaseApi(object):
 
         self.con.commit()
 
+    def get_activity(self, id):
+        return self._get_one(model=models.Activity, table='activities', id=id)
+
+    def get_workactivity(self, id):
+        return self._get_one(model=models.WorkActivity, table='workactivities', id=id)
+
     def get_consumer(self, id):
-        return self._get_one(model=Consumer, table='consumers', id=id)
+        return self._get_one(model=models.Consumer, table='consumers', id=id)
 
     def get_product(self, id):
-        return self._get_one(model=Product, table='products', id=id)
+        return self._get_one(model=models.Product, table='products', id=id)
 
     def get_purchase(self, id):
-        return self._get_one(model=Purchase, table='purchases', id=id)
+        return self._get_one(model=models.Purchase, table='purchases', id=id)
 
     def get_deposit(self, id):
-        return self._get_one(model=Deposit, table='deposits', id=id)
+        return self._get_one(model=models.Deposit, table='deposits', id=id)
 
     def get_department(self, id):
-        return self._get_one(model=Department, table='departments', id=id)
+        return self._get_one(model=models.Department, table='departments', id=id)
 
     def get_payoff(self, id):
-        return self._get_one(model=Payoff, table='payoffs', id=id)
+        return self._get_one(model=models.Payoff, table='payoffs', id=id)
 
     def get_bank(self):
-        return self._get_one(model=Bank, table='banks', id=1)
+        return self._get_one(model=models.Bank, table='banks', id=1)
 
     def _get_one(self, model, table, id):
         cur = self.con.cursor()
@@ -537,12 +590,35 @@ class DatabaseApi(object):
 
     def get_consumer_by_email(self, email):
         cur = self.con.cursor()
-        cur.row_factory = factory(Consumer)
+        cur.row_factory = factory(models.Consumer)
         cur.execute('SELECT * FROM consumers WHERE email=?;', (email, ))
         res = cur.fetchall()
         if res is None or len(res) > 1:
             raise ObjectNotFound()
         return res[0]
+
+    def get_activity_feedbacks(self, activity):
+        self._check_foreign_key(activity, 'id', 'activities')
+        consumers = self.list_consumers()
+
+        cur = self.con.cursor()
+        cur.row_factory = factory(Feedback)
+
+        feedbacks = {}
+        for consumer in consumers:
+            feedbacks[consumer.id] = []
+
+        cur.execute('SELECT * FROM feedbacks  WHERE activity_id=?;',
+                    (activity.id, )
+                   )
+
+        res = cur.fetchall()
+
+        for feedback in res:
+            feedbacks[feedback.consumer_id].append(to_dict(feedback))
+
+        return feedbacks
+
 
     def getDepartmentStatistics(self, id):
         statistics = {}
@@ -616,7 +692,7 @@ class DatabaseApi(object):
 
     def get_stockhistory(self, product_id, date_start=None, date_end=None):
         cur = self.con.cursor()
-        cur.row_factory = factory(StockHistory)
+        cur.row_factory = factory(models.StockHistory)
 
         p = self.get_product(id=product_id)
 
@@ -635,7 +711,7 @@ class DatabaseApi(object):
 
     def get_favorite_products(self, id):
         cur = self.con.cursor()
-        cur.row_factory = factory(Purchase)
+        cur.row_factory = factory(models.Purchase)
         cur.execute(
             'SELECT * FROM purchases WHERE consumer_id=? AND revoked=0 \
             GROUP BY product_id ORDER BY COUNT(product_id) DESC \
@@ -654,33 +730,39 @@ class DatabaseApi(object):
         return cur.fetchall()
 
     def list_consumers(self):
-        return self._list(model=Consumer, table='consumers', limit=None)
+        return self._list(model=models.Consumer, table='consumers', limit=None)
 
     def list_products(self):
-        return self._list(model=Product, table='products', limit=None)
+        return self._list(model=models.Product, table='products', limit=None)
 
     def list_purchases(self, limit=None):
-        return self._list(model=Purchase, table='purchases', limit=limit)
+        return self._list(model=models.Purchase, table='purchases', limit=limit)
 
     def list_deposits(self, limit=None):
-        return self._list(model=Deposit, table='deposits', limit=limit)
+        return self._list(model=models.Deposit, table='deposits', limit=limit)
 
     def list_departments(self):
-        return self._list(model=Department, table='departments', limit=None)
+        return self._list(model=models.Department, table='departments', limit=None)
 
     def list_pricecategories(self):
-        return self._list(model=PriceCategory,
+        return self._list(model=models.PriceCategory,
                           table='pricecategories',
                           limit=None)
 
     def list_payoffs(self, limit=None):
-        return self._list(model=Payoff, table='payoffs', limit=limit)
+        return self._list(model=models.Payoff, table='payoffs', limit=limit)
 
     def list_logs(self, limit=None):
-        return self._list(model=Log, table='logs', limit=limit)
+        return self._list(model=models.Log, table='logs', limit=limit)
+
+    def list_workactivities(self):
+        return self._list(model=models.WorkActivity, table='workactivities', limit=None)
+
+    def list_activities(self):
+        return self._list(model=models.Activity, table='activities', limit=None)
 
     def list_banks(self):
-        return self._list(model=Bank, table='banks', limit=None)
+        return self._list(model=models.Bank, table='banks', limit=None)
 
     def _list(self, model, table, limit):
         cur = self.con.cursor()
@@ -698,7 +780,7 @@ class DatabaseApi(object):
 
     def _list_purchases_department(self, department_id, limit=None):
         cur = self.con.cursor()
-        cur.row_factory = factory(Purchase)
+        cur.row_factory = factory(models.Purchase)
         if limit is None:
             cur.execute('SELECT * FROM purchases '
                         'WHERE product_id IN (SELECT id FROM products '
@@ -799,6 +881,43 @@ class DatabaseApi(object):
 
         self._simple_update(cur, object=payoff, table='payoffs',
                             updateable_fields=['revoked', 'comment'])
+
+        self.con.commit()
+
+
+    def update_workactivity(self, workactivity):
+        self._assert_mandatory_fields(workactivity, ['id'])
+        self._check_uniqueness(workactivity, 'workactivities',
+                               ['name'])
+
+        cur = self.con.cursor()
+        self._simple_update(cur, object=workactivity, table='workactivities',
+                            updateable_fields=['name'])
+
+        self.con.commit()
+
+    def update_activity(self, activity):
+        self._assert_mandatory_fields(activity, ['id'])
+
+        apiActivity = self.get_activity(id=activity.id)
+        try:
+            date_event = getattr(activity, date_event)
+        except:
+            date_event = apiActivity.date_event
+
+        try:
+            date_deadline = getattr(activity, date_deadline)
+        except:
+            date_deadline = apiActivity.date_deadline
+
+
+        if not (date_event > date_deadline > apiActivity.date_created):
+            raise InvalidDates()
+
+        cur = self.con.cursor()
+
+        self._simple_update(cur, object=activity, table='activities',
+                            updateable_fields=['date_deadline', 'date_event', 'active'])
 
         self.con.commit()
 
