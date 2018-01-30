@@ -15,8 +15,8 @@ import configuration as config
 from backend.db_api import (CanOnlyBeRevokedOnce, DatabaseApi, DuplicateObject,
                             FieldIsNone, ForbiddenField, ForeignKeyNotExisting,
                             ObjectNotFound, ConsumerNeedsCredentials)
-from backend.models import (Activity, Consumer, Deposit, Payoff, Product,
-                            Purchase, WorkActivity)
+from backend.models import (Consumer, Deposit, Payoff, Product,
+                            Purchase)
 from backend.validation import (FieldBasedException, InputException,
                                 MaximumValueExceeded, MaxLengthExceeded,
                                 MinLengthUndershot, UnknownField, WrongType,
