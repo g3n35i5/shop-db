@@ -166,7 +166,7 @@ class DatabaseApi(object):
         cur = self.con.cursor()
         department = self.get_department(id=department.id)
         consumer = self.get_consumer(id=consumer.id)
-        adminroles = self.getAdminroles(consumer)#
+        adminroles = self.getAdminroles(consumer)
 
         # Check, if the consumer is admin for this department
         isAdmin = department.id in [a.department_id for a in adminroles]
@@ -718,16 +718,6 @@ class DatabaseApi(object):
             LIMIT 10', (id,))
         return cur.fetchall()
 
-    def get_karma_history(self, id):
-        cur = self.con.cursor()
-        cur.row_factory = factory(Log)
-        cur.execute(
-            'SELECT * FROM logs WHERE table_name=?'
-            'AND updated_id=? '
-            'AND data_inserted LIKE ? '
-            'ORDER BY id DESC '
-            ' LIMIT 100', ('consumers', id, 'karma=%'))
-        return cur.fetchall()
 
     def list_consumers(self):
         return self._list(model=models.Consumer, table='consumers', limit=None)
