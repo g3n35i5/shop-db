@@ -107,19 +107,12 @@ class StockHistory(ValidatableObject):
     }
 
 
-    _validators = {
-        'id': [Type(int)],
 class AdminRole(ValidatableObject):
     _validators = {
         'id': [Type(int)],
         'consumer_id': [Type(int)],
         'department_id': [Type(int)],
         'timestamp': [Type(datetime.datetime)]
-    }
-
-
-    _validators = {
-        'id': [Type(int)],
     }
 
 
