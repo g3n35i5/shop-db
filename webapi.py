@@ -14,27 +14,21 @@ import configuration as config
 
 from backend.db_api import (CanOnlyBeRevokedOnce, DatabaseApi, DuplicateObject,
                             FieldIsNone, ForbiddenField, ForeignKeyNotExisting,
-                            ObjectNotFound)
-from backend.models import (Consumer, Deposit, Payoff, Product,
-                            Purchase)
+                            ObjectNotFound, ConsumerNeedsCredentials)
+from backend.models import (Activity, Consumer, Deposit, Payoff, Product,
+                            Purchase, WorkActivity)
 from backend.validation import (FieldBasedException, InputException,
                                 MaximumValueExceeded, MaxLengthExceeded,
                                 MinLengthUndershot, UnknownField, WrongType,
                                 to_dict)
 
 app = Flask(__name__)
-app.config.from_object(config.DevelopmentConfig)
-bcrypt = Bcrypt(app)
-CORS(app)
 
 def get_api():
-    api = getattr(g, '_api', None)
-    if api is None:
-        db = sqlite3.connect('shop.db', detect_types=sqlite3.PARSE_DECLTYPES)
-        api = g._api = DatabaseApi(db, app.config)
+    DB_URI = app.config['DATABASE_URI']
+    db = sqlite3.connect(DB_URI, detect_types=sqlite3.PARSE_DECLTYPES)
+    api = DatabaseApi(db, app.config)
     return api
-
-api = LocalProxy(get_api)
 
 
 @app.teardown_appcontext
@@ -102,10 +96,20 @@ def tokenRequired(f):
 
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'])
+            admin = data['admin']
+            admin = api.get_consumer(admin['id'])
+            adminroles = api.getAdminroles(admin)
+            admin = to_dict(admin)
+            adminroles = []
+            for a in adminroles:
+                adminroles.append(a.department_id)
+
+            admin['adminroles'] = adminroles
+
         except:
             return jsonify({'message': 'Token is invalid!'}), 401
 
-        return f(*args, **kwargs)
+        return f(admin, *args, **kwargs)
     return decorated
 
 def tokenOptional(f):
@@ -185,6 +189,7 @@ def login():
             exp = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
             token = jwt.encode(
                 {
+                    'admin': consumer,
                     'exp': exp
                 }, app.config['SECRET_KEY'])
         else:
@@ -192,13 +197,9 @@ def login():
     except:
         return make_response('Could not verify', 401)
 
-    departments = list(map(to_dict, api.list_departments()))
-    adminroles = []
-    for d in departments:
-        a = {}
-        a['department_id'] = d['id']
-        adminroles.append(a)
+    cons = api.get_consumer(consumer['id'])
 
+    adminroles = list(map(to_dict, api.getAdminroles(cons)))
     consumer['adminroles'] = adminroles
 
     return jsonify(
@@ -228,7 +229,7 @@ def listDepartments(token):
 # Get department statistics
 @app.route('/department/<int:id>/statistics', methods=['GET'])
 @tokenRequired
-def getDepartmentStatistics(id):
+def getDepartmentStatistics(admin, id):
     return jsonify(api.getDepartmentStatistics(id))
 
 
@@ -246,6 +247,10 @@ def listConsumers(token):
         consumers = list(map(to_dict, consumers))
         for consumer in consumers:
             del consumer['password']
+            cons = Consumer(id=consumer['id'])
+            adminroles = list(map(to_dict, api.getAdminroles(cons)))
+            consumer['adminroles'] = adminroles
+
         return jsonify(consumers)
 
     return jsonify(convertMinimal(consumers, ['name', 'id', 'active']))
@@ -254,7 +259,7 @@ def listConsumers(token):
 # Insert consumer
 @app.route('/consumers', methods=['POST'])
 @tokenRequired
-def insertConsumer():
+def insertConsumer(admin):
     c = Consumer(**json_body())
     api.insert_consumer(c)
     return jsonify(result='created'), 201
@@ -273,16 +278,112 @@ def getConsumer(id):
 # Update consumer
 @app.route('/consumer/<int:id>', methods=['PUT'])
 @tokenRequired
-def updateConsumer(id):
+def updateConsumer(admin, id):
     data = json_body()
+    messages = []
+
+    consumer = Consumer(id=id)
+    _consumer = api.get_consumer(id=id)
+
     if 'credit' in data:
         del data['credit']
+
+    if 'adminroles' in data:
+        if data['adminroles']:
+            # check if there are already consumer credentials in the database
+            if any(v is None for v in [_consumer.email, _consumer.password]):
+                # if not, check if credentials are in request data
+                if any(v not in data for v in ['email', 'password']):
+                    # if not, return failure
+                    messages.append('Email and Password required to set adminroles!')
+                    return jsonify(result=False, messages=messages), 200
+
+            else:
+                adminroles = data['adminroles']
+        else:
+            adminroles = False
+
+        del data['adminroles']
+
+    else:
+        adminroles = False
+
     if 'password' in data:
-        data['password'] = bcrypt.generate_password_hash(data['password'])
-    c = Consumer(**json_body())
-    c.id = id
-    api.update_consumer(c)
-    return jsonify(result='updated'), 200  # TODO: another status code?
+        if 'repeatpassword' in data:
+            if data['password'] == data['repeatpassword']:
+                data['password'] = bcrypt.generate_password_hash(data['password'])
+                del data['repeatpassword']
+            else:
+                message = {
+                    'message': 'Passwords do not match!',
+                    'error': True
+                }
+                messages.append(message)
+                return jsonify(result=False, messages=messages), 200
+        else:
+            message = {
+                'message': 'Please confirm your password!',
+                'error': True
+            }
+            messages.append(message)
+            return jsonify(result=False, messages=messages), 200
+
+
+    for key, value in data.items():
+        setattr(consumer, key, value)
+
+    try:
+        api.update_consumer(consumer)
+        for key in data:
+            message = {
+                'message': 'Updated: {}'.format(key),
+                'error': False
+            }
+            messages.append(message)
+    except:
+        message = {
+            'message': 'Error updating consumer!',
+            'error': True
+        }
+        messages.append(message)
+        return jsonify(result=False, messages=messages), 200
+
+    if adminroles:
+        departments = api.list_departments()
+
+        adminroles = [int(key) for key in adminroles]
+        _apiAdminroles = api.getAdminroles(_consumer)
+
+        for department in departments:
+            admin = department.id in adminroles
+            try:
+                api.setAdmin(_consumer, department, admin)
+                message = {
+                    'message': 'Adminrole set: {}'.format(department.name),
+                    'error': False
+                }
+
+                messages.append(message)
+
+            except ConsumerNeedsCredentials:
+                message = {
+                    'message': 'Consumer needs credentials in order to be admin!',
+                    'error': True
+                }
+                messages.append(message)
+                _consumer = to_dict(_consumer)
+                rebaseConsumer = Consumer(**_consumer)
+                api.update_consumer(rebaseConsumer)
+
+                adminroles = [d.department_id for d in _apiAdminroles]
+
+                for department in departments:
+                    isAdmin = department.id in adminroles
+                    api.setAdmin(rebaseConsumer, department, isAdmin)
+
+                return jsonify(result=False, messages=messages), 200
+
+    return jsonify(result=True, messages=messages), 200
 
 
 # Get consumer's favorite products
@@ -316,7 +417,7 @@ def listProducts():
 # Insert product
 @app.route('/products', methods=['POST'])
 @tokenRequired
-def insertProduct():
+def insertProduct(admin):
     api.insert_product(Product(**json_body()))
     return jsonify(result='created'), 201
 
@@ -330,7 +431,7 @@ def getProduct(id):
 # Update product
 @app.route('/product/<int:id>', methods=['PUT'])
 @tokenRequired
-def updateProduct(id):
+def updateProduct(admin, id):
     p = Product(**json_body())
     p.id = id
     api.update_product(p)
@@ -383,26 +484,12 @@ def listDeposits(limit=None):
 # Insert deposit
 @app.route('/deposits', methods=['POST'])
 @tokenRequired
-def insertDeposit():
+def insertDeposit(admin):
     api.insert_deposit(Deposit(**json_body()))
     return jsonify(result='created'), 201
 
 
-@app.route('/stockhistory/<int:id>', methods=['GET'])
-def get_stockhistory(id):
-    try:
-        json_data = request.json
-        date_start = json_data['date_start']
-        date_end = json_data['date_end']
-    except KeyError:
-        date_start = None
-        date_end = None
 
-    sh = api.get_stockhistory(product_id=product_id,
-                              date_start=date_start,
-                              date_end=date_end)
-
-    return jsonify(list(map(to_dict, sh)))
 
 ############################### Payoff Routes #################################
 
@@ -415,10 +502,14 @@ def list_payoffs():
 # Insert payoff
 @app.route('/payoff', methods=['POST'])
 @tokenRequired
-def insertPayoff():
+def insertPayoff(admin):
     api.insert_payoff(Payoff(**json_body()))
     return jsonify(result='created'), 201
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
+    CORS(app)
+    bcrypt = Bcrypt(app)
+    app.config.from_object(config.BaseConfig)
+    api = LocalProxy(get_api)
     app.run(host=app.config['HOST'], port=app.config['PORT'])

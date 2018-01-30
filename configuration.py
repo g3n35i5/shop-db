@@ -2,16 +2,15 @@
 '''
 This file contains the backend configuration for flask and shop-db itself
 '''
-
-import app
-
+import os.path
 
 class BaseConfig(object):
     SECRET_KEY = 'supersecretkey'
-    DEBUG = False
-    TEST = False
-    DATABASE_URI = app.PATH + '/shop.db'
-    DATABASE_SCHEMA = app.PATH + '/models.sql'
+    __path = os.path.dirname(__file__)
+    DEBUG = True
+    TEST = True
+    DATABASE_URI = __path + '/shop.db'
+    DATABASE_SCHEMA = __path + '/models.sql'
     HOST = '0.0.0.0'
     PORT = 5000
     USE_KARMA = True
