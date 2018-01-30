@@ -811,26 +811,6 @@ class DatabaseApi(object):
         )
         self.con.commit()
 
-    def update_deed(self, deed):
-        self._assert_mandatory_fields(deed, ['id'])
-        cur = self.con.cursor()
-
-        self._simple_update(
-            cur=cur, object=deed, table='deeds',
-            updateable_fields=['name', 'timestamp', 'done']
-        )
-        self.con.commit()
-
-    def update_participation(self, participation):
-        self._assert_mandatory_fields(participation, ['id'])
-        self._check_foreign_key(participation, 'flag_id', 'flags')
-        cur = self.con.cursor()
-
-        self._simple_update(
-            cur=cur, object=participation, table='participations',
-            updateable_fields=['flag_id']
-        )
-        self.con.commit()
 
     def update_payoff(self, payoff):
         self._assert_mandatory_fields(payoff, ['id'])
