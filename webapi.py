@@ -511,8 +511,8 @@ def insertPayoff(admin):
 
 
 if __name__ == '__main__':
-    parser.add_argument('mode', choices=['productive, debug'],
-                        default='productive')
+    parser.add_argument('--mode', default='productive',
+                        choices=['productive', 'debug'])
     args = parser.parse_args()
     CORS(app)
     bcrypt = Bcrypt(app)
