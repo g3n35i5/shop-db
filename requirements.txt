@@ -1,0 +1,5 @@
+flask        ==  0.12.2
+flask_bcrypt ==  0.7.1
+pyjwt        ==  1.5.3
+flask_cors   ==  3.0.3
+werkzeug     ==  0.14.1
