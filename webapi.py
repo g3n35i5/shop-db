@@ -3,6 +3,7 @@ import json
 import pdb
 import sqlite3
 import datetime
+import argparse
 
 from flask import Flask, Request, g, jsonify, request, make_response
 from flask_bcrypt import Bcrypt
@@ -23,6 +24,7 @@ from backend.validation import (FieldBasedException, InputException,
                                 to_dict)
 
 app = Flask(__name__)
+parser = argparse.ArgumentParser(description='Webapi for shop.db')
 
 def get_api():
     DB_URI = app.config['DATABASE_URI']
@@ -143,7 +145,8 @@ def convertMinimal(_list, _fields):
 
 @app.errorhandler(Exception)
 def handle_error(e):
-    return e
+    if app.config['DEBUG']:
+        raise e
     if type(e) in exception_mapping:
         foo = exception_mapping[type(e)]
         return jsonify(
@@ -508,8 +511,18 @@ def insertPayoff(admin):
 
 
 if __name__ == '__main__':
+    parser.add_argument('--mode', default='productive',
+                        choices=['productive', 'debug'])
+    args = parser.parse_args()
     CORS(app)
     bcrypt = Bcrypt(app)
-    app.config.from_object(config.BaseConfig)
+
+    if args.mode == 'productive':
+        app.config.from_object(config.BaseConfig)
+    elif args.mode == 'debug':
+        app.config.from_object(config.DevelopmentConfig)
+    else:
+        sys.exit('{}: invalid operating mode'.format(args.mode))
+
     api = LocalProxy(get_api)
     app.run(host=app.config['HOST'], port=app.config['PORT'])
