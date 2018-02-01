@@ -145,7 +145,8 @@ def convertMinimal(_list, _fields):
 
 @app.errorhandler(Exception)
 def handle_error(e):
-    return e
+    if app.config['DEBUG']:
+        raise e
     if type(e) in exception_mapping:
         foo = exception_mapping[type(e)]
         return jsonify(
