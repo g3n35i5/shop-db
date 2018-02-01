@@ -5,7 +5,7 @@ import configuration as config
 from flask_bcrypt import Bcrypt
 from werkzeug.local import LocalProxy
 from backend.models import Consumer
-from cli.consumer import add_consumer
+from cli.consumer import add_consumer, add_admin, remove_admin
 import argparse
 import sys
 
@@ -27,8 +27,8 @@ class BackendManager:
         return 'manager <command> [<args>]\n' \
                '\tThe most commonly used commands are:\n' \
                '\tadd        Adds an element to the database\n' \
-               '\tupdate     Updates an element of the database\n' \
-               '\tmakeAdmin  Set a consumer as administrator\n'
+               '\tadmin      Manage consumer admin roles\n'
+
 
     def add(self):
         parser = argparse.ArgumentParser(
@@ -38,12 +38,21 @@ class BackendManager:
         args = parser.parse_args(sys.argv[2:])
 
         if args.type == 'consumer':
-            consumer = add_consumer()
-            try:
-                api.insert_consumer(consumer)
-                print("Success")
-            except:
-                print("Error")
+            add_consumer(api, bcrypt)
+
+    def admin(self):
+        parser = argparse.ArgumentParser(
+            description='Manage consumer admin roles')
+
+        parser.add_argument('operation', choices=['add', 'remove'])
+        args = parser.parse_args(sys.argv[2:])
+
+        if args.operation == 'add':
+            add_admin(api)
+        elif args.operation == 'remove':
+            remove_admin(api)
+        else:
+            sys.exit('{} is not a valid operation'.format(args.operation))
 
 
 if __name__ == '__main__':
