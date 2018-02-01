@@ -6,6 +6,7 @@ from flask_bcrypt import Bcrypt
 from werkzeug.local import LocalProxy
 from backend.models import Consumer
 from cli.consumer import add_consumer, add_admin, remove_admin
+from cli.department import add_department
 import argparse
 import sys
 
@@ -34,11 +35,15 @@ class BackendManager:
         parser = argparse.ArgumentParser(
             description='Adds an element to the database')
 
-        parser.add_argument('type', choices=['consumer'])
+        parser.add_argument('type', choices=['consumer', 'department'])
         args = parser.parse_args(sys.argv[2:])
 
         if args.type == 'consumer':
             add_consumer(api, bcrypt)
+        elif args.type == 'department':
+            add_department(api)
+        else:
+            sys.exit('Invalid type: {}'.format(args.type))
 
     def admin(self):
         parser = argparse.ArgumentParser(
