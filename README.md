@@ -31,9 +31,10 @@ In order to use shop-db, you need to install the following main dependencies:
   2. Python 3 Virtual Environment
   3. pip3
   3. SQLite3
+  4. git
 
 ```bash
-sudo apt-get install python3 python3-venv python3-pip sqlite3
+$ sudo apt-get install python3 python3-venv python3-pip sqlite3 git
 ```
 
 ### Getting started
@@ -43,25 +44,25 @@ running shop-db the extra arguments of -rm is added to create a system
 account without creating a home directory:
 
 ```bash
-sudo useradd -r shopdb_user
+$ sudo useradd -r shopdb_user
 ```
 
 Next we will create a directory for the installation of shop-db and change
 the owner to the shopdb_user account:
 
 ```bash
-cd /srv
-sudo git clone https://github.com/g3n35i5/shop-db.git
-sudo chown shopdb_user:shopdb_user shop-db
+$ cd /srv
+$ sudo git clone https://github.com/g3n35i5/shop-db.git
+$ sudo chown -R shopdb_user:shopdb_user shop-db
 ```
 
 Next up is to create and change to a virtual environment for shop-db. This will be done as the shopdb_user account:
 
 ```bash
-sudo su -s /bin/bash shopdb_user
-cd /srv/shop-db
-python3 -m venv .
-source bin/activate
+$ sudo su -s /bin/bash shopdb_user
+$ cd /srv/shop-db
+$ python3 -m venv .
+$ source bin/activate
 ```
 
 Now the configuration file of shop-db has to be adjusted. The most important
@@ -75,29 +76,30 @@ sed -e 's/supersecretkey/YOURBETTERSUPERSECRETKEY/' configuration.py
 Once you have activated the virtual environment you will notice the prompt change and then you can setup shop-db:
 
 ```bash
-pip3 install -r requirements.txt
-./setup.py
+(shop-db) $ pip3 install -r requirements.txt
+(shop-db) $ ./setup.py
 ```
 
 Now that the installation is complete, we can move on.
 In order for shop-db to work, at least one consumer and department must be created. It is recommended that you define an administrator directly. In order for a consumer to become an administrator, he/she must have provided access data, i. e. email address and password:
 
 ```bash
-./manager.py add consumer
-./manager.py add department
-./manager.py admin add
+(shop-db) $ ./manager.py add consumer
+(shop-db) $ ./manager.py add department
+(shop-db) $ ./manager.py admin add
 ```
 
 Ready. Almost. To start the Webapi and use the shop-db backend, you only have to start the webapi:
 ```bash
-./webapi.py
+(shop-db) $ ./webapi.py
 ```
 
 However, so that the backend does not have to be started manually every time, it is advisable to run shop-db as a systemd service:
 
 ```bash
-exit #if you are still the shopdb_user
-sudo nano /etc/systemd/system/shop-db@shopdb_user.service
+(shop-db) $ exit # To leave the virtual environment
+$ exit # To switch back to the root user
+$ sudo nano /etc/systemd/system/shop-db@shopdb_user.service
 ```
 
 The file must have the following content:
@@ -119,23 +121,23 @@ WantedBy=multi-user.target
 You need to reload systemd to make the daemon aware of the new configuration:
 
 ```bash
-sudo systemctl --system daemon-reload
+$ sudo systemctl --system daemon-reload
 ```
 
 To have shop-db start automatically at boot, enable the service:
 
 ```bash
-sudo systemctl enable shop-db@shopdb_user
+$ sudo systemctl enable shop-db@shopdb_user
 ```
 
 To disable the automatic start, use this command:
 
 ```bash
-sudo systemctl disable shop-db@shopdb_user
+$ sudo systemctl disable shop-db@shopdb_user
 ```
 
 To start shop-db now, use this command:
 
 ```bash
-sudo systemctl start shop-db@shopdb_user
+$ sudo systemctl start shop-db@shopdb_user
 ```
