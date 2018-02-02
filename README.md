@@ -1,4 +1,4 @@
-# shop.db
+# shop-db
 This is the documentation for shop.db.
 
 ## Table of content
@@ -56,8 +56,8 @@ $ sudo git clone https://github.com/g3n35i5/shop-db.git
 $ sudo chown -R shopdb_user:shopdb_user shop-db
 ```
 
-Next up is to create and change to a virtual environment for shop-db. This will be done as the shopdb_user account:
-
+Next up is to create and change to a virtual environment for shop-db. This
+will be done as the shopdb_user account:
 ```bash
 $ sudo su -s /bin/bash shopdb_user
 $ cd /srv/shop-db
@@ -67,21 +67,27 @@ $ source bin/activate
 
 Now the configuration file of shop-db has to be adjusted. The most important
 change is the SECRET_KEY. This is later responsible for salting the user
-passwords and must be kept secret under all circumstances.
+passwords and must be kept secret under all circumstances. Change this
+SECRET_KEY in the file `configuration.py`. You can do this with a normal text
+editor or with the command `sed`:
 
 ```bash
-sed -e 's/supersecretkey/YOURBETTERSUPERSECRETKEY/' configuration.py
+(shop-db) $ sed -e 's/supersecretkey/YOURBETTERSUPERSECRETKEY/' configuration.py
 ```
 
-Once you have activated the virtual environment you will notice the prompt change and then you can setup shop-db:
+Once you have activated the virtual environment you will notice the prompt
+change and then you can setup shop-db:
 
 ```bash
 (shop-db) $ pip3 install -r requirements.txt
 (shop-db) $ ./setup.py
 ```
 
-Now that the installation is complete, we can move on.
-In order for shop-db to work, at least one consumer and department must be created. It is recommended that you define an administrator directly. In order for a consumer to become an administrator, he/she must have provided access data, i. e. email address and password:
+Now that the installation is complete, we can move on. In order for shop-db to
+work, at least one consumer and department must be created. It is recommended
+that you define an administrator directly. In order for a consumer to become an
+administrator, he/she must have provided access data, i. e. email address and
+password:
 
 ```bash
 (shop-db) $ ./manager.py add consumer
@@ -89,12 +95,15 @@ In order for shop-db to work, at least one consumer and department must be creat
 (shop-db) $ ./manager.py admin add
 ```
 
-Ready. Almost. To start the Webapi and use the shop-db backend, you only have to start the webapi:
+Ready. Almost. To start the Webapi and use the shop-db backend, you only have to
+start the webapi:
+
 ```bash
 (shop-db) $ ./webapi.py
 ```
 
-However, so that the backend does not have to be started manually every time, it is advisable to run shop-db as a systemd service:
+However, so that the backend does not have to be started manually every time, it
+is advisable to run shop-db as a systemd service:
 
 ```bash
 (shop-db) $ exit # To leave the virtual environment
@@ -112,7 +121,7 @@ After=network-online.target
 [Service]
 Type=simple
 User=%i
-ExecStart=/srv/shop-db/webapi.py
+ExecStart=/srv/shop-db/bin/python3 /srv/shop-db/webapi.py
 
 [Install]
 WantedBy=multi-user.target
