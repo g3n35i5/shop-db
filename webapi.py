@@ -189,7 +189,7 @@ def login():
     try:
         if bcrypt.check_password_hash(consumer['password'], password):
             del consumer['password']
-            exp = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+            exp = datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
             token = jwt.encode(
                 {
                     'admin': consumer,
