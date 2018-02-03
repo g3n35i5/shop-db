@@ -6,6 +6,7 @@ This is the documentation for shop.db.
 1.  [About shop.db](#about-shopdb)
 2.  [Dependencies](#dependencies)
 3.  [Getting started](#getting-started)
+4.  [Backups](#backups)
 
 ### About shop.db
 
@@ -150,3 +151,30 @@ To start shop-db now, use this command:
 ```bash
 $ sudo systemctl start shop-db@shopdb_user
 ```
+
+### Backups
+Backups for shop-db can easily be created with the existing Python script
+`backup.py`. The backups are then stored in the shop-db directory according to
+the following schema:
+
+```
+/srv/shop-db/backups/<year>/<month>/<day>/<hours_minutes_seconds.dump>
+```
+
+This script can be executed manually at any time, but it is advisable to create
+a cronjob for regular execution. To do this, you can use the command
+
+```bash
+$ sudo crontab -e
+```
+
+Now the line
+
+```bash
+0 */3 * * * /srv/shop-db/backup.py
+```
+
+has to be entered in the crontab editor. `0 */3 * * * * *` means that a backup
+is performed every day every 3 hours at minute 0, these parameters could be
+adapted to individual needs. You can find more information about using crontab
+[here](https://help.ubuntu.com/community/CronHowto).
