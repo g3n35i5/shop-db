@@ -275,7 +275,7 @@ def getConsumer(id):
     if 'password' in consumer:
         del consumer['password']
 
-    return jsonify(to_dict(api.get_consumer(id)))
+    return jsonify(consumer)
 
 
 # Update consumer
