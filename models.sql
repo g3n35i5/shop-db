@@ -124,6 +124,35 @@ CREATE TABLE adminroles (
 	FOREIGN KEY (consumer_id) REFERENCES consumers (id),
 	FOREIGN KEY (department_id) REFERENCES departments (id)
 );
+
+CREATE TABLE workactivities (
+	id INTEGER NOT NULL,
+	name VARCHAR(32) NOT NULL,
+	PRIMARY KEY (id)
+);
+
+CREATE TABLE activities (
+	id INTEGER NOT NULL,
+	created_by INTEGER NOT NULL,
+	workactivity_id INTEGER NOT NULL,
+	date_created TIMESTAMP NOT NULL,
+	date_deadline TIMESTAMP NOT NULL,
+	date_event TIMESTAMP NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY (created_by) REFERENCES consumers (id),
+	FOREIGN KEY (workactivity_id) REFERENCES workactivities (id)
+);
+
+CREATE TABLE activityfeedbacks (
+	id INTEGER NOT NULL,
+	timestamp TIMESTAMP NOT NULL,
+	consumer_id INTEGER NOT NULL,
+	activity_id INTEGER NOT NULL,
+	feedback BOOLEAN NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY (consumer_id) REFERENCES consumers (id),
+	FOREIGN KEY (activity_id) REFERENCES activities (id)
+);
 INSERT INTO banks (name, credit) VALUES ("Hauptkonto", 0);
 INSERT INTO pricecategories (price_lower_bound, additional_percent) VALUES (0, 60);
 INSERT INTO pricecategories (price_lower_bound, additional_percent) VALUES (10, 50);

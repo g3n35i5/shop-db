@@ -122,3 +122,30 @@ class Bank(ValidatableObject):
         'name': [Type(str), MaxLength(64), MinLength(4)],
         'credit': [Type(int)]
     }
+
+
+class Workactivity(ValidatableObject):
+    _validators = {
+        'id': [Type(int)],
+        'name': [Type(str), MaxLength(32), MinLength(4)]
+    }
+
+
+class Activity(ValidatableObject):
+    _validators = {
+        'id': [Type(int)],
+        'created_by': [Type(int)],
+        'workactivity_id': [Type(int)],
+        'date_created': [Type(datetime.datetime)],
+        'date_deadline': [Type(datetime.datetime)],
+        'date_event': [Type(datetime.datetime)]
+    }
+
+class Activityfeedback(ValidatableObject):
+    _validators = {
+        'id': [Type(int)],
+        'timestamp': [Type(datetime.datetime)],
+        'consumer_id': [Type(int)],
+        'activity_id': [Type(int)],
+        'feedback': [Type(bool)]
+    }

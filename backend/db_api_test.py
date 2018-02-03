@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import datetime
+import time
 import pdb
 import sqlite3
 import unittest
@@ -99,12 +100,13 @@ class TestDatabaseApi(unittest.TestCase):
         with self.assertRaises(DuplicateObject):
             self.api.insert_consumer(c)
 
+
     def test_activities(self):
         ## create and test workactivities
         workactivities = self.api.list_workactivities()
         self.assertEqual(len(workactivities), 0)
 
-        workactivity = WorkActivity(name="Getränke schleppen")
+        workactivity = models.Workactivity(name="Getränke schleppen")
         self.api.insert_workactivity(workactivity)
 
         with self.assertRaises(DuplicateObject):
@@ -113,13 +115,13 @@ class TestDatabaseApi(unittest.TestCase):
         workactivities = self.api.list_workactivities()
         self.assertEqual(len(workactivities), 1)
 
-        workactivity = WorkActivity(name="Skripte binden")
+        workactivity = models.Workactivity(name="Skripte binden")
         self.api.insert_workactivity(workactivity)
 
         workactivities = self.api.list_workactivities()
         self.assertEqual(len(workactivities), 2)
 
-        workactivity = WorkActivity(id=1, name="Getränke hoch schleppen")
+        workactivity = models.Workactivity(id=1, name="Getränke hoch schleppen")
         self.api.update_workactivity(workactivity)
 
         workactivities = self.api.list_workactivities()
@@ -128,7 +130,7 @@ class TestDatabaseApi(unittest.TestCase):
 
         ## create and test activities
 
-        c = Consumer(name='Hans Müller')
+        c = models.Consumer(name='Hans Müller')
         self.api.insert_consumer(c)
 
         activities = self.api.list_activities()
@@ -137,29 +139,89 @@ class TestDatabaseApi(unittest.TestCase):
         date1 = datetime.datetime.now() + datetime.timedelta(days=12)
         date2 = date1 + datetime.timedelta(days=12)
 
-        activity = Activity(workactivity_id=1, date_deadline=date1, date_event=date2, created_by=1)
+        activity = models.Activity(workactivity_id=1, date_deadline=date1, date_event=date2, created_by=1)
 
         self.api.insert_activity(activity)
 
         activities = self.api.list_activities()
         self.assertEqual(len(activities), 1)
 
-        activity = Activity(workactivity_id=1, date_deadline=date1, date_event=date2, created_by=1)
+        activity = models.Activity(workactivity_id=1, date_deadline=date1, date_event=date2, created_by=1)
 
         self.api.insert_activity(activity)
 
         activities = self.api.list_activities()
         self.assertEqual(len(activities), 2)
 
-        activity = Activity(id=1, date_event=date2 + datetime.timedelta(days=1))
+        activity = models.Activity(id=1, date_event=date2 + datetime.timedelta(days=1))
         self.api.update_activity(activity)
 
-        activity = Activity(id=1, active=False)
-        self.api.update_activity(activity)
 
-        activities = self.api.list_activities()
-        self.assertEqual(activities[0].active, False)
-        self.assertEqual(activities[1].active, True)
+        # test activityfeedback
+
+        activityfeedback = models.Activityfeedback(consumer_id=1,
+                                                   activity_id=1,
+                                                   feedback=True)
+        self.api.insert_activityfeedback(activityfeedback)
+
+        activityfeedback = models.Activityfeedback(consumer_id=1,
+                                                   activity_id=1,
+                                                   feedback=False)
+        self.api.insert_activityfeedback(activityfeedback)
+
+        activityfeedbacks = self.api.get_activityfeedback(activity_id=1)
+        self.assertEqual(len(activityfeedbacks), 1)
+        self.assertFalse(activityfeedbacks[1])
+
+        activityfeedbacks = self.api.get_activityfeedback(activity_id=1,
+                                                          list_all=True)
+
+        c = models.Consumer(name='Peter Meier')
+        self.api.insert_consumer(c)
+
+        activityfeedback = models.Activityfeedback(consumer_id=2,
+                                                   activity_id=1,
+                                                   feedback=True)
+
+        self.api.insert_activityfeedback(activityfeedback)
+
+
+        activityfeedbacks = self.api.get_activityfeedback(activity_id=1,
+                                                          list_all=True)
+
+
+
+        self.assertEqual(len(activityfeedbacks), 2)
+        self.assertEqual(len(activityfeedbacks[1]), 2)
+        self.assertEqual(len(activityfeedbacks[2]), 1)
+        self.assertTrue(activityfeedbacks[1][0]['feedback'])
+        self.assertFalse(activityfeedbacks[1][1]['feedback'])
+        self.assertTrue(activityfeedbacks[2][0]['feedback'])
+
+        activityfeedback = models.Activityfeedback(consumer_id=1,
+                                                   activity_id=1,
+                                                   feedback=False)
+        self.api.insert_activityfeedback(activityfeedback)
+
+        # create activity
+
+        date1 = datetime.datetime.now() + datetime.timedelta(milliseconds=1)
+        date2 = date1 + datetime.timedelta(milliseconds=1)
+
+        activity = models.Activity(workactivity_id=1,
+                                   date_deadline=date1,
+                                   date_event=date2,
+                                   created_by=1)
+
+        self.api.insert_activity(activity)
+
+        time.sleep(0.01)
+        activityfeedback = models.Activityfeedback(consumer_id=1,
+                                                   activity_id=3,
+                                                   feedback=False)
+
+        with self.assertRaises(InvalidDates):
+            self.api.insert_activityfeedback(activityfeedback)
 
     def test_adminroles(self):
         consumer = models.Consumer(name='Hans Müller')

@@ -508,6 +508,120 @@ def insertPayoff(admin):
     return jsonify(result='created'), 201
 
 
+
+############################### Workactivity Routes ###########################
+
+# List workactivities
+@app.route('/workactivities', methods=['GET'])
+def listWorkactivities():
+    return jsonify(list(map(to_dict, api.list_workactivities())))
+
+
+# Insert workactivity
+@app.route('/workactivities', methods=['POST'])
+@tokenRequired
+def insertWorkactivity(admin):
+    api.insert_workactivity(WorkActivity(**json_body()))
+    return jsonify(result='created'), 201
+
+
+# Get workactivity
+@app.route('/workactivity/<int:id>', methods=['GET'])
+def getWorkactivity(id):
+    return jsonify(to_dict(api.get_workactivity(id)))
+
+
+# Update workactivity
+@app.route('/workactivity/<int:id>', methods=['PUT'])
+@tokenRequired
+def updateWorkactivity(admin, id):
+    data = json_body()
+    workactivity = WorkActivity(**json_body())
+    workactivity.id = id
+    messages = []
+    try:
+        api.update_workactivity(workactivity)
+    except:
+        message = {
+            'message': 'Error while updating workactivity!',
+            'error': True
+        }
+        messages.append(message)
+        return jsonify(result=False, messages=messages), 200
+
+    for key in data:
+        message = {
+            'message': 'Updated: {}'.format(key),
+            'error': False
+        }
+        messages.append(message)
+
+    return jsonify(result=True, messages=messages), 200
+
+
+
+
+############################### Activity Routes ###############################
+
+# List activities
+@app.route('/activities', methods=['GET'])
+@tokenOptional
+def listActivities(token):
+    activities = list(map(to_dict, api.list_activities()))
+    if token:
+        consumers = api.list_consumers()
+
+        for activity in activities:
+            activity['feedback'] = api.get_activityfeedback(activity_id=activity['id'])
+
+    return jsonify(activities)
+
+
+# Insert activity
+@app.route('/activities', methods=['POST'])
+@tokenRequired
+def insertActivity(admin):
+    activity = Activity(**json_body())
+    activity.created_by = admin.id
+    api.insert_activity(activity)
+    return jsonify(result='created'), 201
+
+
+# Get activity
+@app.route('/activity/<int:id>', methods=['GET'])
+def getActivity(id):
+    return jsonify(to_dict(api.get_activity(id)))
+
+
+# Update activity
+@app.route('/activity/<int:id>', methods=['PUT'])
+@tokenRequired
+def updateActivity(admin, id):
+    activity = Activity(**json_body())
+    activity.id = id
+    api.update_activity(p)
+    return jsonify(result='updated'), 200
+
+
+
+
+############################### Activityfeedback Routes #######################
+
+# Get activityfeedback
+@app.route('/activityfeedback/<int:id>', methods=['GET'])
+@tokenRequired
+def getActivityfeedback(admin, id):
+    activityfeedback = list(map(to_dict, api.get_activityfeedback(id=id)))
+    return jsonify(activityfeedback)
+
+
+# Insert activityfeedback
+@app.route('/activityfeedback', methods=['POST'])
+def insertActivityfeedback():
+    api.insert_activityfeedback(Activityfeedback(**json_body()))
+    return jsonify(result='created'), 201
+
+
 if __name__ == '__main__':
     parser.add_argument('--mode', default='productive',
                         choices=['productive', 'debug'])
