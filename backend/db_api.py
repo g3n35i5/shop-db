@@ -6,6 +6,7 @@ import os
 import pdb
 import sqlite3
 from math import floor
+from operator import itemgetter
 
 from backend import models
 from .validation import FieldBasedException, InputException, to_dict
@@ -551,6 +552,25 @@ class DatabaseApi(object):
 
         self.con.commit()
 
+    def _consumer_credit(self, id):
+        _purchases = self.get_purchases_of_consumer(id=id)
+        _deposits = self.get_deposits_of_consumer(id=id)
+
+        _purchases = [x for x in _purchases if not x.revoked]
+
+        purchases = list(map(to_dict, _purchases))
+        deposits = list(map(to_dict, _deposits))
+
+        d_amount = sum(map(itemgetter('amount'), deposits))
+        p_amount = - \
+            sum(map(lambda x: x['paid_base_price_per_product']
+                    * x['amount'], purchases))
+        k_amount = - \
+            sum(map(lambda x: x['paid_karma_per_product']
+                    * x['amount'], purchases))
+
+        return d_amount + p_amount + k_amount
+
     def get_activity(self, id):
         return self._get_one(model=models.Activity, table='activities', id=id)
 
@@ -558,7 +578,9 @@ class DatabaseApi(object):
         return self._get_one(model=models.WorkActivity, table='workactivities', id=id)
 
     def get_consumer(self, id):
-        return self._get_one(model=models.Consumer, table='consumers', id=id)
+        consumer =  self._get_one(model=models.Consumer, table='consumers', id=id)
+        consumer.credit = self._consumer_credit(id=consumer.id)
+        return consumer
 
     def get_product(self, id):
         return self._get_one(model=models.Product, table='products', id=id)
@@ -721,7 +743,16 @@ class DatabaseApi(object):
 
 
     def list_consumers(self):
-        return self._list(model=models.Consumer, table='consumers', limit=None)
+        _consumers = self._list(model=models.Consumer, table='consumers',
+                                limit=None)
+
+        consumers = []
+
+        for consumer in _consumers:
+            consumer.credit = self._consumer_credit(id=consumer.id)
+            consumers.append(consumer)
+
+        return consumers
 
     def list_products(self):
         return self._list(model=models.Product, table='products', limit=None)
