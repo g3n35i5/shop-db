@@ -189,7 +189,7 @@ def login():
     try:
         if bcrypt.check_password_hash(consumer['password'], password):
             del consumer['password']
-            exp = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+            exp = datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
             token = jwt.encode(
                 {
                     'admin': consumer,
@@ -353,14 +353,12 @@ def updateConsumer(admin, id):
 
     if adminroles:
         departments = api.list_departments()
-
-        adminroles = [int(key) for key in adminroles]
         _apiAdminroles = api.getAdminroles(_consumer)
 
-        for department in departments:
-            admin = department.id in adminroles
+        for dep_id in adminroles.keys():
+            department = api.get_department(id=int(dep_id))
             try:
-                api.setAdmin(_consumer, department, admin)
+                api.setAdmin(_consumer, department, adminroles[dep_id])
                 message = {
                     'message': 'Adminrole set: {}'.format(department.name),
                     'error': False

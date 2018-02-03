@@ -53,7 +53,7 @@ class BackendManager:
         args = parser.parse_args(sys.argv[2:])
 
         if args.operation == 'add':
-            add_admin(api)
+            add_admin(api, bcrypt)
         elif args.operation == 'remove':
             remove_admin(api)
         else:

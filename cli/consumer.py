@@ -13,6 +13,21 @@ consumerFields = {'name': {'mandatory': True, 'hidden': False},
                   }
 
 
+def _get_password(bcrypt):
+    password = None
+    rep_password = None
+
+    while not password or password != rep_password:
+        password = getpass.getpass()
+        rep_password = getpass.getpass(prompt='Repeat password:')
+
+        if password != rep_password:
+            password = None
+            rep_password = None
+            print('Passwords do not match! Please try again.\n')
+
+    return bcrypt.generate_password_hash(password)
+
 def _get_consumer(api, name):
     consumers = api.list_consumers()
     for consumer in consumers:
@@ -21,12 +36,35 @@ def _get_consumer(api, name):
 
     sys.exit('There is no consumer with the name "{}"'.format(name))
 
-def add_admin(api):
+def _enter_login_data(consumer, api, bcrypt):
+    print('')
+    print('The consumer has not stored any login data.')
+    print('These must be entered first so that he/she can become')
+    print('an administrator.')
+    print('')
+
+    upConsumer = Consumer(id=consumer.id)
+
+    if consumer.email is None:
+        upConsumer.email = input('email: ')
+
+    if consumer.password is None:
+        upConsumer.password = _get_password(bcrypt)
+
+    print('')
+
+    try:
+        api.update_consumer(upConsumer)
+    except:
+        sys.exit('The login data could not be updated.')
+
+    print('The login data have been successfully updated')
+
+def add_admin(api, bcrypt):
     print('Promote a user to the admin for one or more departments\n')
     consumer = _get_consumer(name=input('consumer name: '), api=api)
     if not all([consumer.password, consumer.email]):
-        sys.exit('This consumer has not entered any login data which' \
-                 'is required to be administrator.')
+        _enter_login_data(consumer, api, bcrypt)
 
     _departments = api.list_departments()
     _adminroles = api.getAdminroles(consumer)
