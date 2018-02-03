@@ -668,11 +668,12 @@ class DatabaseApi(object):
         return out
 
     def get_purchases_of_consumer(self, id):
-        return self._get_consumer_data(model=Purchase,
+        return self._get_consumer_data(model=models.Purchase,
                                        table='purchases', id=id)
 
     def get_deposits_of_consumer(self, id):
-        return self._get_consumer_data(model=Deposit, table='deposits', id=id)
+        return self._get_consumer_data(model=models.Deposit, table='deposits',
+                                       id=id)
 
     def _get_consumer_data(self, model, table, id):
         cur = self.con.cursor()
