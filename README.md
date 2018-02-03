@@ -73,7 +73,7 @@ SECRET_KEY in the file `configuration.py`. You can do this with a normal text
 editor or with the command `sed`:
 
 ```bash
-(shop-db) $ sed -e 's/supersecretkey/YOURBETTERSUPERSECRETKEY/' configuration.py
+(shop-db) $ sed -i 's/supersecretkey/YOURBETTERSUPERSECRETKEY/g' configuration.py
 ```
 
 Once you have activated the virtual environment you will notice the prompt
@@ -107,8 +107,7 @@ However, so that the backend does not have to be started manually every time, it
 is advisable to run shop-db as a systemd service:
 
 ```bash
-(shop-db) $ exit # To leave the virtual environment
-$ exit # To switch back to the root user
+(shop-db) $ exit # To switch back to the root user
 $ sudo nano /etc/systemd/system/shop-db@shopdb_user.service
 ```
 
@@ -168,7 +167,8 @@ a cronjob for regular execution. To do this, you can use the command
 $ sudo crontab -e
 ```
 
-Now the line
+ The advantage of running the cronjob as root user is that the backups belong
+to this user and cannot be changed by the shopdb_user. Now the line
 
 ```bash
 0 */3 * * * /srv/shop-db/backup.py
