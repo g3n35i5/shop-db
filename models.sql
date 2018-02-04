@@ -13,6 +13,7 @@ CREATE TABLE consumers (
 	CHECK (karma BETWEEN -10 AND 10)
 );
 
+
 CREATE TABLE departments (
 	id INTEGER NOT NULL,
 	name VARCHAR(64) NOT NULL,
@@ -22,7 +23,6 @@ CREATE TABLE departments (
 	budget INTEGER NOT NULL,
 	PRIMARY KEY (id)
 );
-
 
 CREATE TABLE pricecategories (
 	id INTEGER NOT NULL,

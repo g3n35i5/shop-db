@@ -17,7 +17,7 @@ from backend.db_api import (CanOnlyBeRevokedOnce, DatabaseApi, DuplicateObject,
                             FieldIsNone, ForbiddenField, ForeignKeyNotExisting,
                             ObjectNotFound, ConsumerNeedsCredentials)
 from backend.models import (Consumer, Deposit, Payoff, Product,
-                            Purchase)
+                            Purchase, Workactivity)
 from backend.validation import (FieldBasedException, InputException,
                                 MaximumValueExceeded, MaxLengthExceeded,
                                 MinLengthUndershot, UnknownField, WrongType,
@@ -522,7 +522,7 @@ def listWorkactivities():
 @app.route('/workactivities', methods=['POST'])
 @tokenRequired
 def insertWorkactivity(admin):
-    api.insert_workactivity(WorkActivity(**json_body()))
+    api.insert_workactivity(Workactivity(**json_body()))
     return jsonify(result='created'), 201
 
 
@@ -537,7 +537,7 @@ def getWorkactivity(id):
 @tokenRequired
 def updateWorkactivity(admin, id):
     data = json_body()
-    workactivity = WorkActivity(**json_body())
+    workactivity = Workactivity(**json_body())
     workactivity.id = id
     messages = []
     try:
