@@ -625,6 +625,8 @@ class DatabaseApi(object):
     def get_consumer(self, id):
         consumer =  self._get_one(model=models.Consumer, table='consumers', id=id)
         consumer.credit = self._consumer_credit(id=consumer.id)
+        consumer.isAdmin = len(self.getAdminroles(consumer)) > 0
+        consumer.hasCredentials = all([consumer.email, consumer.password])
         return consumer
 
     def get_product(self, id):
@@ -806,6 +808,8 @@ class DatabaseApi(object):
         for consumer in _consumers:
             consumer.credit = self._consumer_credit(id=consumer.id)
             consumers.append(consumer)
+            consumer.isAdmin = len(self.getAdminroles(consumer)) > 0
+            consumer.hasCredentials = all([consumer.email, consumer.password])
 
         return consumers
 

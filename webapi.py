@@ -256,7 +256,8 @@ def listConsumers(token):
 
         return jsonify(consumers)
 
-    return jsonify(convertMinimal(consumers, ['name', 'id', 'active']))
+    return jsonify(convertMinimal(consumers, ['name', 'id', 'active',
+                                              'isAdmin', 'hasCredentials']))
 
 
 # Insert consumer
