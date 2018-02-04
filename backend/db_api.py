@@ -6,6 +6,7 @@ import os
 import pdb
 import sqlite3
 from math import floor
+from operator import itemgetter
 
 from backend import models
 from .validation import FieldBasedException, InputException, to_dict
@@ -265,26 +266,71 @@ class DatabaseApi(object):
                                        'created_by'])
 
         self._assert_forbidden_fields(activity,
-                                      ['id', 'date_created', 'active'])
+                                      ['id', 'date_created'])
         self._check_foreign_key(activity, 'created_by', 'consumers')
 
         activity.date_created = datetime.datetime.now()
-        activity.active = True
+        if not (activity.date_created < activity.date_deadline < activity.date_event):
+            raise InvalidDates()
+
 
         cur.execute('INSERT INTO activities '
-                    '(created_by, workactivity_id, active, '
+                    '(created_by, workactivity_id, '
                     'date_created, date_deadline, date_event) '
-                    'VALUES(?,?,?,?,?,?);', (
+                    'VALUES(?,?,?,?,?);', (
                     activity.created_by, activity.workactivity_id,
-                    activity.active, activity.date_created,
-                    activity.date_deadline, activity.date_event)
+                    activity.date_created, activity.date_deadline,
+                    activity.date_event)
                 )
 
         self.con.commit()
 
+    def insert_activityfeedback(self, activityfeedback):
+        cur = self.con.cursor()
 
+        self._assert_mandatory_fields(activityfeedback,
+                                      ['consumer_id',
+                                       'activity_id',
+                                       'feedback'])
+        self._assert_forbidden_fields(activityfeedback, ['id', 'timestamp'])
+        self._check_foreign_key(activityfeedback, 'consumer_id', 'consumers')
+        self._check_foreign_key(activityfeedback, 'activity_id', 'activities')
+
+        activity = self.get_activity(id=activityfeedback.activity_id)
+
+        activityfeedback.timestamp = datetime.datetime.now()
+
+        if activityfeedback.timestamp > activity.date_deadline:
+            raise InvalidDates()
+
+        cur.execute('INSERT INTO activityfeedbacks '
+                    '(timestamp, consumer_id, activity_id, feedback) '
+                    'VALUES(?,?,?,?);', (
+                    activityfeedback.timestamp, activityfeedback.consumer_id,
+                    activityfeedback.activity_id, activityfeedback.feedback)
+                )
 
         self.con.commit()
+
+    def insert_participation(self, participation):
+        cur = self.con.cursor()
+
+        self._assert_mandatory_fields(participation,
+                                      ['consumer_id',
+                                       'activity_id'])
+        self._assert_forbidden_fields(participation, ['id', 'timestamp'])
+        self._check_foreign_key(participation, 'consumer_id', 'consumers')
+        self._check_foreign_key(participation, 'activity_id', 'activities')
+
+        participation.timestamp = datetime.datetime.now()
+
+        cur.execute('INSERT INTO participations '
+                    '(timestamp, consumer_id, activity_id) '
+                    'VALUES(?,?,?);', (
+                    participation.timestamp, participation.consumer_id,
+                    participation.activity_id)
+                )
+
 
     def insert_product(self, product):
         cur = self.con.cursor()
@@ -551,14 +597,37 @@ class DatabaseApi(object):
 
         self.con.commit()
 
+    def _consumer_credit(self, id):
+        _purchases = self.get_purchases_of_consumer(id=id)
+        _deposits = self.get_deposits_of_consumer(id=id)
+
+        _purchases = [x for x in _purchases if not x.revoked]
+
+        purchases = list(map(to_dict, _purchases))
+        deposits = list(map(to_dict, _deposits))
+
+        d_amount = sum(map(itemgetter('amount'), deposits))
+        p_amount = - \
+            sum(map(lambda x: x['paid_base_price_per_product']
+                    * x['amount'], purchases))
+        k_amount = - \
+            sum(map(lambda x: x['paid_karma_per_product']
+                    * x['amount'], purchases))
+
+        return d_amount + p_amount + k_amount
+
     def get_activity(self, id):
         return self._get_one(model=models.Activity, table='activities', id=id)
 
     def get_workactivity(self, id):
-        return self._get_one(model=models.WorkActivity, table='workactivities', id=id)
+        return self._get_one(model=models.Workactivity, table='workactivities', id=id)
 
     def get_consumer(self, id):
-        return self._get_one(model=models.Consumer, table='consumers', id=id)
+        consumer =  self._get_one(model=models.Consumer, table='consumers', id=id)
+        consumer.credit = self._consumer_credit(id=consumer.id)
+        consumer.isAdmin = len(self.getAdminroles(consumer)) > 0
+        consumer.hasCredentials = all([consumer.email, consumer.password])
+        return consumer
 
     def get_product(self, id):
         return self._get_one(model=models.Product, table='products', id=id)
@@ -597,27 +666,37 @@ class DatabaseApi(object):
             raise ObjectNotFound()
         return res[0]
 
-    def get_activity_feedbacks(self, activity):
-        self._check_foreign_key(activity, 'id', 'activities')
+    def get_activityfeedback(self, activity_id, list_all=False):
         consumers = self.list_consumers()
 
         cur = self.con.cursor()
-        cur.row_factory = factory(Feedback)
+        cur.row_factory = factory(models.Activityfeedback)
 
-        feedbacks = {}
+        feedback = {}
         for consumer in consumers:
-            feedbacks[consumer.id] = []
+            feedback[consumer.id] = [] if list_all else None
 
-        cur.execute('SELECT * FROM feedbacks  WHERE activity_id=?;',
-                    (activity.id, )
-                   )
+        if list_all:
+            cur.execute('SELECT * FROM activityfeedbacks  WHERE activity_id=?;',
+                        (activity_id, )
+                       )
+        else:
+            cur.execute('SELECT * FROM activityfeedbacks  WHERE activity_id=? '
+                        'GROUP BY consumer_id;', (activity_id, )
+                       )
 
         res = cur.fetchall()
 
-        for feedback in res:
-            feedbacks[feedback.consumer_id].append(to_dict(feedback))
+        if list_all:
+            for r in res:
+                feedback[r.consumer_id].append(to_dict(r))
 
-        return feedbacks
+        else:
+            for r in res:
+                feedback[r.consumer_id] = r.feedback
+
+
+        return feedback
 
 
     def getDepartmentStatistics(self, id):
@@ -721,7 +800,18 @@ class DatabaseApi(object):
 
 
     def list_consumers(self):
-        return self._list(model=models.Consumer, table='consumers', limit=None)
+        _consumers = self._list(model=models.Consumer, table='consumers',
+                                limit=None)
+
+        consumers = []
+
+        for consumer in _consumers:
+            consumer.credit = self._consumer_credit(id=consumer.id)
+            consumers.append(consumer)
+            consumer.isAdmin = len(self.getAdminroles(consumer)) > 0
+            consumer.hasCredentials = all([consumer.email, consumer.password])
+
+        return consumers
 
     def list_products(self):
         return self._list(model=models.Product, table='products', limit=None)
@@ -747,7 +837,7 @@ class DatabaseApi(object):
         return self._list(model=models.Log, table='logs', limit=limit)
 
     def list_workactivities(self):
-        return self._list(model=models.WorkActivity, table='workactivities', limit=None)
+        return self._list(model=models.Workactivity, table='workactivities', limit=None)
 
     def list_activities(self):
         return self._list(model=models.Activity, table='activities', limit=None)
@@ -888,7 +978,7 @@ class DatabaseApi(object):
         cur = self.con.cursor()
 
         self._simple_update(cur, object=activity, table='activities',
-                            updateable_fields=['date_deadline', 'date_event', 'active'])
+                            updateable_fields=['date_deadline', 'date_event'])
 
         self.con.commit()
 

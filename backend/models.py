@@ -12,6 +12,8 @@ class Consumer(ValidatableObject):
         'name': [Type(str), MaxLength(64), MinLength(4)],
         'karma': [Type(int), GreaterOrEqual(-10), LessOrEqual(10)],
         'credit': [Type(int)],
+        'isAdmin': [Type(bool)],
+        'hasCredentials': [Type(bool)],
         'active': [Type(bool)],
         'email': [SkipIfNone(Type(str), MaxLength(256), MinLength(6))],
         'password': [SkipIfNone(Type(bytes), MaxLength(256), MinLength(6))],
@@ -121,4 +123,31 @@ class Bank(ValidatableObject):
         'id': [Type(int)],
         'name': [Type(str), MaxLength(64), MinLength(4)],
         'credit': [Type(int)]
+    }
+
+
+class Workactivity(ValidatableObject):
+    _validators = {
+        'id': [Type(int)],
+        'name': [Type(str), MaxLength(32), MinLength(4)]
+    }
+
+
+class Activity(ValidatableObject):
+    _validators = {
+        'id': [Type(int)],
+        'created_by': [Type(int)],
+        'workactivity_id': [Type(int)],
+        'date_created': [Type(datetime.datetime)],
+        'date_deadline': [Type(datetime.datetime)],
+        'date_event': [Type(datetime.datetime)]
+    }
+
+class Activityfeedback(ValidatableObject):
+    _validators = {
+        'id': [Type(int)],
+        'timestamp': [Type(datetime.datetime)],
+        'consumer_id': [Type(int)],
+        'activity_id': [Type(int)],
+        'feedback': [Type(bool)]
     }
