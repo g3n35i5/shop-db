@@ -6,7 +6,7 @@ import pdb
 import sqlite3
 import unittest
 
-import app
+from configuration import UnittestConfig
 
 from .db_api import *
 from backend import models
@@ -19,7 +19,7 @@ class TestDatabaseApi(unittest.TestCase):
 
     def setUpClass():
         # load the db schema
-        with open(app.PATH + '/models.sql') as models:
+        with open(UnittestConfig.DATABASE_SCHEMA) as models:
             TestDatabaseApi.schema = models.read()
 
     def setUp(self):
