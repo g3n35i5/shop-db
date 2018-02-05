@@ -539,16 +539,6 @@ class DatabaseApi(object):
                  product.id)
             )
 
-            s = models.StockHistory(product_id=product.id,
-                             new_stock=product.stock - purchase.amount,
-                             timestamp=datetime.datetime.now())
-
-            cur.execute(
-                'INSERT INTO stockhistory (product_id, new_stock, timestamp) '
-                'VALUES (?,?,?);',
-                (s.product_id, s.new_stock, s.timestamp)
-            )
-
         cur.execute('UPDATE departments SET '
                     'income_base = income_base + ?*?, '
                     'income_karma = income_karma + ?*? '
@@ -767,25 +757,6 @@ class DatabaseApi(object):
                     'FROM purchases GROUP BY product_id '
                     'ORDER BY count(product_id) '
                     'DESC LIMIT ?;', (num_products,)
-                    )
-        return cur.fetchall()
-
-    def get_stockhistory(self, product_id, date_start=None, date_end=None):
-        cur = self.con.cursor()
-        cur.row_factory = factory(models.StockHistory)
-
-        p = self.get_product(id=product_id)
-
-        if not p.countable:
-            raise ProductNotCountable()
-
-        if date_start is None or date_end is None:
-            date_start = datetime.datetime.now() - datetime.timedelta(weeks=4)
-            date_end = datetime.datetime.now()
-
-        cur.execute('SELECT * FROM stockhistory WHERE product_id=? '
-                    'AND timestamp BETWEEN ? AND ?;',
-                    (product_id, date_start, date_end)
                     )
         return cur.fetchall()
 
