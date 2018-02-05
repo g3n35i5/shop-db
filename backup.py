@@ -7,7 +7,7 @@ import sys
 from configuration import BaseConfig
 
 if __name__ == '__main__':
-    _currentDate = datetime.datetime.utcnow()
+    _currentDate = datetime.datetime.now()
     _filepath = BaseConfig.BACKUP_DIR + _currentDate.strftime('%Y/%B/%d/')
     _filename = _currentDate.strftime('%H_%M_%S') + '.dump'
     dumpfile =  _filepath + _filename
