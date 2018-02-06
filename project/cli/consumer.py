@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import getpass
-from backend.models import Consumer
-from cli.utils import choice, find
+from project.backend.models import Consumer
+from project.cli.utils import choice, find
 import sys
 import pdb
 
@@ -18,8 +18,8 @@ def _get_password(bcrypt):
     rep_password = None
 
     while not password or password != rep_password:
-        password = getpass.getpass()
-        rep_password = getpass.getpass(prompt='Repeat password:')
+        password = getpass.getpass(prompt='password: ')
+        rep_password = getpass.getpass(prompt='repeat password: ')
 
         if password != rep_password:
             password = None

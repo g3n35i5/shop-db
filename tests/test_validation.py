@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
-import unittest
+from base import BaseTestCase
+from project.backend.validation import *
 
-from .validation import *
-
-
-class TestValidatableObject(unittest.TestCase):
-
+class ValidationTestCase(BaseTestCase):
     def setUp(self):
+        super().setUp()
         class TestClass(ValidatableObject):
             _validators = {
                 'name': [Type(str), MaxLength(20), MinLength(4)],

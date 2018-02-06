@@ -69,11 +69,11 @@ $ source bin/activate
 Now the configuration file of shop-db has to be adjusted. The most important
 change is the SECRET_KEY. This is later responsible for salting the user
 passwords and must be kept secret under all circumstances. Change this
-SECRET_KEY in the file `configuration.py`. You can do this with a normal text
-editor or with the command `sed`:
+SECRET_KEY in the file `project/configuration.py`. You can do this with a
+normal text editor or with the command `sed`:
 
 ```bash
-(shop-db) $ sed -i 's/supersecretkey/YOURBETTERSUPERSECRETKEY/g' configuration.py
+(shop-db) $ sed -i 's/supersecretkey/YOURBETTERSUPERSECRETKEY/g' project/configuration.py
 ```
 
 Once you have activated the virtual environment you will notice the prompt
@@ -100,7 +100,7 @@ Ready. Almost. To start the Webapi and use the shop-db backend, you only have to
 start the webapi:
 
 ```bash
-(shop-db) $ ./webapi.py
+(shop-db) $ ./shopdb.py
 ```
 
 However, so that the backend does not have to be started manually every time, it
@@ -121,7 +121,7 @@ After=network-online.target
 [Service]
 Type=simple
 User=%i
-ExecStart=/srv/shop-db/bin/python3 /srv/shop-db/webapi.py
+ExecStart=/srv/shop-db/bin/python3 /srv/shop-db/shopdb.py
 
 [Install]
 WantedBy=multi-user.target

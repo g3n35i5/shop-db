@@ -4,12 +4,13 @@ import collections
 import datetime
 import os
 import pdb
+import sys
 import sqlite3
 from math import floor
 from operator import itemgetter
 
-from backend import models
-from .validation import FieldBasedException, InputException, to_dict
+from project.backend import models
+from project.backend.validation import FieldBasedException, InputException, to_dict
 
 
 # convert booleans since sqlite3 has no booleans
@@ -97,9 +98,22 @@ def factory(cls):
 class DatabaseApi(object):
 
     def __init__(self, sqlite3_connection, configuration):
+        self.configuration = configuration
         self.con = sqlite3_connection
-        self.USE_KARMA = configuration['USE_KARMA']
         self.con.execute('PRAGMA foreign_keys = ON;')
+
+    def create_tables(self):
+        cursor = self.con.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        if cursor.fetchall():
+            sys.exit('You are currently trying to overwrite the ' \
+                     'productive database. This should not happen ' \
+                     'under any circumstances.')
+
+        with open(self.configuration['DATABASE_SCHEMA']) as models:
+            schema = models.read()
+
+        self.con.executescript(schema)
 
     def _assert_mandatory_fields(self, object, fields):
         for field_name in fields:
@@ -486,7 +500,7 @@ class DatabaseApi(object):
 
         consumer = self.get_consumer(purchase.consumer_id)
         product = self.get_product(purchase.product_id)
-        if self.USE_KARMA:
+        if self.configuration['USE_KARMA']:
             price_to_pay = self._calculate_product_price(product.price,
                                                          consumer.karma)
         else:

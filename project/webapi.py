@@ -11,20 +11,49 @@ import jwt
 from functools import wraps
 from flask_cors import CORS
 from werkzeug.local import LocalProxy
-import configuration as config
+import project.configuration as config
 
-from backend.db_api import (CanOnlyBeRevokedOnce, DatabaseApi, DuplicateObject,
+from project.backend.db_api import (CanOnlyBeRevokedOnce, DatabaseApi, DuplicateObject,
                             FieldIsNone, ForbiddenField, ForeignKeyNotExisting,
                             ObjectNotFound, ConsumerNeedsCredentials)
-from backend.models import (Consumer, Deposit, Payoff, Product,
+from project.backend.models import (Consumer, Deposit, Payoff, Product,
                             Purchase, Workactivity)
-from backend.validation import (FieldBasedException, InputException,
+from project.backend.validation import (FieldBasedException, InputException,
                                 MaximumValueExceeded, MaxLengthExceeded,
                                 MinLengthUndershot, UnknownField, WrongType,
                                 to_dict)
 
 app = Flask(__name__)
-parser = argparse.ArgumentParser(description='Webapi for shop.db')
+CORS(app)
+bcrypt = Bcrypt(app)
+api = None
+
+def set_app(configuration):
+    global api
+    app.config.from_object(configuration)
+    connection = sqlite3.connect(app.config['DATABASE_URI'],
+                                 detect_types=sqlite3.PARSE_DECLTYPES,
+                                 check_same_thread=False)
+    api = DatabaseApi(connection, app.config)
+    return app, api
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Webapi for shop.db')
+    parser.add_argument('--mode', default='productive',
+                        choices=['productive', 'debug'])
+
+    args = parser.parse_args()
+
+
+    if args.mode == 'productive':
+        # app.config.from_object(config.BaseConfig)
+        set_app(config.BaseConfig)
+    elif args.mode == 'debug':
+        # app.config.from_object(config.DevelopmentConfig)
+        set_app(config.DevelopmentConfig)
+    else:
+        sys.exit('{}: invalid operating mode'.format(args.mode))
+
 
 def get_api():
     DB_URI = app.config['DATABASE_URI']
@@ -86,7 +115,7 @@ exception_mapping = {
 }
 
 
-def tokenRequired(f):
+def adminRequired(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
@@ -101,6 +130,10 @@ def tokenRequired(f):
             admin = data['admin']
             admin = api.get_consumer(admin['id'])
             adminroles = api.getAdminroles(admin)
+
+            if not adminroles:
+                return jsonify({'message': 'You are not an administrator!'}), 401
+
             admin = to_dict(admin)
             adminroles = []
             for a in adminroles:
@@ -187,32 +220,34 @@ def login():
         return make_response('Could not verify', 401)
 
     try:
-        if bcrypt.check_password_hash(consumer['password'], password):
-            del consumer['password']
-            exp = datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
-            token = jwt.encode(
-                {
-                    'admin': consumer,
-                    'exp': exp
-                }, app.config['SECRET_KEY'])
-        else:
+        if not bcrypt.check_password_hash(consumer['password'], password):
             return make_response('Could not verify', 401)
     except:
         return make_response('Could not verify', 401)
 
-    cons = api.get_consumer(consumer['id'])
+    # Check if the consumer has administrator rights
+    adminroles = api.getAdminroles(api.get_consumer(consumer['id']))
+    if not adminroles:
+        _type = 'consumer'
+    else:
+        _type = 'admin'
+        consumer['adminroles'] = list(map(to_dict, adminroles))
+        for role in consumer['adminroles']:
+            role['timestamp'] = str(role['timestamp'])
 
-    adminroles = list(map(to_dict, api.getAdminroles(cons)))
-    consumer['adminroles'] = adminroles
+    del consumer['password']
 
-    return jsonify(
-        {
-            'result': True,
-            'admin': consumer,
-            'token': token.decode('UTF-8')
-        }
-    )
+    # Define token
+    exp = datetime.datetime.now() + datetime.timedelta(minutes=30)
 
+    token = jwt.encode({_type: consumer, 'exp': exp}, app.config['SECRET_KEY'])
+
+    result = {}
+    result['result'] = True
+    result[_type] = consumer
+    result['token'] = token.decode('UTF-8')
+
+    return jsonify(result)
 
 
 
@@ -231,7 +266,7 @@ def listDepartments(token):
 
 # Get department statistics
 @app.route('/department/<int:id>/statistics', methods=['GET'])
-@tokenRequired
+@adminRequired
 def getDepartmentStatistics(admin, id):
     return jsonify(api.getDepartmentStatistics(id))
 
@@ -262,7 +297,7 @@ def listConsumers(token):
 
 # Insert consumer
 @app.route('/consumers', methods=['POST'])
-@tokenRequired
+@adminRequired
 def insertConsumer(admin):
     c = Consumer(**json_body())
     api.insert_consumer(c)
@@ -281,7 +316,7 @@ def getConsumer(id):
 
 # Update consumer
 @app.route('/consumer/<int:id>', methods=['PUT'])
-@tokenRequired
+@adminRequired
 def updateConsumer(admin, id):
     data = json_body()
     messages = []
@@ -418,7 +453,7 @@ def listProducts():
 
 # Insert product
 @app.route('/products', methods=['POST'])
-@tokenRequired
+@adminRequired
 def insertProduct(admin):
     api.insert_product(Product(**json_body()))
     return jsonify(result='created'), 201
@@ -432,7 +467,7 @@ def getProduct(id):
 
 # Update product
 @app.route('/product/<int:id>', methods=['PUT'])
-@tokenRequired
+@adminRequired
 def updateProduct(admin, id):
     p = Product(**json_body())
     p.id = id
@@ -485,7 +520,7 @@ def listDeposits(limit=None):
 
 # Insert deposit
 @app.route('/deposits', methods=['POST'])
-@tokenRequired
+@adminRequired
 def insertDeposit(admin):
     api.insert_deposit(Deposit(**json_body()))
     return jsonify(result='created'), 201
@@ -503,7 +538,7 @@ def list_payoffs():
 
 # Insert payoff
 @app.route('/payoff', methods=['POST'])
-@tokenRequired
+@adminRequired
 def insertPayoff(admin):
     api.insert_payoff(Payoff(**json_body()))
     return jsonify(result='created'), 201
@@ -520,7 +555,7 @@ def listWorkactivities():
 
 # Insert workactivity
 @app.route('/workactivities', methods=['POST'])
-@tokenRequired
+@adminRequired
 def insertWorkactivity(admin):
     api.insert_workactivity(Workactivity(**json_body()))
     return jsonify(result='created'), 201
@@ -534,7 +569,7 @@ def getWorkactivity(id):
 
 # Update workactivity
 @app.route('/workactivity/<int:id>', methods=['PUT'])
-@tokenRequired
+@adminRequired
 def updateWorkactivity(admin, id):
     data = json_body()
     workactivity = Workactivity(**json_body())
@@ -580,7 +615,7 @@ def listActivities(token):
 
 # Insert activity
 @app.route('/activities', methods=['POST'])
-@tokenRequired
+@adminRequired
 def insertActivity(admin):
     activity = Activity(**json_body())
     activity.created_by = admin.id
@@ -596,7 +631,7 @@ def getActivity(id):
 
 # Update activity
 @app.route('/activity/<int:id>', methods=['PUT'])
-@tokenRequired
+@adminRequired
 def updateActivity(admin, id):
     activity = Activity(**json_body())
     activity.id = id
@@ -605,12 +640,11 @@ def updateActivity(admin, id):
 
 
 
-
 ############################### Activityfeedback Routes #######################
 
 # Get activityfeedback
 @app.route('/activityfeedback/<int:id>', methods=['GET'])
-@tokenRequired
+@adminRequired
 def getActivityfeedback(admin, id):
     activityfeedback = list(map(to_dict, api.get_activityfeedback(id=id)))
     return jsonify(activityfeedback)
@@ -624,18 +658,4 @@ def insertActivityfeedback():
 
 
 if __name__ == '__main__':
-    parser.add_argument('--mode', default='productive',
-                        choices=['productive', 'debug'])
-    args = parser.parse_args()
-    CORS(app)
-    bcrypt = Bcrypt(app)
-
-    if args.mode == 'productive':
-        app.config.from_object(config.BaseConfig)
-    elif args.mode == 'debug':
-        app.config.from_object(config.DevelopmentConfig)
-    else:
-        sys.exit('{}: invalid operating mode'.format(args.mode))
-
-    api = LocalProxy(get_api)
     app.run(host=app.config['HOST'], port=app.config['PORT'])
