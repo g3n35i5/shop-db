@@ -51,7 +51,7 @@ class Product(ValidatableObject):
         'stock': [SkipIfNone(Type(int))],
         'countable': [Type(bool)],
         'revocable': [Type(bool)],
-        'image': [Type(str), MaxLength(64), MinLength(4)]
+        'image': [SkipIfNone(Type(str), MaxLength(64), MinLength(4))]
     }
 
 

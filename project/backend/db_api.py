@@ -357,9 +357,6 @@ class DatabaseApi(object):
         self._check_uniqueness(product, 'products', ['name'])
         self._check_foreign_key(product, 'department_id', 'departments')
 
-        if product.image is None:
-            product.image = 'default.png'
-
         product.stock = 0 if product.countable else None
 
         product.active = True

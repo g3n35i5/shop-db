@@ -101,17 +101,19 @@ class BackendTestCase(BaseTestCase):
         self.api.update_consumer(upconsumer)
 
         consumer = self.api.get_consumer(id=1)
-        department = self.api.get_department(id=1)
-        self.api.setAdmin(consumer, department, True)
+        departments = self.api.list_departments()
+        self.api.setAdmin(consumer, departments[0], True)
 
-        self.assertEqual(department.expenses, 0)
+        self.assertEqual(departments[0].expenses, 0)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
 
         product = self.api.get_product(id=1)
         self.assertEqual(product.stock, 0)
 
         dpurchase = models.Departmentpurchase()
         dpurchase.product_id = product.id
-        dpurchase.department_id = department.id
+        dpurchase.department_id = departments[0].id
         dpurchase.admin_id = consumer.id
         dpurchase.amount = 5
         dpurchase.price_per_product = 10
@@ -128,18 +130,34 @@ class BackendTestCase(BaseTestCase):
         comment = '{}x {}'.format(dpurchase.amount, product.name)
         self.assertEqual(payoffs[0].comment, comment)
 
-        department = self.api.get_department(id=1)
-        self.assertEqual(department.expenses, 50)
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 50)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
 
         # Revoke deposit in order to "revoke" departmentpurchase
         p = models.Payoff(id=1, revoked=True)
         self.api.update_payoff(p)
+
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 0)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
 
         product = self.api.get_product(id=1)
         self.assertEqual(product.stock, 0)
 
         department = self.api.get_department(id=1)
         self.assertEqual(department.expenses, 0)
+
+        with self.assertRaises(CanOnlyBeRevokedOnce):
+            p = models.Payoff(id=1, revoked=True)
+            self.api.update_payoff(p)
+
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 0)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
 
     def test_insert_consumers(self):
         d = models.Department(name="Test 1", budget=20000)
@@ -305,6 +323,14 @@ class BackendTestCase(BaseTestCase):
 
         bank = self.api.get_bank()
         self.assertEqual(bank.credit, 0)
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 0)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
+
+        with self.assertRaises(CanOnlyBeRevokedOnce):
+            self.api.update_payoff(p)
+
         departments = self.api.list_departments()
         self.assertEqual(departments[0].expenses, 0)
         self.assertEqual(departments[1].expenses, 0)
