@@ -939,26 +939,29 @@ class DatabaseApi(object):
         if payoff.revoked is None or not payoff.revoked:
             return
 
-        payoff = self.get_payoff(payoff.id)
-        if payoff.revoked:
+        apipayoff = self.get_payoff(payoff.id)
+        if apipayoff.revoked:
             raise CanOnlyBeRevokedOnce()
+
+        if payoff.revoked:
+            apipayoff.revoked = True
 
         cur = self.con.cursor()
 
         # update bank credit
-        cur.execute('UPDATE banks SET credit=credit+?;', (payoff.amount, ))
+        cur.execute('UPDATE banks SET credit=credit+?;', (apipayoff.amount, ))
 
         cur.execute('UPDATE departments SET expenses=expenses-? WHERE id=?;',
-                    (payoff.amount, payoff.department_id)
+                    (apipayoff.amount, apipayoff.department_id)
                     )
 
-        if payoff.departmentpurchase_id:
-            dp = self.get_departmentpurchase(id=payoff.departmentpurchase_id)
+        if apipayoff.departmentpurchase_id:
+            dp = self.get_departmentpurchase(id=apipayoff.departmentpurchase_id)
             cur.execute('UPDATE products SET stock=stock-? WHERE id=?;',
                         (dp.amount, dp.department_id)
                         )
 
-        self._simple_update(cur, object=payoff, table='payoffs',
+        self._simple_update(cur, object=apipayoff, table='payoffs',
                             updateable_fields=['revoked', 'comment'])
 
         self.con.commit()

@@ -4,7 +4,7 @@ import datetime
 import os
 import sqlite3
 import sys
-from configuration import BaseConfig
+from project.configuration import BaseConfig
 
 if __name__ == '__main__':
     _currentDate = datetime.datetime.now()
