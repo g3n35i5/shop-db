@@ -233,7 +233,7 @@ class BackendTestCase(BaseTestCase):
             self.api.insert_product(p)
 
     def test_adminroles(self):
-        consumer = self.api.get_consumer(id=1)
+        consumer = self.api.get_consumer(id=3)
         department = self.api.get_department(id=1)
 
         # Make sure, that the consumer is no admin
@@ -250,7 +250,7 @@ class BackendTestCase(BaseTestCase):
         upconsumer.password = 'supersecretpassword'.encode()
 
         self.api.update_consumer(upconsumer)
-        consumer = self.api.get_consumer(id=1)
+        consumer = self.api.get_consumer(id=3)
 
         # Make consumer admin for department 1
         self.api.setAdmin(consumer, department, True)
