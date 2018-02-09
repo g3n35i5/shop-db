@@ -187,7 +187,7 @@ def getStatus():
 @app.route('/login', methods=['POST'])
 def login():
     try:
-        json_data = request.json
+        json_data = json_body()
         email = json_data['email']
         password = json_data['password']
     except:
