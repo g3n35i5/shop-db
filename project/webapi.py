@@ -13,20 +13,15 @@ from flask_cors import CORS
 from werkzeug.local import LocalProxy
 import project.configuration as config
 
-from project.backend.db_api import (CanOnlyBeRevokedOnce, DatabaseApi, DuplicateObject,
-                            FieldIsNone, ForbiddenField, ForeignKeyNotExisting,
-                            ObjectNotFound, ConsumerNeedsCredentials)
-from project.backend.models import (Consumer, Deposit, Payoff, Product,
-                            Purchase, Workactivity)
-from project.backend.validation import (FieldBasedException, InputException,
-                                MaximumValueExceeded, MaxLengthExceeded,
-                                MinLengthUndershot, UnknownField, WrongType,
-                                to_dict)
+from project.backend.db_api import *
+import project.backend.models as models
+from project.backend.validation import *
 
 app = Flask(__name__)
 CORS(app)
 bcrypt = Bcrypt(app)
 api = None
+
 
 def set_app(configuration):
     global api
@@ -36,23 +31,6 @@ def set_app(configuration):
                                  check_same_thread=False)
     api = DatabaseApi(connection, app.config)
     return app, api
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Webapi for shop.db')
-    parser.add_argument('--mode', default='productive',
-                        choices=['productive', 'debug'])
-
-    args = parser.parse_args()
-
-
-    if args.mode == 'productive':
-        # app.config.from_object(config.BaseConfig)
-        set_app(config.BaseConfig)
-    elif args.mode == 'debug':
-        # app.config.from_object(config.DevelopmentConfig)
-        set_app(config.DevelopmentConfig)
-    else:
-        sys.exit('{}: invalid operating mode'.format(args.mode))
 
 
 def get_api():
@@ -107,7 +85,6 @@ exception_mapping = {
     ForeignKeyNotExisting: {"types": ["input-exception", "field-based-exception", "foreign-key-not-existing"], "code": 400},
     FieldIsNone: {"types": ["input-exception", "field-based-exception", "field-is-none"], "code": 400},
     ForbiddenField: {"types": ["input-exception", "field-based-exception", "forbidden-field"], "code": 400},
-    # TODO: field based?
     ObjectNotFound: {"types": ["input-exception", "object-not-found"], "code": 404},
     DuplicateObject: {"types": ["input-exception", "field-based-exception", "duplicate-object"], "code": 400},
     CanOnlyBeRevokedOnce: {"types": [
@@ -132,7 +109,7 @@ def adminRequired(f):
             adminroles = api.getAdminroles(admin)
 
             if not adminroles:
-                return jsonify({'message': 'You are not an administrator!'}), 401
+                return make_response('Not authorized', 401)
 
             admin = to_dict(admin)
             adminroles = []
@@ -146,6 +123,7 @@ def adminRequired(f):
 
         return f(admin, *args, **kwargs)
     return decorated
+
 
 def tokenOptional(f):
     @wraps(f)
@@ -164,6 +142,7 @@ def tokenOptional(f):
 
         return f(True, *args, **kwargs)
     return decorated
+
 
 def convertMinimal(_list, _fields):
     out = []
@@ -285,7 +264,7 @@ def listConsumers(token):
         consumers = list(map(to_dict, consumers))
         for consumer in consumers:
             del consumer['password']
-            cons = Consumer(id=consumer['id'])
+            cons = models.Consumer(id=consumer['id'])
             adminroles = list(map(to_dict, api.getAdminroles(cons)))
             consumer['adminroles'] = adminroles
 
@@ -299,7 +278,7 @@ def listConsumers(token):
 @app.route('/consumers', methods=['POST'])
 @adminRequired
 def insertConsumer(admin):
-    c = Consumer(**json_body())
+    c = models.Consumer(**json_body())
     api.insert_consumer(c)
     return jsonify(result='created'), 201
 
@@ -321,7 +300,7 @@ def updateConsumer(admin, id):
     data = json_body()
     messages = []
 
-    consumer = Consumer(id=id)
+    consumer = models.Consumer(id=id)
     _consumer = api.get_consumer(id=id)
 
     if 'credit' in data:
@@ -334,7 +313,7 @@ def updateConsumer(admin, id):
                 # if not, check if credentials are in request data
                 if any(v not in data for v in ['email', 'password']):
                     # if not, return failure
-                    messages.append('Email and Password required to set adminroles!')
+                    messages.append('Login data required to set adminroles!')
                     return jsonify(result=False, messages=messages), 200
 
             else:
@@ -366,7 +345,6 @@ def updateConsumer(admin, id):
             }
             messages.append(message)
             return jsonify(result=False, messages=messages), 200
-
 
     for key, value in data.items():
         setattr(consumer, key, value)
@@ -404,7 +382,7 @@ def updateConsumer(admin, id):
 
             except ConsumerNeedsCredentials:
                 message = {
-                    'message': 'Consumer needs credentials in order to be admin!',
+                    'message': 'Login data required in order to be admin!',
                     'error': True
                 }
                 messages.append(message)
@@ -455,7 +433,7 @@ def listProducts():
 @app.route('/products', methods=['POST'])
 @adminRequired
 def insertProduct(admin):
-    api.insert_product(Product(**json_body()))
+    api.insert_product(models.Product(**json_body()))
     return jsonify(result='created'), 201
 
 
@@ -469,7 +447,7 @@ def getProduct(id):
 @app.route('/product/<int:id>', methods=['PUT'])
 @adminRequired
 def updateProduct(admin, id):
-    p = Product(**json_body())
+    p = models.Product(**json_body())
     p.id = id
     api.update_product(p)
     return jsonify(result='updated'), 200
@@ -489,7 +467,7 @@ def listPurchases(limit=None):
 # Insert purchase
 @app.route('/purchases', methods=['POST'])
 def insertPurchase():
-    api.insert_purchase(Purchase(**json_body()))
+    api.insert_purchase(models.Purchase(**json_body()))
     return jsonify(result='created'), 201
 
 
@@ -522,7 +500,7 @@ def listDeposits(limit=None):
 @app.route('/deposits', methods=['POST'])
 @adminRequired
 def insertDeposit(admin):
-    api.insert_deposit(Deposit(**json_body()))
+    api.insert_deposit(models.Deposit(**json_body()))
     return jsonify(result='created'), 201
 
 
@@ -540,8 +518,16 @@ def list_payoffs():
 @app.route('/payoff', methods=['POST'])
 @adminRequired
 def insertPayoff(admin):
-    api.insert_payoff(Payoff(**json_body()))
+    api.insert_payoff(models.Payoff(**json_body()))
     return jsonify(result='created'), 201
+
+# Update payoff
+@app.route('/payoff/<int:id>', methods=['PUT'])
+def update_payoff(id):
+    p = models.Payoff(**json_body())
+    p.id = id
+    api.update_payoff(p)
+    return jsonify(result='updated'), 200
 
 
 
@@ -557,7 +543,7 @@ def listWorkactivities():
 @app.route('/workactivities', methods=['POST'])
 @adminRequired
 def insertWorkactivity(admin):
-    api.insert_workactivity(Workactivity(**json_body()))
+    api.insert_workactivity(models.Workactivity(**json_body()))
     return jsonify(result='created'), 201
 
 
@@ -572,7 +558,7 @@ def getWorkactivity(id):
 @adminRequired
 def updateWorkactivity(admin, id):
     data = json_body()
-    workactivity = Workactivity(**json_body())
+    workactivity = models.Workactivity(**json_body())
     workactivity.id = id
     messages = []
     try:
@@ -617,7 +603,7 @@ def listActivities(token):
 @app.route('/activities', methods=['POST'])
 @adminRequired
 def insertActivity(admin):
-    activity = Activity(**json_body())
+    activity = models.Activity(**json_body())
     activity.created_by = admin.id
     api.insert_activity(activity)
     return jsonify(result='created'), 201
@@ -633,7 +619,7 @@ def getActivity(id):
 @app.route('/activity/<int:id>', methods=['PUT'])
 @adminRequired
 def updateActivity(admin, id):
-    activity = Activity(**json_body())
+    activity = models.Activity(**json_body())
     activity.id = id
     api.update_activity(p)
     return jsonify(result='updated'), 200
@@ -653,9 +639,39 @@ def getActivityfeedback(admin, id):
 # Insert activityfeedback
 @app.route('/activityfeedback', methods=['POST'])
 def insertActivityfeedback():
-    api.insert_activityfeedback(Activityfeedback(**json_body()))
+    api.insert_activityfeedback(models.Activityfeedback(**json_body()))
     return jsonify(result='created'), 201
 
 
-if __name__ == '__main__':
-    app.run(host=app.config['HOST'], port=app.config['PORT'])
+
+############################### Departmentpurchases Routes ####################
+
+# List departmentpurchases
+@app.route('/departmentpurchases/<int:id>', methods=['GET'])
+@adminRequired
+def list_departmentpurchases(admin, id):
+    res = list(map(to_dict, api.list_departmentpurchases(department_id=id)))
+    return jsonify(res)
+
+
+# Insert departmentpurchase
+@app.route('/departmentpurchases', methods=['POST'])
+@adminRequired
+def insert_departmentpurchase(admin):
+    data = json_body()
+    if 'admin_id' not in data or data['admin_id'] != admin['id']:
+        return make_response('Unauthorized access', 401)
+
+    try:
+        for obj in data['dpurchases']:
+            d = models.Departmentpurchase(admin_id=admin['id'],
+                                          product_id=obj['product_id'],
+                                          department_id=data['department_id'],
+                                          amount=obj['amount'],
+                                          price_per_product=obj['price'])
+            # pdb.set_trace()
+            api.insert_departmentpurchase(d)
+
+        return jsonify(result='created'), 201
+    except:
+        return make_response('Invalid data', 401)

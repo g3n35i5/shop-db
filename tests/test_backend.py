@@ -93,6 +93,54 @@ class BackendTestCase(BaseTestCase):
         with self.assertRaises(FieldIsNone):
             self.api.update_consumer(c)
 
+    def test_departmentpurchase(self):
+        # Make consumer 1 administrator
+        upconsumer = models.Consumer(id=1)
+        upconsumer.email = 'me@example.com'
+        upconsumer.password = 'supersecretpassword'.encode()
+        self.api.update_consumer(upconsumer)
+
+        consumer = self.api.get_consumer(id=1)
+        department = self.api.get_department(id=1)
+        self.api.setAdmin(consumer, department, True)
+
+        self.assertEqual(department.expenses, 0)
+
+        product = self.api.get_product(id=1)
+        self.assertEqual(product.stock, 0)
+
+        dpurchase = models.Departmentpurchase()
+        dpurchase.product_id = product.id
+        dpurchase.department_id = department.id
+        dpurchase.admin_id = consumer.id
+        dpurchase.amount = 5
+        dpurchase.price_per_product = 10
+
+        self.api.insert_departmentpurchase(dpurchase)
+        dpurchases = self.api.list_departmentpurchases(department_id=1)
+        self.assertEqual(len(dpurchases), 1)
+
+        product = self.api.get_product(id=1)
+        self.assertEqual(product.stock, dpurchase.amount)
+
+        payoffs = self.api.list_payoffs()
+        self.assertEqual(len(payoffs), 1)
+        comment = '{}x {}'.format(dpurchase.amount, product.name)
+        self.assertEqual(payoffs[0].comment, comment)
+
+        department = self.api.get_department(id=1)
+        self.assertEqual(department.expenses, 50)
+
+        # Revoke deposit in order to "revoke" departmentpurchase
+        p = models.Payoff(id=1, revoked=True)
+        self.api.update_payoff(p)
+
+        product = self.api.get_product(id=1)
+        self.assertEqual(product.stock, 0)
+
+        department = self.api.get_department(id=1)
+        self.assertEqual(department.expenses, 0)
+
     def test_insert_consumers(self):
         d = models.Department(name="Test 1", budget=20000)
         self.api.insert_department(d)

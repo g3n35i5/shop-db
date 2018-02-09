@@ -68,6 +68,20 @@ CREATE TABLE purchases (
 	CHECK (revoked IN (0, 1))
 );
 
+CREATE TABLE departmentpurchases (
+	id INTEGER NOT NULL,
+	timestamp TIMESTAMP NOT NULL,
+	product_id INTEGER NOT NULL,
+	department_id INTEGER NOT NULL,
+	admin_id INTEGER NOT NULL,
+	amount INTEGER NOT NULL,
+	price_per_product INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY (product_id) REFERENCES products (id),
+	FOREIGN KEY (department_id) REFERENCES departments (id),
+	FOREIGN KEY (admin_id) REFERENCES consumers (id)
+);
+
 CREATE TABLE deposits (
 	id INTEGER NOT NULL,
 	consumer_id INTEGER NOT NULL,
@@ -81,12 +95,14 @@ CREATE TABLE deposits (
 CREATE TABLE payoffs (
 	id INTEGER NOT NULL,
 	department_id INTEGER NOT NULL,
+	departmentpurchase_id INTEGER,
 	comment VARCHAR(64) NOT NULL,
 	amount INTEGER NOT NULL,
 	revoked BOOLEAN NOT NULL,
 	timestamp TIMESTAMP NOT NULL,
 	PRIMARY KEY (id),
 	FOREIGN KEY (department_id) REFERENCES departments (id),
+	FOREIGN KEY (departmentpurchase_id) REFERENCES departmentpurchases (id),
 	CHECK (revoked IN (0, 1))
 );
 

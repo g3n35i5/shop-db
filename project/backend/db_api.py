@@ -443,18 +443,14 @@ class DatabaseApi(object):
         cur.execute(
             'INSERT INTO payoffs('
             '    department_id, '
+            '    departmentpurchase_id, '
             '    comment, '
             '    amount, '
             '    revoked,'
             '    timestamp) '
-            'VALUES ('
-            '    ?, '
-            '    ?, '
-            '    ?, '
-            '    ?, '
-            '    ? '
-            ');',
+            'VALUES (?,?,?,?,?,?);',
             (payoff.department_id,
+             payoff.departmentpurchase_id,
              payoff.comment,
              payoff.amount,
              payoff.revoked,
@@ -566,6 +562,42 @@ class DatabaseApi(object):
 
         self.con.commit()
 
+    def insert_departmentpurchase(self, dpurchase):
+        cur = self.con.cursor()
+        self._assert_mandatory_fields(
+            dpurchase, ['product_id', 'department_id', 'admin_id',
+                        'amount', 'price_per_product'])
+        self._assert_forbidden_fields(dpurchase, ['id', 'timestamp'])
+        self._check_foreign_key(dpurchase, 'admin_id', 'consumers')
+        self._check_foreign_key(dpurchase, 'department_id', 'departments')
+        self._check_foreign_key(dpurchase, 'product_id', 'products')
+
+        dpurchase.timestamp = datetime.datetime.now()
+
+        cur.execute('INSERT INTO departmentpurchases '
+                    '(timestamp, product_id, department_id, '
+                    ' admin_id, amount, price_per_product) '
+                    'VALUES (?,?,?,?,?,?);',
+                    (dpurchase.timestamp, dpurchase.product_id,
+                     dpurchase.department_id, dpurchase.admin_id,
+                     dpurchase.amount, dpurchase.price_per_product)
+                    )
+        dp_id = cur.lastrowid
+
+        cur.execute('UPDATE products SET stock=stock+? WHERE id=?;',
+                    (dpurchase.amount, dpurchase.product_id)
+                    )
+
+        product = self.get_product(dpurchase.product_id)
+        comment = '{}x {}'.format(dpurchase.amount, product.name)
+        depositamount = dpurchase.amount * dpurchase.price_per_product
+        payoff = models.Payoff(department_id=dpurchase.department_id,
+                               comment=comment,
+                               amount=depositamount,
+                               departmentpurchase_id=dp_id)
+        self.insert_payoff(payoff)
+        self.con.commit()
+
     def insert_deposit(self, deposit):
         cur = self.con.cursor()
 
@@ -638,6 +670,9 @@ class DatabaseApi(object):
 
     def get_purchase(self, id):
         return self._get_one(model=models.Purchase, table='purchases', id=id)
+
+    def get_departmentpurchase(self, id):
+        return self._get_one(model=models.Departmentpurchase, table='departmentpurchases', id=id)
 
     def get_deposit(self, id):
         return self._get_one(model=models.Deposit, table='deposits', id=id)
@@ -783,7 +818,6 @@ class DatabaseApi(object):
             LIMIT 10', (id,))
         return cur.fetchall()
 
-
     def list_consumers(self):
         _consumers = self._list(model=models.Consumer, table='consumers',
                                 limit=None)
@@ -797,6 +831,13 @@ class DatabaseApi(object):
             consumer.hasCredentials = all([consumer.email, consumer.password])
 
         return consumers
+
+    def list_departmentpurchases(self, department_id):
+        cur = self.con.cursor()
+        cur.row_factory = factory(models.Departmentpurchase)
+        cur.execute('SELECT * FROM departmentpurchases '
+                    'WHERE department_id={};'.format(department_id))
+        return cur.fetchall()
 
     def list_products(self):
         return self._list(model=models.Product, table='products', limit=None)
@@ -894,37 +935,28 @@ class DatabaseApi(object):
             payoff, ['department_id',
                      'amount']
         )
+
         if payoff.revoked is None or not payoff.revoked:
-            # nothing to do
-            # TODO: maybe we should return something like "nothing to do"
             return
+
+        payoff = self.get_payoff(payoff.id)
+        if payoff.revoked:
+            raise CanOnlyBeRevokedOnce()
 
         cur = self.con.cursor()
 
-        cur.execute(
-            'WITH p AS ('
-            '    SELECT department_id, amount '
-            '    FROM payoffs WHERE id=? and revoked=0'
-            ') '
-            'UPDATE banks '
-            'SET credit=credit+(SELECT amount FROM p);',
-            (payoff.id, )
-        )
+        # update bank credit
+        cur.execute('UPDATE banks SET credit=credit+?;', (payoff.amount, ))
 
-        cur.execute(
-            'WITH p AS ('
-            '    SELECT department_id, amount '
-            '    FROM payoffs WHERE id=? and revoked=0'
-            ') '
-            'UPDATE departments '
-            'SET expenses=expenses-(SELECT amount FROM p) '
-            'WHERE id=(SELECT department_id FROM p);',
-            (payoff.id, )
-        )
+        cur.execute('UPDATE departments SET expenses=expenses-? WHERE id=?;',
+                    (payoff.amount, payoff.department_id)
+                    )
 
-        if cur.rowcount == 0:
-            self.con.rollback()
-            raise CanOnlyBeRevokedOnce()
+        if payoff.departmentpurchase_id:
+            dp = self.get_departmentpurchase(id=payoff.departmentpurchase_id)
+            cur.execute('UPDATE products SET stock=stock-? WHERE id=?;',
+                        (dp.amount, dp.department_id)
+                        )
 
         self._simple_update(cur, object=payoff, table='payoffs',
                             updateable_fields=['revoked', 'comment'])
