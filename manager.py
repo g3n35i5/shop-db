@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
-from webapi import app, get_api
-import configuration as config
+from project.webapi import *
+import project.configuration as config
 from flask_bcrypt import Bcrypt
 from werkzeug.local import LocalProxy
-from backend.models import Consumer
-from cli.consumer import add_consumer, add_admin, remove_admin
-from cli.department import add_department
+from project.backend.models import Consumer
+from project.cli.consumer import add_consumer, add_admin, remove_admin
+from project.cli.department import add_department
 import argparse
 import sys
 
@@ -61,7 +61,5 @@ class BackendManager:
 
 
 if __name__ == '__main__':
-    bcrypt = Bcrypt(app)
-    app.config.from_object(config.BaseConfig)
-    api = LocalProxy(get_api)
+    app, api = set_app(config.BaseConfig)
     BackendManager()

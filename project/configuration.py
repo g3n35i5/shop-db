@@ -14,7 +14,7 @@ class BaseConfig(object):
     DATABASE_SCHEMA = __path + '/models.sql'
     HOST = '0.0.0.0'
     PORT = 5000
-    USE_KARMA = True
+    USE_KARMA = False
 
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
@@ -22,3 +22,4 @@ class DevelopmentConfig(BaseConfig):
 
 class UnittestConfig(DevelopmentConfig):
     DATABASE_URI = ':memory:'
+    PRESERVE_CONTEXT_ON_EXCEPTION = False

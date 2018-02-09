@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from backend.models import Department
-from cli.utils import choice
+from project.backend.models import Department
+from project.cli.utils import choice
 import sys
 
 departmentFields = {'name': {'mandatory': True, 'hidden': False},
