@@ -43,7 +43,7 @@ CREATE TABLE products (
 	stock INTEGER,
 	countable BOOLEAN NOT NULL,
 	revocable BOOLEAN NOT NULL,
-	image VARCHAR(64) NOT NULL,
+	image VARCHAR(64),
 	PRIMARY KEY (id),
 	UNIQUE (name),
 	FOREIGN KEY(department_id) REFERENCES departments (id),
