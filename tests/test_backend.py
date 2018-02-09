@@ -6,6 +6,7 @@ from project.backend.db_api import *
 from project.backend.validation import *
 import project.backend.models as models
 
+
 class BackendTestCase(BaseTestCase):
     def test_get_top_products(self):
         # buy 3x Coffee and 2x Twix
@@ -328,6 +329,9 @@ class BackendTestCase(BaseTestCase):
         # check, if the objects are correct
         product = self.api.get_product(id=1)
         self.assertEqual(product.price, 25)
+
+        # Turn on use karma
+        self.api.configuration['USE_KARMA'] = True
 
         pur1 = models.Purchase(consumer_id=1, product_id=1, amount=1,
                                comment="good dude buys something")
