@@ -234,8 +234,10 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(products[2].stock, 0)
 
     def test_create_payoff(self):
-        department = self.api.get_department(id=1)
-        self.assertEqual(department.expenses, 0)
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 0)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
         bank = self.api.get_bank()
         self.assertEqual(bank.credit, 0)
 
@@ -243,8 +245,10 @@ class BackendTestCase(BaseTestCase):
         self.api.insert_payoff(p)
         bank = self.api.get_bank()
         self.assertEqual(bank.credit, -2000)
-        department = self.api.get_department(id=1)
-        self.assertEqual(department.expenses, 2000)
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 2000)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
 
         # revoke payoff
         p = models.Payoff(id=1, revoked=True)
@@ -252,8 +256,10 @@ class BackendTestCase(BaseTestCase):
 
         bank = self.api.get_bank()
         self.assertEqual(bank.credit, 0)
-        department = self.api.get_department(id=1)
-        self.assertEqual(department.expenses, 0)
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 0)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
 
     def test_create_deposit(self):
         # check the consumers credit

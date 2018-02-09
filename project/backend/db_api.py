@@ -917,7 +917,8 @@ class DatabaseApi(object):
             '    FROM payoffs WHERE id=? and revoked=0'
             ') '
             'UPDATE departments '
-            'SET expenses=expenses-(SELECT amount FROM p);',
+            'SET expenses=expenses-(SELECT amount FROM p) '
+            'WHERE id=(SELECT department_id FROM p);',
             (payoff.id, )
         )
 
@@ -929,7 +930,6 @@ class DatabaseApi(object):
                             updateable_fields=['revoked', 'comment'])
 
         self.con.commit()
-
 
     def update_workactivity(self, workactivity):
         self._assert_mandatory_fields(workactivity, ['id'])
