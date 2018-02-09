@@ -22,3 +22,4 @@ class DevelopmentConfig(BaseConfig):
 
 class UnittestConfig(DevelopmentConfig):
     DATABASE_URI = ':memory:'
+    PRESERVE_CONTEXT_ON_EXCEPTION = False
