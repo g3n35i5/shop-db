@@ -281,6 +281,7 @@ class BackendTestCase(BaseTestCase):
         products = self.api.list_products()
         self.assertIs(type(products), list)
         self.assertEqual(len(products), 3)
+
         # Coffee
         self.assertEqual(products[0].name, 'Coffee')
         self.assertEqual(products[0].price, 25)
