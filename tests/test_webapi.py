@@ -5,8 +5,17 @@ import sys
 import pdb
 from base import BaseTestCase
 
+import project.backend.exceptions as exc
+
 
 class WebapiTestCase(BaseTestCase):
+
+    def assertException(self, res, exception):
+        data = json.loads(res.data)
+        exception = exc.exception_mapping[exception]
+        self.assertEqual(res.status_code, exception['code'])
+        self.assertEqual(data['code'], exception['code'])
+        self.assertEqual(data['error_types'], exception['types'])
 
     def login(self, email, password):
         data = {'email': email, 'password': password}
@@ -80,23 +89,59 @@ class WebapiTestCase(BaseTestCase):
         consumers = self.api.list_consumers()
         self.assertEqual(len(consumers), 4)
 
-        data = {'name': 'Testperson'}
+        # Test insert consumer with corrupt data
 
+        # Test wrong type
+        data = {'name': 2}
+        res = self.post('/consumers', data, 'admin')
+        self.assertException(res, exc.WrongType)
+
+        # Test forbidden field
+        data = {'name': 'Testperson', 'credit': 200}
+        res = self.post('/consumers', data, 'admin')
+        self.assertException(res, exc.ForbiddenField)
+
+        # Test unknown field
+        data = {'name': 'Testperson', 'coolness': 'over ninethousand'}
+        res = self.post('/consumers', data, 'admin')
+        self.assertException(res, exc.UnknownField)
+
+        # Test duplicate object
+        data = {'name': self.api.get_consumer(id=1).name}
+        res = self.post('/consumers', data, 'admin')
+        self.assertException(res, exc.DuplicateObject)
+
+        # Test field is none
+        data = {}
+        res = self.post('/consumers', data, 'admin')
+        self.assertException(res, exc.FieldIsNone)
+
+        # Test minimum length undershot
+        data = {'name': 'abc'}
+        res = self.post('/consumers', data, 'admin')
+        self.assertException(res, exc.MinLengthUndershot)
+
+        # Test maximum length exceeded
+        data = {'name': 'a'*65}
+        res = self.post('/consumers', data, 'admin')
+        self.assertEqual(res.status_code, 400)
+        self.assertException(res, exc.MaxLengthExceeded)
+
+        # Test insert consumer with correct data
+        data = {'name': 'Testperson'}
         # Test insert without login data
         res = self.post('/consumers', data, 'extern')
         self.assertEqual(res.status_code, 401)
-        consumers = self.api.list_consumers()
-        self.assertEqual(len(consumers), 4)
 
         # Test insert as consumer, which is not an administrator
         res = self.post('/consumers', data, 'consumer')
         self.assertEqual(res.status_code, 401)
-        consumers = self.api.list_consumers()
-        self.assertEqual(len(consumers), 4)
 
         # Test insert as admin
         res = self.post('/consumers', data, 'admin')
         self.assertEqual(res.status_code, 201)
+
+        # At this point only one new consumer should be added
         consumers = self.api.list_consumers()
         self.assertEqual(len(consumers), 5)
         self.assertEqual(consumers[4].name, data['name'])
