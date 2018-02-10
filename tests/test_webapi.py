@@ -3,6 +3,7 @@
 from flask import json
 import sys
 import pdb
+import copy
 from base import BaseTestCase
 
 import project.backend.exceptions as exc
@@ -90,7 +91,6 @@ class WebapiTestCase(BaseTestCase):
         self.assertEqual(len(consumers), 4)
 
         # Test insert consumer with corrupt data
-
         # Test wrong type
         data = {'name': 2}
         res = self.post('/consumers', data, 'admin')
@@ -151,6 +151,60 @@ class WebapiTestCase(BaseTestCase):
         products = self.api.list_products()
         self.assertEqual(len(products), 3)
 
+        b_data = {
+            'name': 'Testproduct',
+            'department_id': 1,
+            'price': 200,
+            'countable': True,
+            'revocable': True
+        }
+        # Test insert product with corrupt data
+        # Test wrong type
+        data = b_data.copy()
+        data['name'] = 2
+        res = self.post('/products', data, 'admin')
+        self.assertException(res, exc.WrongType)
+
+        # Test forbidden field
+        data = b_data.copy()
+        data['active'] = True
+        res = self.post('/products', data, 'admin')
+        self.assertException(res, exc.ForbiddenField)
+
+        # Test unknown field
+        data = b_data.copy()
+        data['bananas'] = 'foo'
+        res = self.post('/products', data, 'admin')
+        self.assertException(res, exc.UnknownField)
+
+        # Test duplicate object
+        data = b_data.copy()
+        product = self.api.get_product(id=1)
+        for key in product.__dict__['_data'].keys():
+            if key in b_data:
+                data[key] = getattr(product, key)
+
+        res = self.post('/products', data, 'admin')
+        self.assertException(res, exc.DuplicateObject)
+
+        # Test field is none
+        data = {}
+        res = self.post('/products', data, 'admin')
+        self.assertException(res, exc.FieldIsNone)
+
+        # Test minimum length undershot
+        data = b_data.copy()
+        data['name'] = 'foo'
+        res = self.post('/products', data, 'admin')
+        self.assertException(res, exc.MinLengthUndershot)
+
+        # Test maximum length exceeded
+        data = b_data.copy()
+        data['name'] = 'a'*65
+        res = self.post('/products', data, 'admin')
+        self.assertEqual(res.status_code, 400)
+        self.assertException(res, exc.MaxLengthExceeded)
+
         data = {
                 'name': 'Testproduct',
                 'department_id': 1,
@@ -162,18 +216,16 @@ class WebapiTestCase(BaseTestCase):
         # Test insert without login data
         res = self.post('/products', data, 'extern')
         self.assertEqual(res.status_code, 401)
-        products = self.api.list_products()
-        self.assertEqual(len(products), 3)
 
         # Test insert as consumer, which is not an administrator
         res = self.post('/products', data, 'consumer')
         self.assertEqual(res.status_code, 401)
-        products = self.api.list_products()
-        self.assertEqual(len(products), 3)
 
         # Test insert as admin
         res = self.post('/products', data, 'admin')
         self.assertEqual(res.status_code, 201)
+
+        # At this point only one new product should be added
         products = self.api.list_products()
         self.assertEqual(len(products), 4)
 
