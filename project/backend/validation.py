@@ -1,56 +1,7 @@
 #!/usr/bin/env python3
 
 import json
-
-
-class InputException(Exception):
-
-    def __init__(self, **kwargs):
-        self.info = kwargs
-
-
-class FieldBasedException(InputException):
-
-    def __init__(self, field, **kwargs):
-        InputException.__init__(self, field=field, **kwargs)
-
-
-class WrongType(FieldBasedException):
-
-    def __init__(self, field, expected_type):
-        FieldBasedException.__init__(self, field, expected_type=expected_type)
-
-
-class MaxLengthExceeded(FieldBasedException):
-
-    def __init__(self, field, max_allowed_length):
-        FieldBasedException.__init__(self, field,
-                                     max_allowed_length=max_allowed_length)
-
-
-class MinLengthUndershot(FieldBasedException):
-
-    def __init__(self, field, min_allowed_length):
-        FieldBasedException.__init__(self, field,
-                                     min_allowed_length=min_allowed_length)
-
-
-class UnknownField(FieldBasedException):
-
-    def __init__(self, field):
-        FieldBasedException.__init__(self, field)
-
-
-class MaximumValueExceeded(FieldBasedException):
-
-    def __init__(self, field, upper_bound):
-        FieldBasedException.__init__(self, field, upper_bound=upper_bound)
-
-
-class MinimumValueUndershot(FieldBasedException):
-
-    def __init__(self, field, lower_bound):
-        FieldBasedException.__init__(self, field, lower_bound=lower_bound)
+import project.backend.exceptions as exc
 
 
 def fields(object):
@@ -78,7 +29,7 @@ class LessThan(object):
 
     def validate(self, field, value):
         if value >= self.other:
-            raise MaximumValueExceeded(field, upper_bound=self.other)
+            raise exc.MaximumValueExceeded(field, upper_bound=self.other)
 
 
 class LessOrEqual(object):
@@ -88,7 +39,7 @@ class LessOrEqual(object):
 
     def validate(self, field, value):
         if value > self.other:
-            raise MaximumValueExceeded(field, upper_bound=self.other)
+            raise exc.MaximumValueExceeded(field, upper_bound=self.other)
 
 
 class GreaterThan(object):
@@ -98,7 +49,7 @@ class GreaterThan(object):
 
     def validate(self, field, value):
         if value <= self.other:
-            raise MinimumValueUndershot(field, lower_bound=self.other)
+            raise exc.MinimumValueUndershot(field, lower_bound=self.other)
 
 
 class GreaterOrEqual(object):
@@ -108,7 +59,7 @@ class GreaterOrEqual(object):
 
     def validate(self, field, value):
         if value < self.other:
-            raise MinimumValueUndershot(field, lower_bound=self.other)
+            raise exc.MinimumValueUndershot(field, lower_bound=self.other)
 
 
 class MaxLength(object):
@@ -118,7 +69,7 @@ class MaxLength(object):
 
     def validate(self, field, value):
         if len(value) > self.length:
-            raise MaxLengthExceeded(field, max_allowed_length=self.length)
+            raise exc.MaxLengthExceeded(field, max_allowed_length=self.length)
 
 
 class MinLength(object):
@@ -128,7 +79,7 @@ class MinLength(object):
 
     def validate(self, field, value):
         if len(value) < self.length:
-            raise MinLengthUndershot(field, min_allowed_length=self.length)
+            raise exc.MinLengthUndershot(field, min_allowed_length=self.length)
 
 
 class Type(object):
@@ -138,7 +89,7 @@ class Type(object):
 
     def validate(self, field, value):
         if type(value) is not self.type:
-            raise WrongType(field, expected_type=self.type.__name__)
+            raise exc.WrongType(field, expected_type=self.type.__name__)
 
 
 class SkipIfNone(object):
@@ -170,7 +121,7 @@ class ValidatableObject(object):
         field_validators = self._validators.get(field_name, None)
 
         if field_validators is None:
-            raise UnknownField(field_name)
+            raise exc.UnknownField(field_name)
 
         for v in field_validators:
             v.validate(field_name, field_value)
@@ -179,7 +130,7 @@ class ValidatableObject(object):
 
     def __getattr__(self, field_name):
         if field_name not in self._validators.keys():
-            raise UnknownField(field_name)
+            raise exc.UnknownField(field_name)
 
         return self._data.get(field_name, None)
 
