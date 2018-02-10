@@ -145,7 +145,7 @@ def handle_error(e):
     if app.config['DEBUG']:
         raise e
     if type(e) in exc.exception_mapping:
-        foo = exception_mapping[type(e)]
+        foo = exc.exception_mapping[type(e)]
         return jsonify(
             result='error',
             code=foo['code'],
