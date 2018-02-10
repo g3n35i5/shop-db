@@ -58,7 +58,6 @@ class WebapiTestCase(BaseTestCase):
             assert 'credit' in consumer
 
     def test_insert_deposit(self):
-
         deposits = self.api.list_deposits()
         self.assertFalse(deposits)
         data = {'amount': 100, 'consumer_id': 1, 'comment': 'should not work'}
@@ -102,6 +101,39 @@ class WebapiTestCase(BaseTestCase):
         self.assertEqual(len(consumers), 5)
         self.assertEqual(consumers[4].name, data['name'])
         self.assertEqual(consumers[4].credit, 0)
+
+    def test_insert_product(self):
+        products = self.api.list_products()
+        self.assertEqual(len(products), 3)
+
+        data = {
+                'name': 'Testproduct',
+                'department_id': 1,
+                'price': 200,
+                'countable': True,
+                'revocable': True
+        }
+
+        # Test insert without login data
+        res = self.post('/products', data, 'extern')
+        self.assertEqual(res.status_code, 401)
+        products = self.api.list_products()
+        self.assertEqual(len(products), 3)
+
+        # Test insert as consumer, which is not an administrator
+        res = self.post('/products', data, 'consumer')
+        self.assertEqual(res.status_code, 401)
+        products = self.api.list_products()
+        self.assertEqual(len(products), 3)
+
+        # Test insert as admin
+        res = self.post('/products', data, 'admin')
+        self.assertEqual(res.status_code, 201)
+        products = self.api.list_products()
+        self.assertEqual(len(products), 4)
+
+        for key in data.keys():
+            self.assertEqual(getattr(products[3], key), data[key])
 
     def test_list_products(self):
         products = json.loads(self.client.get('/products').data)
