@@ -19,7 +19,7 @@ class BackendTestCase(BaseTestCase):
                                   comment="bought with karma")
             self.api.insert_purchase(pur)
 
-        top = self.api.get_top_products(2)
+        top = self.api.get_top_products(department_id=2, num_products=2)
         self.assertEqual(len(top), 2)
         self.assertEqual(top[0][0], 1)
         self.assertEqual(top[0][1], 3)

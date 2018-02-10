@@ -7,6 +7,7 @@ from .validation import (GreaterOrEqual, LessOrEqual, MaxLength, MinLength,
 
 
 class Consumer(ValidatableObject):
+    _tablename = 'consumers'
     _validators = {
         'id': [Type(int)],
         'name': [Type(str), MaxLength(64), MinLength(4)],
@@ -22,6 +23,7 @@ class Consumer(ValidatableObject):
 
 
 class Department(ValidatableObject):
+    _tablename = 'departments'
     _validators = {
         'id': [Type(int)],
         'name': [Type(str), MaxLength(64), MinLength(4)],
@@ -33,6 +35,7 @@ class Department(ValidatableObject):
 
 
 class PriceCategory(ValidatableObject):
+    _tablename = 'pricecategories'
     _validators = {
         'id': [Type(int)],
         'price_lower_bound': [Type(int)],
@@ -41,6 +44,7 @@ class PriceCategory(ValidatableObject):
 
 
 class Product(ValidatableObject):
+    _tablename = 'products'
     _validators = {
         'id': [Type(int)],
         'name': [Type(str), MaxLength(64), MinLength(4)],
@@ -56,6 +60,7 @@ class Product(ValidatableObject):
 
 
 class Purchase(ValidatableObject):
+    _tablename = 'purchases'
     _validators = {
         'id': [Type(int)],
         'consumer_id': [Type(int)],
@@ -70,6 +75,7 @@ class Purchase(ValidatableObject):
 
 
 class Departmentpurchase(ValidatableObject):
+    _tablename = 'departmentpurchases'
     _validators = {
         'id': [Type(int)],
         'timestamp': [Type(datetime.datetime)],
@@ -82,6 +88,7 @@ class Departmentpurchase(ValidatableObject):
 
 
 class Deposit(ValidatableObject):
+    _tablename = 'deposits'
     _validators = {
         'id': [Type(int)],
         'consumer_id': [Type(int)],
@@ -92,6 +99,7 @@ class Deposit(ValidatableObject):
 
 
 class Payoff(ValidatableObject):
+    _tablename = 'payoffs'
     _validators = {
         'id': [Type(int)],
         'department_id': [Type(int)],
@@ -104,6 +112,7 @@ class Payoff(ValidatableObject):
 
 
 class Log(ValidatableObject):
+    _tablename = 'logs'
     _validators = {
         'id': [Type(int)],
         'table_name': [Type(str), MaxLength(64), MinLength(4)],
@@ -114,6 +123,7 @@ class Log(ValidatableObject):
 
 
 class StockHistory(ValidatableObject):
+    _tablename = 'stockhistory'
     _validators = {
         'id': [Type(int)],
         'product_id': [Type(int)],
@@ -123,6 +133,7 @@ class StockHistory(ValidatableObject):
 
 
 class AdminRole(ValidatableObject):
+    _tablename = 'adminroles'
     _validators = {
         'id': [Type(int)],
         'consumer_id': [Type(int)],
@@ -132,6 +143,7 @@ class AdminRole(ValidatableObject):
 
 
 class Bank(ValidatableObject):
+    _tablename = 'banks'
     _validators = {
         'id': [Type(int)],
         'name': [Type(str), MaxLength(64), MinLength(4)],
@@ -140,6 +152,7 @@ class Bank(ValidatableObject):
 
 
 class Workactivity(ValidatableObject):
+    _tablename = 'workactivities'
     _validators = {
         'id': [Type(int)],
         'name': [Type(str), MaxLength(32), MinLength(4)]
@@ -147,16 +160,20 @@ class Workactivity(ValidatableObject):
 
 
 class Activity(ValidatableObject):
+    _tablename = 'activities'
     _validators = {
         'id': [Type(int)],
         'created_by': [Type(int)],
+        'reviewed': [Type(bool)],
         'workactivity_id': [Type(int)],
         'date_created': [Type(datetime.datetime)],
         'date_deadline': [Type(datetime.datetime)],
         'date_event': [Type(datetime.datetime)]
     }
 
+
 class Activityfeedback(ValidatableObject):
+    _tablename = 'activityfeedbacks'
     _validators = {
         'id': [Type(int)],
         'timestamp': [Type(datetime.datetime)],
