@@ -5,17 +5,22 @@ import sqlite3
 import datetime
 import argparse
 
-from flask import Flask, Request, g, jsonify, request, make_response
+from flask import (Flask, Request, g, jsonify, request,
+                   make_response, send_from_directory)
 from flask_bcrypt import Bcrypt
-import jwt
-from functools import wraps
 from flask_cors import CORS
-from werkzeug.local import LocalProxy
-import project.configuration as config
+from functools import wraps
 
-from project.backend.db_api import *
+import jwt
+
+from werkzeug.local import LocalProxy
+from werkzeug.utils import secure_filename
+
+import project.configuration as config
+import project.backend.db_api as db_api
 import project.backend.models as models
-from project.backend.validation import *
+import project.backend.validation as validation
+import project.backend.exceptions as exc
 
 app = Flask(__name__)
 CORS(app)
@@ -29,7 +34,7 @@ def set_app(configuration):
     connection = sqlite3.connect(app.config['DATABASE_URI'],
                                  detect_types=sqlite3.PARSE_DECLTYPES,
                                  check_same_thread=False)
-    api = DatabaseApi(connection, app.config)
+    api = db_api.DatabaseApi(connection, app.config)
     return app, api
 
 
@@ -47,12 +52,9 @@ def teardown_db(exception):
         db.close()
 
 
-class InvalidJSON(InputException):
-    pass
-
-
 def handle_json_error(self, e):
-    raise InvalidJSON()
+    raise exc.InvalidJSON()
+
 
 Request.on_json_loading_failed = handle_json_error
 
@@ -64,32 +66,15 @@ def not_found(error):
 
 @app.errorhandler(500)
 def internal_error(error):
-    return jsonify(types=["internal-server-error"], info="Please contact the admin!"), 500
+    return jsonify(types=["internal-server-error"],
+                   info="Please contact the admin!"), 500
 
 
 def json_body():
     jb = request.get_json()
     if jb is None:
-        raise InvalidJSON()
+        raise exc.InvalidJSON()
     return jb
-
-
-exception_mapping = {
-    WrongType: {"types": ["input-exception", "field-based-exception", "wrong-type"], "code": 400},
-    MaxLengthExceeded: {"types": ["input-exception", "field-based-exception", "max-length-exceeded"], "code": 400},
-    MinLengthUndershot: {"types": ["input-exception", "field-based-exception", "min-length-undercut"], "code": 400},
-    UnknownField: {"types": ["input-exception", "field-based-exception", "unknown-field"], "code": 400},
-    MaximumValueExceeded: {"types": ["input-exception", "field-based-exception", "maximum-value-exceeded"], "code": 400},
-    InvalidJSON: {"types": ["input-exception", "invalid-json"], "code": 400},
-    DuplicateObject: {"types": ["input-exception", "field-based-exception", "duplicate-object"], "code": 400},
-    ForeignKeyNotExisting: {"types": ["input-exception", "field-based-exception", "foreign-key-not-existing"], "code": 400},
-    FieldIsNone: {"types": ["input-exception", "field-based-exception", "field-is-none"], "code": 400},
-    ForbiddenField: {"types": ["input-exception", "field-based-exception", "forbidden-field"], "code": 400},
-    ObjectNotFound: {"types": ["input-exception", "object-not-found"], "code": 404},
-    DuplicateObject: {"types": ["input-exception", "field-based-exception", "duplicate-object"], "code": 400},
-    CanOnlyBeRevokedOnce: {"types": [
-        "input-exception", "field-based-exception", "can-only-be-revoked-once"], "code": 400}
-}
 
 
 def adminRequired(f):
@@ -111,7 +96,7 @@ def adminRequired(f):
             if not adminroles:
                 return make_response('Not authorized', 401)
 
-            admin = to_dict(admin)
+            admin = validation.to_dict(admin)
             adminroles = []
             for a in adminroles:
                 adminroles.append(a.department_id)
@@ -159,8 +144,8 @@ def convertMinimal(_list, _fields):
 def handle_error(e):
     if app.config['DEBUG']:
         raise e
-    if type(e) in exception_mapping:
-        foo = exception_mapping[type(e)]
+    if type(e) in exc.exception_mapping:
+        foo = exc.exception_mapping[type(e)]
         return jsonify(
             result='error',
             code=foo['code'],
@@ -181,20 +166,19 @@ def getStatus():
 
 
 
-
 ############################### Login #########################################
 
 @app.route('/login', methods=['POST'])
 def login():
     try:
-        json_data = request.json
+        json_data = json_body()
         email = json_data['email']
         password = json_data['password']
     except:
         return make_response('Could not verify', 401)
 
     try:
-        consumer = to_dict(api.get_consumer_by_email(email))
+        consumer = validation.to_dict(api.get_consumer_by_email(email))
     except:
         return make_response('Could not verify', 401)
 
@@ -210,7 +194,7 @@ def login():
         _type = 'consumer'
     else:
         _type = 'admin'
-        consumer['adminroles'] = list(map(to_dict, adminroles))
+        consumer['adminroles'] = list(map(validation.to_dict, adminroles))
         for role in consumer['adminroles']:
             role['timestamp'] = str(role['timestamp'])
 
@@ -238,7 +222,7 @@ def login():
 def listDepartments(token):
     departments = api.list_departments()
     if token:
-        return jsonify(list(map(to_dict, departments)))
+        return jsonify(list(map(validation.to_dict, departments)))
 
     return jsonify(convertMinimal(departments, ['name', 'id']))
 
@@ -261,11 +245,11 @@ def listConsumers(token):
     consumers = api.list_consumers()
 
     if token:
-        consumers = list(map(to_dict, consumers))
+        consumers = list(map(validation.to_dict, consumers))
         for consumer in consumers:
             del consumer['password']
             cons = models.Consumer(id=consumer['id'])
-            adminroles = list(map(to_dict, api.getAdminroles(cons)))
+            adminroles = list(map(validation.to_dict, api.getAdminroles(cons)))
             consumer['adminroles'] = adminroles
 
         return jsonify(consumers)
@@ -286,7 +270,7 @@ def insertConsumer(admin):
 # Get consumer
 @app.route('/consumer/<int:id>', methods=['GET'])
 def getConsumer(id):
-    consumer = to_dict(api.get_consumer(id))
+    consumer = validation.to_dict(api.get_consumer(id))
     if 'password' in consumer:
         del consumer['password']
 
@@ -386,7 +370,7 @@ def updateConsumer(admin, id):
                     'error': True
                 }
                 messages.append(message)
-                _consumer = to_dict(_consumer)
+                _consumer = validation.to_dict(_consumer)
                 rebaseConsumer = Consumer(**_consumer)
                 api.update_consumer(rebaseConsumer)
 
@@ -404,19 +388,19 @@ def updateConsumer(admin, id):
 # Get consumer's favorite products
 @app.route('/consumer/<int:id>/favorites', methods=['GET'])
 def getConsumerFavorites(id):
-    return jsonify(list(map(to_dict, api.get_favorite_products(id))))
+    return jsonify(list(map(validation.to_dict, api.get_favorite_products(id))))
 
 
 # Get consumer's purchases
 @app.route('/consumer/<int:id>/purchases', methods=['GET'])
 def getConsumerPurchases(id):
-    return jsonify(list(map(to_dict, api.get_purchases_of_consumer(id))))
+    return jsonify(list(map(validation.to_dict, api.get_purchases_of_consumer(id))))
 
 
 # Get consumer's deposits
 @app.route('/consumer/<int:id>/deposits', methods=['GET'])
 def getConsumerDeposits(id):
-    return jsonify(list(map(to_dict, api.get_deposits_of_consumer(id))))
+    return jsonify(list(map(validation.to_dict, api.get_deposits_of_consumer(id))))
 
 
 
@@ -426,7 +410,7 @@ def getConsumerDeposits(id):
 # List products
 @app.route('/products', methods=['GET'])
 def listProducts():
-    return jsonify(list(map(to_dict, api.list_products())))
+    return jsonify(list(map(validation.to_dict, api.list_products())))
 
 
 # Insert product
@@ -440,18 +424,42 @@ def insertProduct(admin):
 # Get product
 @app.route('/product/<int:id>', methods=['GET'])
 def getProduct(id):
-    return jsonify(to_dict(api.get_product(id)))
+    return jsonify(validation.to_dict(api.get_product(id)))
 
 
 # Update product
 @app.route('/product/<int:id>', methods=['PUT'])
 @adminRequired
 def updateProduct(admin, id):
-    p = models.Product(**json_body())
-    p.id = id
-    api.update_product(p)
-    return jsonify(result='updated'), 200
+    data = json_body()
+    image_updated = False
 
+    if 'image' in data:
+        image = data['image']
+        filename = image.filename
+        if filename == '':
+            return jsonify({'message': 'Invalid product image'}), 401
+
+        if image:
+            end = filename.rsplit('.', 1)[1].lower() in ['png', 'jpg', 'jpeg']
+            dot = '.' in filename
+            if end and dot:
+                image.save(app.config['UPLOAD_DIR'] + filename)
+                image_updated = True
+            else:
+                return jsonify({'message': 'Invalid product image'}), 401
+
+        del data['image']
+
+    try:
+        product = models.Product(**data)
+        if image_updated:
+            product.image = filename
+        api.update_product(product)
+        return jsonify(result='updated'), 200
+
+    except:
+        return jsonify({'message': 'Could not update product'}), 401
 
 
 
@@ -461,7 +469,7 @@ def updateProduct(admin, id):
 @app.route('/purchases', methods=['GET'])
 @app.route('/purchases/<int:limit>', methods=['GET'])
 def listPurchases(limit=None):
-    return jsonify(list(map(to_dict, api.list_purchases(limit=limit))))
+    return jsonify(list(map(validation.to_dict, api.list_purchases(limit=limit))))
 
 
 # Insert purchase
@@ -474,7 +482,7 @@ def insertPurchase():
 # Get purchase
 @app.route('/purchase/<int:id>', methods=['GET'])
 def getPurchase(id):
-    return jsonify(to_dict(api.get_purchase(id)))
+    return jsonify(validation.to_dict(api.get_purchase(id)))
 
 
 # Update purchase
@@ -493,7 +501,7 @@ def updatePurchase(id):
 @app.route('/deposits', methods=['GET'])
 @app.route('/deposits/<int:limit>', methods=['GET'])
 def listDeposits(limit=None):
-    return jsonify(list(map(to_dict, api.list_deposits(limit=limit))))
+    return jsonify(list(map(validation.to_dict, api.list_deposits(limit=limit))))
 
 
 # Insert deposit
@@ -511,7 +519,7 @@ def insertDeposit(admin):
 # List payoffs
 @app.route('/payoffs', methods=['GET'])
 def list_payoffs():
-    return jsonify(list(map(to_dict, api.list_payoffs())))
+    return jsonify(list(map(validation.to_dict, api.list_payoffs())))
 
 
 # Insert payoff
@@ -536,7 +544,7 @@ def update_payoff(id):
 # List workactivities
 @app.route('/workactivities', methods=['GET'])
 def listWorkactivities():
-    return jsonify(list(map(to_dict, api.list_workactivities())))
+    return jsonify(list(map(validation.to_dict, api.list_workactivities())))
 
 
 # Insert workactivity
@@ -550,7 +558,7 @@ def insertWorkactivity(admin):
 # Get workactivity
 @app.route('/workactivity/<int:id>', methods=['GET'])
 def getWorkactivity(id):
-    return jsonify(to_dict(api.get_workactivity(id)))
+    return jsonify(validation.to_dict(api.get_workactivity(id)))
 
 
 # Update workactivity
@@ -589,7 +597,7 @@ def updateWorkactivity(admin, id):
 @app.route('/activities', methods=['GET'])
 @tokenOptional
 def listActivities(token):
-    activities = list(map(to_dict, api.list_activities()))
+    activities = list(map(validation.to_dict, api.list_activities()))
     if token:
         consumers = api.list_consumers()
 
@@ -612,7 +620,7 @@ def insertActivity(admin):
 # Get activity
 @app.route('/activity/<int:id>', methods=['GET'])
 def getActivity(id):
-    return jsonify(to_dict(api.get_activity(id)))
+    return jsonify(validation.to_dict(api.get_activity(id)))
 
 
 # Update activity
@@ -632,7 +640,7 @@ def updateActivity(admin, id):
 @app.route('/activityfeedback/<int:id>', methods=['GET'])
 @adminRequired
 def getActivityfeedback(admin, id):
-    activityfeedback = list(map(to_dict, api.get_activityfeedback(id=id)))
+    activityfeedback = list(map(validation.to_dict, api.get_activityfeedback(id=id)))
     return jsonify(activityfeedback)
 
 
@@ -650,7 +658,7 @@ def insertActivityfeedback():
 @app.route('/departmentpurchases/<int:id>', methods=['GET'])
 @adminRequired
 def list_departmentpurchases(admin, id):
-    res = list(map(to_dict, api.list_departmentpurchases(department_id=id)))
+    res = list(map(validation.to_dict, api.list_departmentpurchases(department_id=id)))
     return jsonify(res)
 
 

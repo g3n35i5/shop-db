@@ -19,7 +19,7 @@ class BackendTestCase(BaseTestCase):
                                   comment="bought with karma")
             self.api.insert_purchase(pur)
 
-        top = self.api.get_top_products(2)
+        top = self.api.get_top_products(department_id=2, num_products=2)
         self.assertEqual(len(top), 2)
         self.assertEqual(top[0][0], 1)
         self.assertEqual(top[0][1], 3)
@@ -37,27 +37,27 @@ class BackendTestCase(BaseTestCase):
         self.assertTrue(consumer.active)
 
         # missing fields
-        with self.assertRaises(FieldIsNone):
+        with self.assertRaises(exc.FieldIsNone):
             c = models.Consumer()
             self.api.insert_consumer(c)
 
         # insert wrong types
-        with self.assertRaises(WrongType):
+        with self.assertRaises(exc.WrongType):
             c = models.Consumer(name=2)
 
         # id should be forbidden
         c = models.Consumer(id=13, name='Hans')
-        with self.assertRaises(ForbiddenField):
+        with self.assertRaises(exc.ForbiddenField):
             self.api.insert_consumer(c)
 
         # credit should be forbidden
         c = models.Consumer(name='Hans', credit=12)
-        with self.assertRaises(ForbiddenField):
+        with self.assertRaises(exc.ForbiddenField):
             self.api.insert_consumer(c)
 
         # duplicate names should be rejected
         c = models.Consumer(name='Hans Müller')
-        with self.assertRaises(DuplicateObject):
+        with self.assertRaises(exc.DuplicateObject):
             self.api.insert_consumer(c)
 
     def test_update_consumer(self):
@@ -84,13 +84,13 @@ class BackendTestCase(BaseTestCase):
         self.api.update_consumer(consumer)
 
         c = models.Consumer(id=1, credit=1337)
-        with self.assertRaises(ForbiddenField):
+        with self.assertRaises(exc.ForbiddenField):
             self.api.update_consumer(c)
         consumer = self.api.get_consumer(id=1)
         self.assertEqual(consumer.credit, 0)
 
         c = models.Consumer(active=False)
-        with self.assertRaises(FieldIsNone):
+        with self.assertRaises(exc.FieldIsNone):
             self.api.update_consumer(c)
 
     def test_departmentpurchase(self):
@@ -150,7 +150,7 @@ class BackendTestCase(BaseTestCase):
         department = self.api.get_department(id=1)
         self.assertEqual(department.expenses, 0)
 
-        with self.assertRaises(CanOnlyBeRevokedOnce):
+        with self.assertRaises(exc.CanOnlyBeRevokedOnce):
             p = models.Payoff(id=1, revoked=True)
             self.api.update_payoff(p)
 
@@ -211,29 +211,29 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(product.stock, 0)
 
         # missing fields
-        with self.assertRaises(FieldIsNone):
+        with self.assertRaises(exc.FieldIsNone):
             p = models.Product(name='Test 1', price=250)
             self.api.insert_product(p)
 
         # insert wrong types
-        with self.assertRaises(WrongType):
+        with self.assertRaises(exc.WrongType):
             p = models.Product(name=2, countable=True,
                                price=100, department_id=1, revocable=True)
 
         # product.id should be forbidden
         p = models.Product(id=10, name='Test 1', countable=True,
                            price=100, department_id=1, revocable=True)
-        with self.assertRaises(ForbiddenField):
+        with self.assertRaises(exc.ForbiddenField):
             self.api.insert_product(p)
 
         # duplicate names should be rejected
         p = models.Product(name='Test 1', countable=True,
                            price=100, department_id=1, revocable=True)
-        with self.assertRaises(DuplicateObject):
+        with self.assertRaises(exc.DuplicateObject):
             self.api.insert_product(p)
 
     def test_adminroles(self):
-        consumer = self.api.get_consumer(id=1)
+        consumer = self.api.get_consumer(id=3)
         department = self.api.get_department(id=1)
 
         # Make sure, that the consumer is no admin
@@ -241,7 +241,7 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(len(adminroles), 0)
 
         # Make sure, that the consumer needs email and password to be admin
-        with self.assertRaises(ConsumerNeedsCredentials):
+        with self.assertRaises(exc.ConsumerNeedsCredentials):
                 self.api.setAdmin(consumer, department, True)
 
         # Update the consumer, so he can be admin
@@ -250,7 +250,7 @@ class BackendTestCase(BaseTestCase):
         upconsumer.password = 'supersecretpassword'.encode()
 
         self.api.update_consumer(upconsumer)
-        consumer = self.api.get_consumer(id=1)
+        consumer = self.api.get_consumer(id=3)
 
         # Make consumer admin for department 1
         self.api.setAdmin(consumer, department, True)
@@ -281,6 +281,7 @@ class BackendTestCase(BaseTestCase):
         products = self.api.list_products()
         self.assertIs(type(products), list)
         self.assertEqual(len(products), 3)
+
         # Coffee
         self.assertEqual(products[0].name, 'Coffee')
         self.assertEqual(products[0].price, 25)
@@ -328,7 +329,7 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(departments[1].expenses, 0)
         self.assertEqual(departments[2].expenses, 0)
 
-        with self.assertRaises(CanOnlyBeRevokedOnce):
+        with self.assertRaises(exc.CanOnlyBeRevokedOnce):
             self.api.update_payoff(p)
 
         departments = self.api.list_departments()
@@ -357,18 +358,19 @@ class BackendTestCase(BaseTestCase):
 
         # test with wrong foreign_key consumer_id
         dep2 = models.Deposit(consumer_id=5, amount=240, comment="testcomment")
-        with self.assertRaises(ForeignKeyNotExisting):
+        with self.assertRaises(exc.ForeignKeyNotExisting):
             self.api.insert_deposit(dep2)
 
         # deposit.id should be forbidden
-        dep3 = models.Deposit(consumer_id=2, amount=20, id=12, comment="testcomment")
-        with self.assertRaises(ForbiddenField):
+        dep3 = models.Deposit(consumer_id=2, amount=20,
+                              id=12, comment="testcomment")
+        with self.assertRaises(exc.ForbiddenField):
             self.api.insert_deposit(dep3)
 
         # deposit.timestamp should be forbidden
         dep4 = models.Deposit(consumer_id=2, amount=20, comment="testcomment",
-                       timestamp=datetime.datetime.now())
-        with self.assertRaises(ForbiddenField):
+                              timestamp=datetime.datetime.now())
+        with self.assertRaises(exc.ForbiddenField):
             self.api.insert_deposit(dep3)
 
     def test_insert_purchase(self):
@@ -480,7 +482,7 @@ class BackendTestCase(BaseTestCase):
         # test with wrong foreign key consumer_id
         pur4 = models.Purchase(consumer_id=5, product_id=1, amount=1,
                                comment="purchase done by unittest")
-        with self.assertRaises(ForeignKeyNotExisting):
+        with self.assertRaises(exc.ForeignKeyNotExisting):
             self.api.insert_purchase(pur4)
 
         # no new purchase should have been created
@@ -489,7 +491,7 @@ class BackendTestCase(BaseTestCase):
         # test with wrong foreign key product_id
         pur5 = models.Purchase(consumer_id=1, product_id=4, amount=1,
                                comment="purchase done by unittest")
-        with self.assertRaises(ForeignKeyNotExisting):
+        with self.assertRaises(exc.ForeignKeyNotExisting):
             self.api.insert_purchase(pur5)
 
         # no new purchase should have been created
@@ -502,7 +504,7 @@ class BackendTestCase(BaseTestCase):
         # purchase.id should be forbidden
         pur6 = models.Purchase(consumer_id=1, product_id=1, id=1337, amount=1,
                                comment="purchase done by unittest")
-        with self.assertRaises(ForbiddenField):
+        with self.assertRaises(exc.ForbiddenField):
             self.api.insert_purchase(pur6)
 
         # purchase.paid_base_price_per_product and paid_karma_per_product
@@ -512,20 +514,20 @@ class BackendTestCase(BaseTestCase):
                                paid_karma_per_product=200,
                                amount=1,
                                comment="purchase done by unittest")
-        with self.assertRaises(ForbiddenField):
+        with self.assertRaises(exc.ForbiddenField):
             self.api.insert_purchase(pur7)
 
         # purchase.revoked should be forbidden
         pur8 = models.Purchase(consumer_id=1, product_id=1, revoked=True,
                                amount=1, comment="purchase done by unittest")
-        with self.assertRaises(ForbiddenField):
+        with self.assertRaises(exc.ForbiddenField):
             self.api.insert_purchase(pur8)
 
         # purchase.revoked should be forbidden
         pur9 = models.Purchase(consumer_id=1, product_id=1, amount=1,
                                timestamp=datetime.datetime.now(),
                                comment="purchase done by unittest")
-        with self.assertRaises(ForbiddenField):
+        with self.assertRaises(exc.ForbiddenField):
             self.api.insert_purchase(pur9)
 
     def test_inventory_system(self):
@@ -545,7 +547,9 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(p.stock, 0)
 
         for i in range(1, 3):
-            pur = models.Purchase(id=i, revoked=True, comment='revoking purchase')
+            pur = models.Purchase(id=i,
+                                  revoked=True,
+                                  comment='revoking purchase')
             self.api.update_purchase(pur)
 
         p = self.api.get_product(id=1)
@@ -561,7 +565,7 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(p.stock, None)
 
         pur = models.Purchase(consumer_id=1, product_id=4,
-                       amount=5, comment='testing inventory')
+                              amount=5, comment='testing inventory')
 
         p = self.api.get_product(id=4)
         self.assertEqual(p.stock, None)
@@ -630,7 +634,7 @@ class BackendTestCase(BaseTestCase):
         self.assertTrue(pur2.revoked)
 
         # do it twice to check whether it's indeponent
-        with self.assertRaises(CanOnlyBeRevokedOnce):
+        with self.assertRaises(exc.CanOnlyBeRevokedOnce):
             self.api.update_purchase(pur)
 
         # check if the consumers credit has increased
@@ -660,7 +664,7 @@ class BackendTestCase(BaseTestCase):
 
         # revoke purchase and update comment
         pur = models.Purchase(id=2, revoked=True, comment="this should fail")
-        with self.assertRaises(NotRevocable):
+        with self.assertRaises(exc.NotRevocable):
             self.api.update_purchase(pur)
 
         consumer = self.api.get_consumer(id=1)
@@ -699,34 +703,34 @@ class BackendTestCase(BaseTestCase):
 
         # test update without id
         prod6 = models.Product(name="Rafaelo")
-        with self.assertRaises(FieldIsNone):
+        with self.assertRaises(exc.FieldIsNone):
             self.api.update_product(prod6)
         # this should still be the same as before
         check_product('Mars', -10, False, 10, 2)
 
         # test update with unknown id
         prod7 = models.Product(id=5, name="Rafaelo")
-        with self.assertRaises(ObjectNotFound):
+        with self.assertRaises(exc.ObjectNotFound):
             self.api.update_product(prod7)
         # this should still be the same as before
         check_product('Mars', -10, False, 10, 2)
 
         # test update with duplicate name
         prod8 = models.Product(id=1, name="Pizza")
-        with self.assertRaises(DuplicateObject):
+        with self.assertRaises(exc.DuplicateObject):
             self.api.update_product(prod8)
         # this should still be the same as before
         check_product('Mars', -10, False, 10, 2)
 
     def test_activities(self):
-        ## create and test workactivities
+        # create and test workactivities
         workactivities = self.api.list_workactivities()
         self.assertEqual(len(workactivities), 0)
 
         workactivity = models.Workactivity(name="Getränke schleppen")
         self.api.insert_workactivity(workactivity)
 
-        with self.assertRaises(DuplicateObject):
+        with self.assertRaises(exc.DuplicateObject):
             self.api.insert_workactivity(workactivity)
 
         workactivities = self.api.list_workactivities()
@@ -745,7 +749,7 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(workactivities[0].name, "Getränke hoch schleppen")
         self.assertEqual(workactivities[1].name, "Skripte binden")
 
-        ## create and test activities
+        # create and test activities
         activities = self.api.list_activities()
         self.assertEqual(len(activities), 0)
 
@@ -772,9 +776,10 @@ class BackendTestCase(BaseTestCase):
         activities = self.api.list_activities()
         self.assertEqual(len(activities), 2)
 
-        activity = models.Activity(id=1, date_event=date2 + datetime.timedelta(days=1))
-        self.api.update_activity(activity)
+        delta = datetime.timedelta(days=1)
 
+        activity = models.Activity(id=1, date_event=date2 + delta)
+        self.api.update_activity(activity)
 
         # test activityfeedback
 
@@ -798,18 +803,14 @@ class BackendTestCase(BaseTestCase):
         activityfeedbacks = self.api.get_activityfeedback(activity_id=1,
                                                           list_all=True)
 
-
         activityfeedback = models.Activityfeedback(consumer_id=2,
                                                    activity_id=1,
                                                    feedback=True)
 
         self.api.insert_activityfeedback(activityfeedback)
 
-
         activityfeedbacks = self.api.get_activityfeedback(activity_id=1,
                                                           list_all=True)
-
-
 
         self.assertEqual(len(activityfeedbacks), 4)
         self.assertEqual(len(activityfeedbacks[1]), 2)
@@ -840,5 +841,5 @@ class BackendTestCase(BaseTestCase):
                                                    activity_id=3,
                                                    feedback=False)
 
-        with self.assertRaises(InvalidDates):
+        with self.assertRaises(exc.InvalidDates):
             self.api.insert_activityfeedback(activityfeedback)

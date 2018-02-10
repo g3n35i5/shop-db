@@ -4,6 +4,7 @@ This file contains the backend configuration for flask and shop-db itself
 '''
 import os.path
 
+
 class BaseConfig(object):
     SECRET_KEY = 'supersecretkey'
     __path = os.path.dirname(__file__)
@@ -16,10 +17,12 @@ class BaseConfig(object):
     PORT = 5000
     USE_KARMA = False
 
+
 class DevelopmentConfig(BaseConfig):
     DEBUG = True
     TEST = True
 
-class UnittestConfig(DevelopmentConfig):
+
+class UnittestConfig(BaseConfig):
     DATABASE_URI = ':memory:'
     PRESERVE_CONTEXT_ON_EXCEPTION = False
