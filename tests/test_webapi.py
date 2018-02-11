@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from flask import json
+import jwt
 import sys
 import pdb
 import copy
@@ -45,6 +46,47 @@ class WebapiTestCase(BaseTestCase):
     def test_get_index(self):
         data = json.loads(self.client.get('/').data)
         self.assertEqual(data['types'], ['resource-not-found'])
+
+    def test_fake_admin(self):
+        # Authentication as actual admin
+        res = self.login(self.consumeremails[0], self.consumerpasswords[0])
+        data = json.loads(res.data)
+        baktoken_encoded = data['token']
+        baktoken = jwt.decode(baktoken_encoded, self.app.config['SECRET_KEY'])
+
+        # Manipulate id of admin
+        token = baktoken.copy()
+        token['admin']['id'] = 42
+
+        headers = {
+            'content-type': 'application/json',
+            'token': token
+        }
+        data = {'amount': 100, 'consumer_id': 1, 'comment': 'should not work'}
+        res = self.client.post('/deposits', data=json.dumps(data),
+                               headers=headers)
+        self.assertEqual(res.status_code, 401)
+
+        # Try fake token
+        headers = {
+            'content-type': 'application/json',
+            'token': 'i am not a valid token'.encode()
+        }
+        data = {'amount': 100, 'consumer_id': 1, 'comment': 'should not work'}
+        res = self.client.post('/deposits', data=json.dumps(data),
+                               headers=headers)
+        self.assertEqual(res.status_code, 401)
+
+        # Try corrupt token
+        token = baktoken_encoded + 'strange tail'
+        headers = {
+            'content-type': 'application/json',
+            'token': token
+        }
+        data = {'amount': 100, 'consumer_id': 1, 'comment': 'should not work'}
+        res = self.client.post('/deposits', data=json.dumps(data),
+                               headers=headers)
+        self.assertEqual(res.status_code, 401)
 
     def test_list_consumers(self):
         consumers = json.loads(self.client.get('/consumers').data)
