@@ -39,7 +39,6 @@ class WebapiTestCase(BaseTestCase):
         headers = {'content-type': 'application/json'}
         if role in ['admin', 'consumer']:
             headers['token'] = json.loads(res.data)['token']
-            headers[role] = json.loads(res.data)[role]
 
         return self.client.post(url, data=json.dumps(data), headers=headers)
 
@@ -247,8 +246,9 @@ class WebapiTestCase(BaseTestCase):
         data = json.loads(res.data)
 
         assert 'token' in data
-        assert 'admin' in data
-        assert 'consumer' not in data
+        token = jwt.decode(data['token'], self.app.config['SECRET_KEY'])
+        assert 'admin' in token
+        assert 'consumer' not in token
 
         # Login consumer which is not an administrator
         res = self.login(self.consumeremails[1], self.consumerpasswords[1])
@@ -256,5 +256,6 @@ class WebapiTestCase(BaseTestCase):
         data = json.loads(res.data)
 
         assert 'token' in data
-        assert 'admin' not in data
-        assert 'consumer' in data
+        token = jwt.decode(data['token'], self.app.config['SECRET_KEY'])
+        assert 'admin' not in token
+        assert 'consumer' in token

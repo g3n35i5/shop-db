@@ -207,7 +207,6 @@ def login():
 
     result = {}
     result['result'] = True
-    result[_type] = consumer
     result['token'] = token.decode('UTF-8')
 
     return jsonify(result)
