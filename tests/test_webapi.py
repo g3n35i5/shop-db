@@ -176,6 +176,12 @@ class WebapiTestCase(BaseTestCase):
         res = self.post('/products', data, 'admin')
         self.assertException(res, exc.UnknownField)
 
+        # Test foreign key
+        data = b_data.copy()
+        data['department_id'] = 42
+        res = self.post('/products', data, 'admin')
+        self.assertException(res, exc.ForeignKeyNotExisting)
+
         # Test duplicate object
         data = b_data.copy()
         product = self.api.get_product(id=1)
