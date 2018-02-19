@@ -430,35 +430,10 @@ def getProduct(id):
 @app.route('/product/<int:id>', methods=['PUT'])
 @adminRequired
 def updateProduct(admin, id):
-    data = json_body()
-    image_updated = False
-
-    if 'image' in data:
-        image = data['image']
-        filename = image.filename
-        if filename == '':
-            return jsonify({'message': 'Invalid product image'}), 401
-
-        if image:
-            end = filename.rsplit('.', 1)[1].lower() in ['png', 'jpg', 'jpeg']
-            dot = '.' in filename
-            if end and dot:
-                image.save(app.config['UPLOAD_DIR'] + filename)
-                image_updated = True
-            else:
-                return jsonify({'message': 'Invalid product image'}), 401
-
-        del data['image']
-
-    try:
-        product = models.Product(**data)
-        if image_updated:
-            product.image = filename
-        api.update_product(product)
-        return jsonify(result='updated'), 200
-
-    except:
-        return jsonify({'message': 'Could not update product'}), 401
+    p = models.Product(**json_body())
+    p.id = id
+    api.update_product(p)
+    return jsonify(result='updated'), 200
 
 
 
