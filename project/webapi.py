@@ -487,7 +487,7 @@ def getPurchase(id):
 # Update purchase
 @app.route('/purchases/<int:id>', methods=['PUT'])
 def updatePurchase(id):
-    p = Purchase(**json_body())
+    p = models.Purchase(**json_body())
     p.id = id
     api.update_purchase(p)
     return jsonify(result='updated'), 200
