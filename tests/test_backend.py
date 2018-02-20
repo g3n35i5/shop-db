@@ -142,7 +142,7 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(departments[2].expenses, 0)
 
         # Revoke deposit in order to "revoke" departmentpurchase
-        p = models.Payoff(id=1, revoked=True)
+        p = models.Payoff(id=1, revoked=True, admin_id=1)
         self.api.update_payoff(p)
 
         departments = self.api.list_departments()
@@ -308,24 +308,80 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(products[2].stock, 0)
 
     def test_create_payoff(self):
+
+        # Check bank balance
+        bank = self.api.get_bank()
+        self.assertEqual(bank.credit, 0)
+
+        # Check department expenses
         departments = self.api.list_departments()
         self.assertEqual(departments[0].expenses, 0)
         self.assertEqual(departments[1].expenses, 0)
         self.assertEqual(departments[2].expenses, 0)
-        bank = self.api.get_bank()
-        self.assertEqual(bank.credit, 0)
 
-        p = models.Payoff(department_id=1, amount=2000, comment="payoff test")
-        self.api.insert_payoff(p)
+        # Check payoffs
+        payoffs = self.api.list_payoffs()
+        self.assertEqual(len(payoffs), 0)
+
+        # Make consumer 2 administrator for department 2
+        upconsumer = models.Consumer(id=2)
+        upconsumer.email = 'me@example.com'
+        upconsumer.password = 'supersecretpassword'.encode()
+        self.api.update_consumer(upconsumer)
+        consumer = self.api.get_consumer(upconsumer.id)
+        self.api.setAdmin(consumer, departments[1], True)
+
+        # Check consumer admin states
+        consumers = self.api.list_consumers()
+        self.assertEqual(len(consumers), 4)
+        self.assertTrue(consumers[0].isAdmin)
+        self.assertTrue(consumers[1].isAdmin)
+        self.assertFalse(consumers[2].isAdmin)
+        self.assertFalse(consumers[3].isAdmin)
+
+        # Check adminroles of consumer 1
+        adminroles = self.api.getAdminroles(consumers[0])
+        self.assertEqual(len(adminroles), 1)
+        self.assertEqual(adminroles[0].consumer_id, consumers[0].id)
+        self.assertEqual(adminroles[0].department_id, departments[0].id)
+
+        # Check adminroles of consumer 2
+        adminroles = self.api.getAdminroles(consumers[1])
+        self.assertEqual(len(adminroles), 1)
+        self.assertEqual(adminroles[0].consumer_id, consumers[1].id)
+        self.assertEqual(adminroles[0].department_id, departments[1].id)
+
+        # Consumer No. 1 is administrator for department 1 and should
+        # therefore be able to insert a payoff
+        payoff_1 = models.Payoff(department_id=1, comment='Should work',
+                                 amount=10000, admin_id=1)
+        self.api.insert_payoff(payoff_1)
+
+        # Now it is necessary to check whether even a payoff and an admin
+        # event have been created and whether all values are set correctly.
+        payoffs = self.api.list_payoffs()
+        self.assertEqual(len(payoffs), 1)
+        self.assertEqual(payoffs[0].department_id, payoff_1.department_id)
+        self.assertEqual(payoffs[0].comment, payoff_1.comment)
+        self.assertEqual(payoffs[0].amount, payoff_1.amount)
+
+        # Check bank balance
         bank = self.api.get_bank()
-        self.assertEqual(bank.credit, -2000)
+        self.assertEqual(bank.credit, -10000)
+
+        # Check that the expenses of the departments are correct
         departments = self.api.list_departments()
-        self.assertEqual(departments[0].expenses, 2000)
+        self.assertEqual(departments[0].expenses, 10000)
         self.assertEqual(departments[1].expenses, 0)
         self.assertEqual(departments[2].expenses, 0)
 
+        # Try to set revoke to false, this should fail
+        p = models.Payoff(id=1, revoked=False, admin_id=1)
+        with self.assertRaises(exc.NothingHasChanged):
+            self.api.update_payoff(p)
+
         # revoke payoff
-        p = models.Payoff(id=1, revoked=True)
+        p = models.Payoff(id=1, revoked=True, admin_id=1)
         self.api.update_payoff(p)
 
         bank = self.api.get_bank()
@@ -336,6 +392,16 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(departments[2].expenses, 0)
 
         with self.assertRaises(exc.CanOnlyBeRevokedOnce):
+            self.api.update_payoff(p)
+
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 0)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
+
+        # Try to un-revoke payoff, this should fail
+        p = models.Payoff(id=1, revoked=False, admin_id=1)
+        with self.assertRaises(exc.RevokeIsFinal):
             self.api.update_payoff(p)
 
         departments = self.api.list_departments()

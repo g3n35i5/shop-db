@@ -881,15 +881,20 @@ class DatabaseApi(object):
 
     def update_payoff(self, payoff):
         self._assert_mandatory_fields(payoff, ['id'])
-        self._assert_forbidden_fields(
-            payoff, ['department_id',
-                     'amount']
-        )
-
-        if payoff.revoked is None or not payoff.revoked:
-            return
+        self._assert_forbidden_fields(payoff, ['department_id',
+                                               'amount'])
 
         apipayoff = self.get_payoff(payoff.id)
+
+        if payoff.revoked is not None:
+            if not payoff.revoked:
+                if apipayoff.revoked:
+                    raise exc.RevokeIsFinal()
+                else:
+                    raise exc.NothingHasChanged()
+        else:
+            raise exc.NothingHasChanged()
+
         if apipayoff.revoked:
             raise exc.CanOnlyBeRevokedOnce()
 

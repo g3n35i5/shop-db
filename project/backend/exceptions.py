@@ -37,6 +37,12 @@ class InputException(Exception):
         self.info = kwargs
 
 
+class NothingHasChanged(InputException):
+
+    def __init__(self):
+        InputException.__init__(self)
+
+
 class ObjectNotFound(InputException):
 
     def __init__(self):
@@ -140,6 +146,12 @@ class DuplicateObject(FieldBasedException):
 
 
 class CanOnlyBeRevokedOnce(FieldBasedException):
+
+    def __init__(self):
+        FieldBasedException.__init__(self, 'revoked')
+
+
+class RevokeIsFinal(FieldBasedException):
 
     def __init__(self):
         FieldBasedException.__init__(self, 'revoked')
@@ -263,5 +275,18 @@ exception_mapping = {
                   "field-based-exception",
                   "can-only-be-revoked-once"],
         "code": 400
+    },
+    RevokeIsFinal:
+    {
+        "types": ["input-exception",
+                  "field-based-exception",
+                  "revoke-is-final"],
+        "code": 400
+    },
+    NothingHasChanged:
+    {
+        "types": ["input-exception",
+                  "nothing-has-changed"],
+        "code": 200
     }
 }

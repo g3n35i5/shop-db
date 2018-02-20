@@ -102,6 +102,7 @@ class Payoff(ValidatableObject):
     _tablename = 'payoffs'
     _validators = {
         'id': [Type(int)],
+        'admin_id': [Type(int)],
         'department_id': [Type(int)],
         'departmentpurchase_id': [SkipIfNone(Type(int))],
         'comment': [Type(str), MaxLength(64), MinLength(8)],
