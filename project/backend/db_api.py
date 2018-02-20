@@ -158,7 +158,6 @@ class DatabaseApi(object):
         params = []
         query_parts = []
         log_string = []
-
         for field in updateable_fields:
             if getattr(object, field) is None:
                 continue
@@ -177,8 +176,6 @@ class DatabaseApi(object):
         if res1.rowcount != 1:
             self.con.rollback()
             raise exc.ObjectNotFound
-            raise ObjectNotFound()
-
         for change in log_string:
             change.replace("True", "1")
             change.replace("False", "0")
