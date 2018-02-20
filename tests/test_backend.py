@@ -28,13 +28,19 @@ class BackendTestCase(BaseTestCase):
 
     def test_insert_consumer(self):
         # insert correctly
-        c = models.Consumer(name='Hans Müller')
+        c = models.Consumer(name='Hans Müller', email='me@example.com')
         self.api.insert_consumer(c)
         consumer = self.api.get_consumer(id=5)
         self.assertEqual(consumer.name, 'Hans Müller')
+        self.assertEqual(consumer.email, 'me@example.com')
         self.assertEqual(consumer.credit, 0)
         self.assertEqual(consumer.karma, 0)
         self.assertTrue(consumer.active)
+
+        # insert second consumer
+        c = models.Consumer(name='Peter Meier', email='me@example.com')
+        with self.assertRaises(exc.DuplicateObject):
+            self.api.insert_consumer(c)
 
         # missing fields
         with self.assertRaises(exc.FieldIsNone):
