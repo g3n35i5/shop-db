@@ -74,7 +74,7 @@ class DatabaseApi(object):
                 res = cur.execute(
                     'SELECT 1 FROM {} WHERE {}=?;'.format(
                         table, field_name),
-                    (getattr(object, field_name),)
+                    (getattr(object, field_name), )
                 )
 
             if res.fetchone() is not None:
@@ -286,6 +286,7 @@ class DatabaseApi(object):
             product, ['name', 'countable', 'price',
                       'department_id', 'revocable']
         )
+
         self._assert_forbidden_fields(product, ['id', 'active', 'stock'])
         self._check_uniqueness(product, 'products', ['name'])
         self._check_foreign_key(product, 'department_id', 'departments')
