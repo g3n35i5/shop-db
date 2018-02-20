@@ -9,6 +9,7 @@ import datetime
 from base import BaseTestCase
 
 import project.backend.exceptions as exc
+import project.backend.models as models
 
 
 class WebapiTestCase(BaseTestCase):
@@ -56,7 +57,7 @@ class WebapiTestCase(BaseTestCase):
         elif _type == 'put':
             res = self.client.put(url, data=json.dumps(data), headers=headers)
         elif _type == 'get':
-            res = self.client.put(url, data=json.dumps(data), headers=headers)
+            res = self.client.get(url, data=json.dumps(data), headers=headers)
         else:
             sys.exit('Wrong request type: {}'.format(_type))
 
@@ -119,6 +120,59 @@ class WebapiTestCase(BaseTestCase):
                                headers=headers)
         self.assertException(res, exc.TokenInvalid)
 
+    def test_list_departments(self):
+        # List departments without token
+        res = self.get('/departments', 'extern')
+        departments = json.loads(res.data)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(departments), 3)
+        for department in departments:
+            assert 'id' in department
+            assert 'name' in department
+            assert 'income_base' not in department
+            assert 'income_karma' not in department
+            assert 'expenses' not in department
+            assert 'budget' not in department
+
+        # List departments with token
+        res = self.get('/departments', 'consumer')
+        departments = json.loads(res.data)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(departments), 3)
+        for department in departments:
+            assert 'id' in department
+            assert 'name' in department
+            assert 'income_base' in department
+            assert 'income_karma' in department
+            assert 'expenses' in department
+            assert 'budget' in department
+
+    def test_get_department_statistics(self):
+        departments = self.api.list_departments()
+        for department in departments:
+            # Get without token, should fail
+            res = self.get('/department/{}/statistics'.format(department.id),
+                           'extern')
+            self.assertException(res, exc.TokenMissing)
+
+            # Get as consumer, should fail
+            res = self.get('/department/{}/statistics'.format(department.id),
+                           'consumer')
+            self.assertException(res, exc.NotAuthorized)
+
+            # Get as admin, should not fail
+            res = self.get('/department/{}/statistics'.format(department.id),
+                           'admin')
+            self.assertEqual(res.status_code, 200)
+            stats = json.loads(res.data)
+            assert 'department_id' in stats
+            assert 'purchase_times' in stats
+            assert 'top_products' in stats
+
+            self.assertEqual(stats['department_id'], department.id)
+            self.assertEqual(type(stats['purchase_times']), dict)
+            self.assertEqual(type(stats['top_products']), list)
+
     def test_list_consumers(self):
         consumers = json.loads(self.client.get('/consumers').data)
         self.assertEqual(len(consumers), 4)
@@ -138,6 +192,33 @@ class WebapiTestCase(BaseTestCase):
         for consumer in consumers:
             assert 'email' in consumer
             assert 'credit' in consumer
+
+    def test_consumer_favorite_products(self):
+        res = self.get('/consumer/1/favorites', 'extern')
+        self.assertEqual(res.status_code, 200)
+        favorites = json.loads(res.data)
+        self.assertEqual(type(favorites), list)
+        self.assertEqual(len(favorites), 0)
+
+        # Buy 3 product, 2 x product 1 and 1 x product 1
+        purchase = models.Purchase(consumer_id=1, product_id=1, amount=1,
+                                   comment='Testpurchase')
+        self.api.insert_purchase(purchase)
+
+        purchase = models.Purchase(consumer_id=1, product_id=1, amount=1,
+                                   comment='Testpurchase')
+        self.api.insert_purchase(purchase)
+
+        purchase = models.Purchase(consumer_id=1, product_id=2, amount=1,
+                                   comment='Testpurchase')
+        self.api.insert_purchase(purchase)
+
+        res = self.get('/consumer/1/favorites', 'extern')
+        self.assertEqual(res.status_code, 200)
+        favorites = json.loads(res.data)
+        self.assertEqual(type(favorites), list)
+        self.assertEqual(len(favorites), 2)
+        self.assertEqual(favorites[0]['product_id'], 1)
 
     def test_insert_purchase(self):
         purchases = self.api.list_purchases()
