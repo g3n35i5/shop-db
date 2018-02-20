@@ -56,7 +56,13 @@ class FieldBasedException(InputException):
 
 
 class InvalidJSON(InputException):
-    pass
+    def __init__(self):
+        InputException.__init__(self)
+
+
+class MissingData(InputException):
+    def __init__(self):
+        InputException.__init__(self)
 
 
 class WrongType(FieldBasedException):
@@ -164,6 +170,12 @@ class NotRevocable(FieldBasedException):
 
 
 exception_mapping = {
+    MissingData:
+    {
+        "types": ["input-exception",
+                  "missing-data"],
+        "code": 400
+    },
     NotAuthorized:
     {
         "types": ["authentication-exception",

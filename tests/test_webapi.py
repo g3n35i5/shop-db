@@ -62,9 +62,17 @@ class WebapiTestCase(BaseTestCase):
 
         return res
 
+    def test_invalid_json(self):
+        res = self.post('/products', None, 'admin')
+        self.assertException(res, exc.InvalidJSON)
+
     def test_get_index(self):
         data = json.loads(self.client.get('/').data)
         self.assertEqual(data['types'], ['resource-not-found'])
+
+    def test_get_status(self):
+        data = json.loads(self.client.get('/status').data)
+        self.assertTrue(data['result'])
 
     def test_token_expired(self):
         # TODO: Expire Token!
@@ -420,9 +428,19 @@ class WebapiTestCase(BaseTestCase):
         self.assertEqual(len(products), 3)
 
     def test_login(self):
-        # Test wrong credentials
+        # Test wrong password
+        res = self.login(self.consumeremails[0], 'wrong password')
+        self.assertException(res, exc.NotAuthorized)
+
+        # Test non existing mail
         res = self.login('me@test.com', 'this is not the correct password')
-        self.assertEqual(res.status_code, 401)
+        self.assertException(res, exc.ObjectNotFound)
+
+        # Test without mail adress
+        res = self.client.post('/login',
+                               data=json.dumps({'password': 'Test'}),
+                               headers={'content-type': 'application/json'})
+        self.assertException(res, exc.MissingData)
 
         # Test correct credentials of an administrator
         res = self.login(self.consumeremails[0], self.consumerpasswords[0])

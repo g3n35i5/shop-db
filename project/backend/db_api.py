@@ -656,8 +656,9 @@ class DatabaseApi(object):
                     models.Consumer._tablename), (email, )
                     )
         res = cur.fetchall()
-        if res is None or len(res) > 1:
+        if res is None or len(res) > 1 or len(res) == 0:
             raise exc.ObjectNotFound()
+
         return res[0]
 
     def get_activityfeedback(self, activity_id, list_all=False):
