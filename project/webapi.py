@@ -503,6 +503,7 @@ def list_payoffs():
 @app.route('/payoff', methods=['POST'])
 @adminRequired
 def insertPayoff(admin):
+    # TODO check responsible
     api.insert_payoff(models.Payoff(**json_body()))
     return jsonify(result='created'), 201
 
