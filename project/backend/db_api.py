@@ -380,15 +380,15 @@ class DatabaseApi(object):
 
         self._assert_mandatory_fields(payoff, ['department_id',
                                                'amount',
-                                               'comment'])
-        self._assert_forbidden_fields(
-            payoff, ['id', 'timestamp', 'revoked']
-        )
+                                               'comment',
+                                               'admin_id'])
+        self._assert_forbidden_fields(payoff, ['id', 'revoked'])
 
         payoff.timestamp = datetime.datetime.now()
         payoff.revoked = False
 
         self._check_foreign_key(payoff, 'department_id', 'departments')
+        self._check_foreign_key(payoff, 'admin_id', 'consumers')
 
         cur.execute(
             'INSERT INTO payoffs('
@@ -430,6 +430,7 @@ class DatabaseApi(object):
                                                  'consumer_id',
                                                  'amount',
                                                  'comment'])
+
         self._assert_forbidden_fields(
             purchase, ['id', 'timestamp', 'revoked',
                        'paid_base_price_per_product',
