@@ -307,34 +307,53 @@ class DatabaseApi(object):
         )
         self.con.commit()
 
-    def insert_consumer(self, consumer):
-        cur = self.con.cursor()
+    def _insert_factory(mandatory=[], forbidden=[], unique=[],
+                        foreign_keys=[], pre_insert=None, optional_unique=[]):
+        def insert(self, obj):
+            self._assert_mandatory_fields(obj, mandatory)
+            self._assert_forbidden_fields(obj, forbidden)
+            self._check_uniqueness(obj, obj._tablename, unique)
+            for foreign_key, ref_table in foreign_keys:
+                self._check_foreign_key(obj, foreign_key, ref_table)
 
-        self._assert_mandatory_fields(
-            consumer, ['name'])
-        self._assert_forbidden_fields(consumer,
-                                      ['id', 'credit', 'active', 'karma'])
-        self._check_uniqueness(consumer, 'consumers', ['name'])
+            for oi in optional_unique:
+                if getattr(obj, oi) is not None:
+                    self._check_uniqueness(obj, obj._tablename, [oi])
 
-        if consumer.email is not None:
-            self._check_uniqueness(consumer, 'consumers', ['email'])
+            if pre_insert:
+                pre_insert(self, obj)
 
-        if consumer.studentnumber is not None:
-            self._check_uniqueness(consumer, 'consumers', ['studentnumber'])
+            query = 'INSERT INTO {} '.format(obj._tablename)
+            fields = []
+            values = []
+            for v in obj._validators:
+                if getattr(obj, v) is not None:
+                    fields.append(v)
+                    values.append(getattr(obj, v))
 
+            fields = ', '.join(fields)
+            _vals = ', '.join(['?']*len(values))
+
+            query += ' ({}) VALUES ({});'.format(fields, _vals)
+
+            cur = self.con.cursor()
+            cur.execute(query, values)
+            self.con.commit()
+
+        return insert
+
+    def _insert_consumer(self, consumer):
         consumer.credit = 0
         consumer.active = True
         consumer.karma = 0
 
-        cur.execute(
-            'INSERT INTO consumers '
-            '(name, active, credit, karma, email, password, studentnumber) '
-            'VALUES (?,?,?,?,?,?,?);',
-            (consumer.name, consumer.active, consumer.credit,
-             consumer.karma, consumer.email, consumer.password,
-             consumer.studentnumber)
-        )
-        self.con.commit()
+    insert_consumer = _insert_factory(
+        mandatory=['name'],
+        forbidden=['id', 'credit', 'active', 'karma'],
+        unique=['name'],
+        pre_insert=_insert_consumer,
+        optional_unique=['email', 'studentnumber']
+    )
 
     def insert_department(self, department):
         cur = self.con.cursor()
