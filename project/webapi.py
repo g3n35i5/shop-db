@@ -38,13 +38,6 @@ def set_app(configuration):
     return app, api
 
 
-def get_api():
-    DB_URI = app.config['DATABASE_URI']
-    db = sqlite3.connect(DB_URI, detect_types=sqlite3.PARSE_DECLTYPES)
-    api = DatabaseApi(db, app.config)
-    return api
-
-
 @app.teardown_appcontext
 def teardown_db(exception):
     db = getattr(g, '_database', None)
