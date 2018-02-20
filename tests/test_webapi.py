@@ -238,7 +238,7 @@ class WebapiTestCase(BaseTestCase):
         self.assertFalse(deposits)
         data = {'amount': 100, 'consumer_id': 1, 'comment': 'should not work'}
         res = self.post('/deposits', data, 'extern')
-        self.assertException(res, exc.NotAuthorized)
+        self.assertException(res, exc.TokenMissing)
         deposits = self.api.list_deposits()
         self.assertFalse(deposits)
 
@@ -316,7 +316,7 @@ class WebapiTestCase(BaseTestCase):
         data = {'name': 'Testperson'}
         # Test insert without login data
         res = self.post('/consumers', data, 'extern')
-        self.assertException(res, exc.NotAuthorized)
+        self.assertException(res, exc.TokenMissing)
 
         # Test insert as consumer, which is not an administrator
         res = self.post('/consumers', data, 'consumer')
@@ -406,7 +406,7 @@ class WebapiTestCase(BaseTestCase):
 
         # Test insert without login data
         res = self.post('/products', data, 'extern')
-        self.assertException(res, exc.NotAuthorized)
+        self.assertException(res, exc.TokenMissing)
 
         # Test insert as consumer, which is not an administrator
         res = self.post('/products', data, 'consumer')

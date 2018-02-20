@@ -69,16 +69,14 @@ def json_body():
 def adminRequired(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = None
-        if 'token' in request.headers:
+        try:
             token = request.headers['token']
-
-        if not token:
-            raise exc.NotAuthorized
+        except KeyError:
+            raise exc.TokenMissing
 
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'])
-        except:
+        except jwt.exceptions.DecodeError:
             raise exc.TokenInvalid
 
         try:
@@ -88,7 +86,7 @@ def adminRequired(f):
         except KeyError:
             raise exc.NotAuthorized
 
-        if not adminroles:
+        if len(adminroles) == 0:
             raise exc.NotAuthorized
 
         admin = validation.to_dict(admin)
