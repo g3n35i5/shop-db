@@ -391,13 +391,15 @@ class DatabaseApi(object):
             'INSERT INTO payoffs('
             '    department_id, '
             '    departmentpurchase_id, '
+            '    admin_id, '
             '    comment, '
             '    amount, '
             '    revoked,'
             '    timestamp) '
-            'VALUES (?,?,?,?,?,?);',
+            'VALUES (?,?,?,?,?,?,?);',
             (payoff.department_id,
              payoff.departmentpurchase_id,
+             payoff.admin_id,
              payoff.comment,
              payoff.amount,
              payoff.revoked,
@@ -542,7 +544,8 @@ class DatabaseApi(object):
         payoff = models.Payoff(department_id=dpurchase.department_id,
                                comment=comment,
                                amount=depositamount,
-                               departmentpurchase_id=dp_id)
+                               departmentpurchase_id=dp_id,
+                               admin_id=dpurchase.admin_id)
         self.insert_payoff(payoff)
         self.con.commit()
 

@@ -123,6 +123,7 @@ class BackendTestCase(BaseTestCase):
         dpurchase.admin_id = consumer.id
         dpurchase.amount = 5
         dpurchase.price_per_product = 10
+        dpurchase.admin_id = 1
 
         self.api.insert_departmentpurchase(dpurchase)
         dpurchases = self.api.list_departmentpurchases(department_id=1)
