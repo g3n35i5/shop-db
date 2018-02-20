@@ -5,6 +5,7 @@ import jwt
 import sys
 import pdb
 import copy
+import datetime
 from base import BaseTestCase
 
 import project.backend.exceptions as exc
@@ -26,6 +27,15 @@ class WebapiTestCase(BaseTestCase):
                                 headers={'content-type': 'application/json'})
 
     def post(self, url, data, role):
+        return self._request('post', url, data, role)
+
+    def put(self, url, data, role):
+        return self._request('put', url, data, role)
+
+    def get(self, url, role):
+        return self._request('get', url, {}, role)
+
+    def _request(self, _type, url, data, role):
         if role not in ['admin', 'extern', 'consumer']:
             sys.exit('Wrong role: {}'.format(role))
 
@@ -41,7 +51,16 @@ class WebapiTestCase(BaseTestCase):
         if role in ['admin', 'consumer']:
             headers['token'] = json.loads(res.data)['token']
 
-        return self.client.post(url, data=json.dumps(data), headers=headers)
+        if _type == 'post':
+            res = self.client.post(url, data=json.dumps(data), headers=headers)
+        elif _type == 'put':
+            res = self.client.put(url, data=json.dumps(data), headers=headers)
+        elif _type == 'get':
+            res = self.client.put(url, data=json.dumps(data), headers=headers)
+        else:
+            sys.exit('Wrong request type: {}'.format(_type))
+
+        return res
 
     def test_get_index(self):
         data = json.loads(self.client.get('/').data)
@@ -107,6 +126,100 @@ class WebapiTestCase(BaseTestCase):
         for consumer in consumers:
             assert 'email' in consumer
             assert 'credit' in consumer
+
+    def test_insert_purchase(self):
+        purchases = self.api.list_purchases()
+        self.assertEqual(len(purchases), 0)
+        b_data = {'consumer_id': 1, 'product_id': 1,
+                  'amount': 1, 'comment': 'Default comment'}
+
+        # Test insert purchase with corrupt data
+        # Test wrong type
+        data = b_data.copy()
+        data['consumer_id'] = 'Hans'
+        res = self.post('/purchases', data, 'extern')
+        self.assertException(res, exc.WrongType)
+
+        # Test maximum length exceeded
+        data = b_data.copy()
+        data['comment'] = 'A'*65
+        res = self.post('/purchases', data, 'extern')
+        self.assertException(res, exc.MaxLengthExceeded)
+
+        # Test minimm length undershot
+        data = b_data.copy()
+        data['comment'] = 'Short'
+        res = self.post('/purchases', data, 'extern')
+        self.assertException(res, exc.MinLengthUndershot)
+
+        # Test unknown field
+        data = b_data.copy()
+        data['name'] = 'Bananas'
+        res = self.post('/purchases', data, 'extern')
+        self.assertException(res, exc.UnknownField)
+
+        # Test foreign key not existing
+        data = b_data.copy()
+        data['product_id'] = 5
+        res = self.post('/purchases', data, 'extern')
+        self.assertException(res, exc.ForeignKeyNotExisting)
+
+        # Test field is none
+        data = b_data.copy()
+        del data['product_id']
+        res = self.post('/purchases', data, 'extern')
+        self.assertException(res, exc.FieldIsNone)
+
+        # Test forbidden field
+        data = b_data.copy()
+        data['revoked'] = True
+        res = self.post('/purchases', data, 'extern')
+        self.assertException(res, exc.ForbiddenField)
+
+        # Check consumers credit
+        self.assertEqual(self.api.get_consumer(1).credit, 0)
+
+        # Test insert purchase with correct data
+        data = b_data.copy()
+        res = self.post('/purchases', data, 'extern')
+        self.assertEqual(res.status_code, 201)
+
+        # At this point, only one purchase should have been inserted
+        purchases = self.api.list_purchases()
+        self.assertEqual(len(purchases), 1)
+        self.assertEqual(purchases[0].consumer_id, data['consumer_id'])
+        self.assertEqual(purchases[0].product_id, data['product_id'])
+        self.assertEqual(purchases[0].amount, data['amount'])
+        self.assertEqual(purchases[0].comment, data['comment'])
+        self.assertFalse(purchases[0].revoked)
+
+        # Check consumers credit
+        self.assertEqual(self.api.get_consumer(1).credit, -25)
+
+        # Revoke this purchase
+        # Put request without data, nothing should happen
+        res = self.put('/purchases/' + str(purchases[0].id), {}, 'extern')
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(self.api.get_purchase(1).revoked)
+
+        # Check consumers credit
+        self.assertEqual(self.api.get_consumer(1).credit, -25)
+
+        # Put request with revoke command
+        data = {'revoked': True}
+        res = self.put('/purchases/' + str(purchases[0].id), data, 'extern')
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(self.api.get_purchase(1).revoked)
+
+        # Check consumers credit
+        self.assertEqual(self.api.get_consumer(1).credit, 0)
+
+        # Revoke purchase again, this should fail
+        res = self.put('/purchases/' + str(purchases[0].id), data, 'extern')
+        self.assertException(res, exc.CanOnlyBeRevokedOnce)
+
+        # Check consumers credit
+        self.assertEqual(self.api.get_consumer(1).credit, 0)
 
     def test_insert_deposit(self):
         deposits = self.api.list_deposits()
