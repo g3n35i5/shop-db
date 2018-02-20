@@ -240,6 +240,21 @@ class WebapiTestCase(BaseTestCase):
         deposits = self.api.list_deposits()
         self.assertEqual(len(deposits), 1)
 
+    def test_get_consumer(self):
+        # Get consumer
+        res = self.client.get('/consumer/1')
+        self.assertEqual(res.status_code, 200)
+        consumer = json.loads(res.data)
+        apicon = self.api.get_consumer(1)
+        self.assertEqual(consumer['name'], apicon.name)
+        self.assertEqual(consumer['active'], apicon.active)
+        self.assertEqual(consumer['credit'], apicon.credit)
+        self.assertEqual(consumer['email'], apicon.email)
+        self.assertEqual(consumer['hasCredentials'], apicon.hasCredentials)
+        self.assertEqual(consumer['isAdmin'], apicon.isAdmin)
+        self.assertEqual(consumer['karma'], apicon.karma)
+        self.assertEqual(consumer['studentnumber'], apicon.studentnumber)
+
     def test_insert_consumer(self):
         consumers = self.api.list_consumers()
         self.assertEqual(len(consumers), 4)
