@@ -66,6 +66,10 @@ class WebapiTestCase(BaseTestCase):
         data = json.loads(self.client.get('/').data)
         self.assertEqual(data['types'], ['resource-not-found'])
 
+    def test_token_expired(self):
+        # TODO: Expire Token!
+        pass
+
     def test_fake_admin(self):
         # Authentication as actual admin
         res = self.login(self.consumeremails[0], self.consumerpasswords[0])
@@ -239,6 +243,10 @@ class WebapiTestCase(BaseTestCase):
         self.assertEqual(res.status_code, 201)
         deposits = self.api.list_deposits()
         self.assertEqual(len(deposits), 1)
+
+    def test_insert_payoff(self):
+        # TODO: Check payoffs
+        pass
 
     def test_get_consumer(self):
         # Get consumer
