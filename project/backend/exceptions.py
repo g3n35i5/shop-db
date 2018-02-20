@@ -1,6 +1,36 @@
 #!/usr/bin/env python3
 
 
+class AuthenticationException(Exception):
+
+    def __init__(self, **kwargs):
+        self.info = kwargs
+
+
+class NotResponsible(AuthenticationException):
+
+    def __init__(self):
+        AuthenticationException.__init__(self)
+
+
+class NotAuthorized(AuthenticationException):
+
+    def __init__(self):
+        AuthenticationException.__init__(self)
+
+
+class TokenMissing(AuthenticationException):
+
+    def __init__(self):
+        AuthenticationException.__init__(self)
+
+
+class TokenInvalid(AuthenticationException):
+
+    def __init__(self):
+        AuthenticationException.__init__(self)
+
+
 class InputException(Exception):
 
     def __init__(self, **kwargs):
@@ -122,6 +152,30 @@ class NotRevocable(FieldBasedException):
 
 
 exception_mapping = {
+    NotAuthorized:
+    {
+        "types": ["authentication-exception",
+                  "not-authorized"],
+        "code": 403
+    },
+    TokenMissing:
+    {
+        "types": ["authentication-exception",
+                  "token-missing"],
+        "code": 403
+    },
+    TokenInvalid:
+    {
+        "types": ["authentication-exception",
+                  "token-invalid"],
+        "code": 403
+    },
+    NotResponsible:
+    {
+        "types": ["authentication-exception",
+                  "not-responsible"],
+        "code": 403
+    },
     WrongType:
     {
         "types": ["input-exception",

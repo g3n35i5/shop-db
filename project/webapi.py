@@ -85,26 +85,29 @@ def adminRequired(f):
             token = request.headers['token']
 
         if not token:
-            return jsonify({'message': 'Token is missing!'}), 401
+            raise exc.NotAuthorized
 
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'])
+        except:
+            raise exc.TokenInvalid
+
+        try:
             admin = data['admin']
             admin = api.get_consumer(admin['id'])
             adminroles = api.getAdminroles(admin)
+        except KeyError:
+            raise exc.NotAuthorized
 
-            if not adminroles:
-                return make_response('Not authorized', 401)
+        if not adminroles:
+            raise exc.NotAuthorized
 
-            admin = validation.to_dict(admin)
-            adminroles = []
-            for a in adminroles:
-                adminroles.append(a.department_id)
+        admin = validation.to_dict(admin)
+        adminroles = []
+        for a in adminroles:
+            adminroles.append(a.department_id)
 
-            admin['adminroles'] = adminroles
-
-        except:
-            return jsonify({'message': 'Token is invalid!'}), 401
+        admin['adminroles'] = adminroles
 
         return f(admin, *args, **kwargs)
     return decorated

@@ -65,7 +65,7 @@ class WebapiTestCase(BaseTestCase):
         data = {'amount': 100, 'consumer_id': 1, 'comment': 'should not work'}
         res = self.client.post('/deposits', data=json.dumps(data),
                                headers=headers)
-        self.assertEqual(res.status_code, 401)
+        self.assertException(res, exc.TokenInvalid)
 
         # Try fake token
         headers = {
@@ -75,7 +75,7 @@ class WebapiTestCase(BaseTestCase):
         data = {'amount': 100, 'consumer_id': 1, 'comment': 'should not work'}
         res = self.client.post('/deposits', data=json.dumps(data),
                                headers=headers)
-        self.assertEqual(res.status_code, 401)
+        self.assertException(res, exc.TokenInvalid)
 
         # Try corrupt token
         token = baktoken_encoded + 'strange tail'
@@ -86,7 +86,7 @@ class WebapiTestCase(BaseTestCase):
         data = {'amount': 100, 'consumer_id': 1, 'comment': 'should not work'}
         res = self.client.post('/deposits', data=json.dumps(data),
                                headers=headers)
-        self.assertEqual(res.status_code, 401)
+        self.assertException(res, exc.TokenInvalid)
 
     def test_list_consumers(self):
         consumers = json.loads(self.client.get('/consumers').data)
@@ -113,12 +113,12 @@ class WebapiTestCase(BaseTestCase):
         self.assertFalse(deposits)
         data = {'amount': 100, 'consumer_id': 1, 'comment': 'should not work'}
         res = self.post('/deposits', data, 'extern')
-        self.assertEqual(res.status_code, 401)
+        self.assertException(res, exc.NotAuthorized)
         deposits = self.api.list_deposits()
         self.assertFalse(deposits)
 
         res = self.post('/deposits', data, 'consumer')
-        self.assertEqual(res.status_code, 401)
+        self.assertException(res, exc.NotAuthorized)
         deposits = self.api.list_deposits()
         self.assertFalse(deposits)
 
@@ -172,11 +172,11 @@ class WebapiTestCase(BaseTestCase):
         data = {'name': 'Testperson'}
         # Test insert without login data
         res = self.post('/consumers', data, 'extern')
-        self.assertEqual(res.status_code, 401)
+        self.assertException(res, exc.NotAuthorized)
 
         # Test insert as consumer, which is not an administrator
         res = self.post('/consumers', data, 'consumer')
-        self.assertEqual(res.status_code, 401)
+        self.assertException(res, exc.NotAuthorized)
 
         # Test insert as admin
         res = self.post('/consumers', data, 'admin')
@@ -262,11 +262,11 @@ class WebapiTestCase(BaseTestCase):
 
         # Test insert without login data
         res = self.post('/products', data, 'extern')
-        self.assertEqual(res.status_code, 401)
+        self.assertException(res, exc.NotAuthorized)
 
         # Test insert as consumer, which is not an administrator
         res = self.post('/products', data, 'consumer')
-        self.assertEqual(res.status_code, 401)
+        self.assertException(res, exc.NotAuthorized)
 
         # Test insert as admin
         res = self.post('/products', data, 'admin')
