@@ -45,11 +45,7 @@ def teardown_db(exception):
         db.close()
 
 
-def handle_json_error(self, e):
-    raise exc.InvalidJSON()
-
-
-Request.on_json_loading_failed = handle_json_error
+Request.on_json_loading_failed = exc.InvalidJSON()
 
 
 @app.errorhandler(404)
@@ -96,11 +92,11 @@ def adminRequired(f):
             raise exc.NotAuthorized
 
         admin = validation.to_dict(admin)
-        adminroles = []
+        _adminroles = []
         for a in adminroles:
-            adminroles.append(a.department_id)
+            _adminroles.append(a.department_id)
 
-        admin['adminroles'] = adminroles
+        admin['adminroles'] = _adminroles
 
         return f(admin, *args, **kwargs)
     return decorated
@@ -170,19 +166,14 @@ def login():
         json_data = json_body()
         email = json_data['email']
         password = json_data['password']
-    except:
-        return make_response('Could not verify', 401)
+    except KeyError:
+        raise exc.MissingData
 
-    try:
-        consumer = validation.to_dict(api.get_consumer_by_email(email))
-    except:
-        return make_response('Could not verify', 401)
+    # Get consumer via email address. If this fails, ObjectNotFound gets raised
+    consumer = validation.to_dict(api.get_consumer_by_email(email))
 
-    try:
-        if not bcrypt.check_password_hash(consumer['password'], password):
-            return make_response('Could not verify', 401)
-    except:
-        return make_response('Could not verify', 401)
+    if not bcrypt.check_password_hash(consumer['password'], password):
+        raise exc.NotAuthorized
 
     # Check if the consumer has administrator rights
     adminroles = api.getAdminroles(api.get_consumer(consumer['id']))
