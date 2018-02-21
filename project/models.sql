@@ -135,6 +135,7 @@ CREATE TABLE adminroles (
 CREATE TABLE workactivities (
 	id INTEGER NOT NULL,
 	name VARCHAR(32) NOT NULL,
+	created TIMESTAMP NOT NULL,
 	PRIMARY KEY (id)
 );
 

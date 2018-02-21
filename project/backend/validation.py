@@ -130,7 +130,7 @@ class ValidatableObject(object):
     def __repr__(self):
         keys = list(fields(self))
         if 'id' in keys:
-            del keys['id']
+            keys.remove('id')
             _id = str(self.id)
         else:
             _id = 'None'

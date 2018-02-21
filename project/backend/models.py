@@ -156,7 +156,8 @@ class Workactivity(ValidatableObject):
     _tablename = 'workactivities'
     _validators = {
         'id': [Type(int)],
-        'name': [Type(str), MaxLength(32), MinLength(4)]
+        'name': [Type(str), MaxLength(32), MinLength(4)],
+        'created': [Type(datetime.datetime)]
     }
 
 

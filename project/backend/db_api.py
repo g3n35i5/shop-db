@@ -188,124 +188,9 @@ class DatabaseApi(object):
             if res2.rowcount != 1:
                 self.con.rollback()
 
-    def insert_workactivity(self, workactivity):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(workactivity, ['name'])
-        self._check_uniqueness(workactivity, 'workactivities',
-                               ['name'])
-        self._assert_forbidden_fields(workactivity, ['id'])
-
-        cur.execute('INSERT INTO workactivities '
-                    '(name) VALUES(?);', (workactivity.name, )
-                    )
-        self.con.commit()
-
-    def insert_activity(self, activity):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(activity,
-                                      ['workactivity_id',
-                                       'date_deadline',
-                                       'date_event',
-                                       'created_by'])
-
-        self._assert_forbidden_fields(activity,
-                                      ['id', 'date_created'])
-        self._check_foreign_key(activity, 'created_by', 'consumers')
-
-        activity.date_created = datetime.datetime.now()
-        activity.reviewed = False
-        if not (activity.date_created < activity.date_deadline < activity.date_event):
-            raise exc.InvalidDates()
-
-        cur.execute('INSERT INTO activities '
-                    '(created_by, workactivity_id, '
-                    'date_created, date_deadline, date_event, reviewed) '
-                    'VALUES(?,?,?,?,?,?);', (
-                     activity.created_by, activity.workactivity_id,
-                     activity.date_created, activity.date_deadline,
-                     activity.date_event, activity.reviewed)
-                    )
-
-        self.con.commit()
-
-    def insert_activityfeedback(self, activityfeedback):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(activityfeedback,
-                                      ['consumer_id',
-                                       'activity_id',
-                                       'feedback'])
-        self._assert_forbidden_fields(activityfeedback, ['id', 'timestamp'])
-        self._check_foreign_key(activityfeedback, 'consumer_id', 'consumers')
-        self._check_foreign_key(activityfeedback, 'activity_id', 'activities')
-
-        activity = self.get_activity(id=activityfeedback.activity_id)
-
-        activityfeedback.timestamp = datetime.datetime.now()
-
-        if activityfeedback.timestamp > activity.date_deadline:
-            raise exc.InvalidDates()
-
-        cur.execute('INSERT INTO activityfeedbacks '
-                    '(timestamp, consumer_id, activity_id, feedback) '
-                    'VALUES(?,?,?,?);', (
-                     activityfeedback.timestamp, activityfeedback.consumer_id,
-                     activityfeedback.activity_id, activityfeedback.feedback)
-                    )
-
-        self.con.commit()
-
-    def insert_participation(self, participation):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(participation,
-                                      ['consumer_id',
-                                       'activity_id'])
-        self._assert_forbidden_fields(participation, ['id', 'timestamp'])
-        self._check_foreign_key(participation, 'consumer_id', 'consumers')
-        self._check_foreign_key(participation, 'activity_id', 'activities')
-
-        participation.timestamp = datetime.datetime.now()
-
-        cur.execute('INSERT INTO participations '
-                    '(timestamp, consumer_id, activity_id) '
-                    'VALUES(?,?,?);',
-                    (participation.timestamp, participation.consumer_id,
-                     participation.activity_id)
-                    )
-
-    def insert_product(self, product):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(
-            product, ['name', 'countable', 'price',
-                      'department_id', 'revocable']
-        )
-
-        self._assert_forbidden_fields(product, ['id', 'active', 'stock'])
-        self._check_uniqueness(product, 'products', ['name'])
-        self._check_foreign_key(product, 'department_id', 'departments')
-
-        product.stock = 0 if product.countable else None
-
-        product.active = True
-
-        cur.execute(
-            'INSERT INTO products '
-            '(name, active, stock, price, department_id, '
-            'revocable, countable, image, barcode) '
-            'VALUES (?,?,?,?,?,?,?,?,?);',
-            (product.name, product.active, product.stock,
-             product.price, product.department_id,
-             product.revocable, product.countable,
-             product.image, product.barcode)
-        )
-        self.con.commit()
-
     def _insert_factory(mandatory=[], forbidden=[], unique=[],
                         foreign_keys=[], pre_insert=None, optional_unique=[]):
+        """Factory to insert simple objects"""
         def insert(self, obj):
             self._assert_mandatory_fields(obj, mandatory)
             self._assert_forbidden_fields(obj, forbidden)
@@ -352,25 +237,90 @@ class DatabaseApi(object):
         optional_unique=['email', 'studentnumber']
     )
 
-    def insert_department(self, department):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(
-            department, ['name', 'budget'])
-        self._assert_forbidden_fields(department, ['id'])
-        self._check_uniqueness(department, 'departments', ['name'])
+    def _insert_department(self, department):
         department.income_base = 0
         department.income_karma = 0
         department.expenses = 0
 
-        cur.execute(
-            'INSERT INTO departments '
-            '(name, income_base, income_karma, expenses, budget) '
-            'VALUES (?,?,?,?,?);',
-            (department.name, department.income_base,
-             department.income_karma, department.expenses, department.budget)
-        )
-        self.con.commit()
+    insert_department = _insert_factory(
+        mandatory=['name', 'budget'],
+        forbidden=['id'],
+        unique=['name'],
+        pre_insert=_insert_department
+    )
+
+    def _insert_product(self, product):
+        product.stock = 0 if product.countable else None
+        product.active = True
+
+    insert_product = _insert_factory(
+        mandatory=['name', 'countable', 'price', 'department_id', 'revocable'],
+        forbidden=['id', 'active', 'stock'],
+        foreign_keys=[
+            ['department_id', 'departments']
+        ],
+        unique=['name'],
+        pre_insert=_insert_product
+    )
+
+    def _insert_activityfeedback(self, activityfeedback):
+        activity = self.get_activity(id=activityfeedback.activity_id)
+        activityfeedback.timestamp = datetime.datetime.now()
+        if activityfeedback.timestamp > activity.date_deadline:
+            raise exc.InvalidDates()
+
+    insert_activityfeedback = _insert_factory(
+        mandatory=['consumer_id', 'activity_id', 'feedback'],
+        forbidden=['id', 'timestamp'],
+        foreign_keys=[
+            ['consumer_id', 'consumers'],
+            ['activity_id', 'activities']
+        ],
+        pre_insert=_insert_activityfeedback
+    )
+
+    def _insert_workactivity(self, workactivity):
+        workactivity.created = datetime.datetime.now()
+
+    insert_workactivity = _insert_factory(
+        mandatory=['name'],
+        forbidden=['id', 'created'],
+        unique=['name'],
+        pre_insert=_insert_workactivity
+    )
+
+    def _insert_activity(self, activity):
+        activity.date_created = datetime.datetime.now()
+        activity.reviewed = False
+
+        created = activity.date_created
+        deadline = activity.date_deadline
+        event = activity.date_event
+        if not (created < deadline < event):
+            raise exc.InvalidDates()
+
+    insert_activity = _insert_factory(
+        mandatory=['workactivity_id', 'date_deadline',
+                   'date_event', 'created_by'],
+        forbidden=['id', 'date_created'],
+        foreign_keys=[
+            ['created_by', 'consumers']
+        ],
+        pre_insert=_insert_activity
+    )
+
+    def _insert_participation(self, participation):
+        participation.timestamp = datetime.datetime.now()
+
+    insert_participation = _insert_factory(
+        mandatory=['consumer_id', 'activity_id'],
+        forbidden=['id', 'timestamp'],
+        foreign_keys=[
+            ['consumer_id', 'consumers'],
+            ['activity_id', 'activities'],
+        ],
+        pre_insert=_insert_participation
+    )
 
     def insert_payoff(self, payoff):
         cur = self.con.cursor()

@@ -803,6 +803,8 @@ class BackendTestCase(BaseTestCase):
         workactivity = models.Workactivity(name="Getränke schleppen")
         self.api.insert_workactivity(workactivity)
 
+        # Duplicate object should be forbidden
+        workactivity = models.Workactivity(name="Getränke schleppen")
         with self.assertRaises(exc.DuplicateObject):
             self.api.insert_workactivity(workactivity)
 
