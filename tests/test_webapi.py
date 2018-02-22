@@ -150,6 +150,34 @@ class WebapiTestCase(BaseTestCase):
         self.assertEqual(data[1]['comment'], 'Testpurchase 2')
         self.assertEqual(data[1]['amount'], 2)
 
+    def test_get_consumer_deposits(self):
+        # Get deposits of consumer 1. There shouldn't be any.
+        res = self.get('/consumer/1/deposits', 'extern')
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertEqual(len(data), 0)
+
+        # Insert test deposits.
+        deposit = models.Deposit(consumer_id=1, comment='Testdeposit 1',
+                                 amount=100)
+        self.api.insert_deposit(deposit)
+        deposit = models.Deposit(consumer_id=1, comment='Testdeposit 2',
+                                 amount=200)
+        self.api.insert_deposit(deposit)
+
+        # Get deposits of consumer 1. There should be 2 deposits.
+        res = self.get('/consumer/1/deposits', 'extern')
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]['consumer_id'], 1)
+        self.assertEqual(data[0]['comment'], 'Testdeposit 1')
+        self.assertEqual(data[0]['amount'], 100)
+
+        self.assertEqual(data[1]['consumer_id'], 1)
+        self.assertEqual(data[1]['comment'], 'Testdeposit 2')
+        self.assertEqual(data[1]['amount'], 200)
+
     def test_list_departments(self):
         # List departments without token
         res = self.get('/departments', 'extern')
