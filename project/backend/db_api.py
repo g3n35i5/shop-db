@@ -609,7 +609,11 @@ class DatabaseApi(object):
         if res is None or len(res) > 1 or len(res) == 0:
             raise exc.ObjectNotFound()
 
-        return res[0]
+        consumer = res[0]
+        consumer.credit = self._consumer_credit(id=consumer.id)
+        consumer.isAdmin = len(self.getAdminroles(consumer)) > 0
+        consumer.hasCredentials = all([consumer.email, consumer.password])
+        return consumer
 
     def get_activityfeedback(self, activity_id, list_all=False):
         consumers = self.list_consumers()
