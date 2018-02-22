@@ -178,6 +178,14 @@ class WebapiTestCase(BaseTestCase):
         self.assertEqual(data[1]['comment'], 'Testdeposit 2')
         self.assertEqual(data[1]['amount'], 200)
 
+    def test_get_product(self):
+        res = self.get('/product/1', 'extern')
+        self.assertEqual(res.status_code, 200)
+        product = json.loads(res.data)
+        self.assertEqual(product['name'], 'Coffee')
+        self.assertEqual(product['department_id'], 1)
+        self.assertEqual(product['price'], 25)
+
     def test_list_departments(self):
         # List departments without token
         res = self.get('/departments', 'extern')
