@@ -120,6 +120,36 @@ class WebapiTestCase(BaseTestCase):
                                headers=headers)
         self.assertException(res, exc.TokenInvalid)
 
+    def test_get_consumer_purchases(self):
+        # Get purchases of consumer 1. There shouldn't be any.
+        res = self.get('/consumer/1/purchases', 'extern')
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertEqual(len(data), 0)
+
+        # Insert test purchases.
+        purchase = models.Purchase(consumer_id=1, product_id=2,
+                                   comment='Testpurchase 1', amount=1)
+        self.api.insert_purchase(purchase)
+        purchase = models.Purchase(consumer_id=1, product_id=1,
+                                   comment='Testpurchase 2', amount=2)
+        self.api.insert_purchase(purchase)
+
+        # Get purchases of consumer 1. There should be 2 purchases.
+        res = self.get('/consumer/1/purchases', 'extern')
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        self.assertEqual(len(data), 2)
+        self.assertEqual(data[0]['consumer_id'], 1)
+        self.assertEqual(data[0]['product_id'], 2)
+        self.assertEqual(data[0]['comment'], 'Testpurchase 1')
+        self.assertEqual(data[0]['amount'], 1)
+
+        self.assertEqual(data[1]['consumer_id'], 1)
+        self.assertEqual(data[1]['product_id'], 1)
+        self.assertEqual(data[1]['comment'], 'Testpurchase 2')
+        self.assertEqual(data[1]['amount'], 2)
+
     def test_list_departments(self):
         # List departments without token
         res = self.get('/departments', 'extern')
