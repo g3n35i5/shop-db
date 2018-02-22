@@ -31,6 +31,18 @@ class TokenInvalid(AuthenticationException):
         AuthenticationException.__init__(self)
 
 
+class PasswordsDoNotMatch(AuthenticationException):
+
+    def __init__(self):
+        AuthenticationException.__init__(self)
+
+
+class ConsumerNeedsCredentials(AuthenticationException):
+
+    def __init__(self):
+        InputException.__init__(self)
+
+
 class InputException(Exception):
 
     def __init__(self, **kwargs):
@@ -133,12 +145,6 @@ class OnlyOneRowAllowed(FieldBasedException):
         InputException.__init__(self)
 
 
-class ConsumerNeedsCredentials(FieldBasedException):
-
-    def __init__(self):
-        InputException.__init__(self)
-
-
 class ProductNotCountable(FieldBasedException):
 
     def __init__(self):
@@ -193,6 +199,18 @@ exception_mapping = {
         "types": ["authentication-exception",
                   "token-invalid"],
         "code": 403
+    },
+    PasswordsDoNotMatch:
+    {
+        "types": ["authentication-exception",
+                  "passwords-do-not-match"],
+        "code": 400
+    },
+    ConsumerNeedsCredentials:
+    {
+        "types": ["authentication-exception",
+                  "consumer-needs-credentials"],
+        "code": 400
     },
     NotResponsible:
     {

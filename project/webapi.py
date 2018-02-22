@@ -170,6 +170,9 @@ def login():
     # Get consumer via email address. If this fails, ObjectNotFound gets raised
     consumer = validation.to_dict(api.get_consumer_by_email(email))
 
+    if not consumer['hasCredentials']:
+        raise exc.ConsumerNeedsCredentials
+
     if not bcrypt.check_password_hash(consumer['password'], password):
         raise exc.NotAuthorized
 
@@ -266,107 +269,62 @@ def getConsumer(id):
 @adminRequired
 def updateConsumer(admin, id):
     data = json_body()
-    messages = []
 
-    consumer = models.Consumer(id=id)
-    _consumer = api.get_consumer(id=id)
+    # Get corresponding consumer from the backend
+    apiconsumer = api.get_consumer(id=id)
 
-    if 'credit' in data:
-        del data['credit']
+    # If roles are to be set, it must be ensured that the consumer
+    # has already stored access data.
+    if 'adminroles' in data and not apiconsumer.hasCredentials:
+        raise exc.ConsumerNeedsCredentials
 
+    # Create updateconsumer object
+    updateconsumer = models.Consumer(id=id)
+
+    # Handle new password
+    if 'password' in data:
+        if 'repeatpassword' not in data:
+            raise exc.MissingData
+        if not data['password'] == data['repeatpassword']:
+            raise exc.PasswordsDoNotMatch
+        if not apiconsumer.email:
+            if 'email' not in data:
+                raise exc.MissingData
+        _pwhash = bcrypt.generate_password_hash(data['password'])
+        del data['password']
+        del data['repeatpassword']
+        data['password'] = _pwhash
+
+    # Check forbidden keys
+    for key in ['credit', 'id']:
+        if key in data:
+            raise exc.ForbiddenField(key)
+
+    # Handle adminroles
     if 'adminroles' in data:
-        if data['adminroles']:
-            # check if there are already consumer credentials in the database
-            if any(v is None for v in [_consumer.email, _consumer.password]):
-                # if not, check if credentials are in request data
-                if any(v not in data for v in ['email', 'password']):
-                    # if not, return failure
-                    messages.append('Login data required to set adminroles!')
-                    return jsonify(result=False, messages=messages), 200
-
-            else:
-                adminroles = data['adminroles']
-        else:
-            adminroles = False
+        api_adminroles = api.getAdminroles(apiconsumer)
+        for dep_id in data['adminroles'].keys():
+            # Check if the consumer is already an administrator
+            # for this department
+            for api_role in api_adminroles:
+                if api_role.department_id == int(dep_id):
+                    # If the consumer is admin and the value is true, we can
+                    # skip this modification
+                    if data['adminroles'][dep_id]:
+                        continue
+            department = api.get_department(int(dep_id))
+            api.setAdmin(apiconsumer, department, data['adminroles'][dep_id])
 
         del data['adminroles']
 
-    else:
-        adminroles = False
-
-    if 'password' in data:
-        if 'repeatpassword' in data:
-            if data['password'] == data['repeatpassword']:
-                data['password'] = bcrypt.generate_password_hash(data['password'])
-                del data['repeatpassword']
-            else:
-                message = {
-                    'message': 'Passwords do not match!',
-                    'error': True
-                }
-                messages.append(message)
-                return jsonify(result=False, messages=messages), 200
-        else:
-            message = {
-                'message': 'Please confirm your password!',
-                'error': True
-            }
-            messages.append(message)
-            return jsonify(result=False, messages=messages), 200
-
+    # Handle remaining update data
     for key, value in data.items():
-        setattr(consumer, key, value)
+        setattr(updateconsumer, key, value)
 
-    try:
-        api.update_consumer(consumer)
-        for key in data:
-            message = {
-                'message': 'Updated: {}'.format(key),
-                'error': False
-            }
-            messages.append(message)
-    except:
-        message = {
-            'message': 'Error updating consumer!',
-            'error': True
-        }
-        messages.append(message)
-        return jsonify(result=False, messages=messages), 200
+    # Update consumer
+    api.update_consumer(updateconsumer)
 
-    if adminroles:
-        departments = api.list_departments()
-        _apiAdminroles = api.getAdminroles(_consumer)
-
-        for dep_id in adminroles.keys():
-            department = api.get_department(id=int(dep_id))
-            try:
-                api.setAdmin(_consumer, department, adminroles[dep_id])
-                message = {
-                    'message': 'Adminrole set: {}'.format(department.name),
-                    'error': False
-                }
-
-                messages.append(message)
-
-            except ConsumerNeedsCredentials:
-                message = {
-                    'message': 'Login data required in order to be admin!',
-                    'error': True
-                }
-                messages.append(message)
-                _consumer = validation.to_dict(_consumer)
-                rebaseConsumer = Consumer(**_consumer)
-                api.update_consumer(rebaseConsumer)
-
-                adminroles = [d.department_id for d in _apiAdminroles]
-
-                for department in departments:
-                    isAdmin = department.id in adminroles
-                    api.setAdmin(rebaseConsumer, department, isAdmin)
-
-                return jsonify(result=False, messages=messages), 200
-
-    return jsonify(result=True, messages=messages), 200
+    return jsonify(result=True), 200
 
 
 # Get consumer's favorite products
@@ -378,7 +336,8 @@ def getConsumerFavorites(id):
 # Get consumer's purchases
 @app.route('/consumer/<int:id>/purchases', methods=['GET'])
 def getConsumerPurchases(id):
-    return jsonify(list(map(validation.to_dict, api.get_purchases_of_consumer(id))))
+    purchases = api.get_purchases_of_consumer(id)
+    return jsonify(list(map(validation.to_dict, purchases)))
 
 
 # Get consumer's deposits

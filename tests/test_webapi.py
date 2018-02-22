@@ -504,6 +504,150 @@ class WebapiTestCase(BaseTestCase):
         for key in data.keys():
             self.assertEqual(getattr(products[3], key), data[key])
 
+    def test_update_consumer(self):
+        # Create, insert and check Testperson
+        consumer = models.Consumer(name='Testperson')
+        self.api.insert_consumer(consumer)
+        consumer = self.api.get_consumer(id=5)
+        self.assertEqual(consumer.name, 'Testperson')
+        self.assertEqual(consumer.email, None)
+        self.assertEqual(consumer.credit, 0)
+        self.assertTrue(consumer.active)
+        self.assertEqual(consumer.karma, 0)
+        self.assertEqual(consumer.studentnumber, None)
+        adminroles = self.api.getAdminroles(consumer)
+        self.assertEqual(len(adminroles), 0)
+
+        # Test update name
+        data = {'name': 'New Testperson'}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertEqual(res.status_code, 200)
+        consumer = self.api.get_consumer(id=5)
+        self.assertEqual(consumer.name, 'New Testperson')
+
+        # Test update active state
+        data = {'active': False}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertEqual(res.status_code, 200)
+        consumer = self.api.get_consumer(id=5)
+        self.assertFalse(consumer.active)
+
+        # Test update multiple, simple
+        data = {'active': True, 'name': 'Testperson', 'studentnumber': 42}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertEqual(res.status_code, 200)
+        consumer = self.api.get_consumer(id=5)
+        self.assertTrue(consumer.active)
+        self.assertEqual(consumer.name, 'Testperson')
+        self.assertEqual(consumer.studentnumber, 42)
+
+        # Test set forbidden field
+        data = {'credit': 100000}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertException(res, exc.ForbiddenField)
+
+        # Test set adminroles while consumer does not have login data
+        data = {'adminroles': {'1': True, '2': False}}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertException(res, exc.ConsumerNeedsCredentials)
+
+        consumer = self.api.get_consumer(id=5)
+        adminroles = self.api.getAdminroles(consumer)
+        self.assertEqual(len(adminroles), 0)
+
+        # Test set password, but no email
+        data = {'password': 'Testpassword', 'repeatpassword': 'Testpassword'}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertException(res, exc.MissingData)
+
+        # Test set password, but wrong repeatpassword
+        data = {'password': 'Testpassword', 'repeatpassword': 'WrongRepeat'}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertException(res, exc.PasswordsDoNotMatch)
+
+        # Test set email
+        data = {'email': 'testconsumer@test.com'}
+        res = self.put('/consumer/5', data, 'admin')
+
+        # Check the new email adress
+        consumer = self.api.get_consumer(id=5)
+        self.assertEqual(consumer.email, 'testconsumer@test.com')
+
+        # Get consumer via email should work now, too
+        consumer = self.api.get_consumer_by_email('testconsumer@test.com')
+        self.assertEqual(consumer.id, 5)
+        self.assertEqual(consumer.name, 'Testperson')
+
+        # Test set password without repeatpassword
+        data = {'password': 'Testpassword'}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertException(res, exc.MissingData)
+
+        # Test login. This should fail, because the consumer does not have
+        # a password
+        res = self.login('testconsumer@test.com', 'testpassword')
+        self.assertException(res, exc.ConsumerNeedsCredentials)
+        data = json.loads(res.data)
+        assert 'token' not in data
+
+        # Check whether the adminroles can be set.
+        # This should still fail, because the consumer has stored an
+        # email address, but no password.
+        data = {'adminroles': {'1': True, '2': False}}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertException(res, exc.ConsumerNeedsCredentials)
+
+        # Test set the consumer password
+        data = {'password': 'Testpassword', 'repeatpassword': 'Testpassword'}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertEqual(res.status_code, 200)
+
+        # Test check login.
+        res = self.login('testconsumer@test.com', 'Testpassword')
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        assert 'token' in data
+
+        # Check whether the adminroles can be set.
+        adminroles = self.api.getAdminroles(consumer)
+        self.assertEqual(len(adminroles), 0)
+        data = {'adminroles': {'1': False, '2': True, '3': True}}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertEqual(res.status_code, 200)
+        adminroles = self.api.getAdminroles(consumer)
+        self.assertEqual(len(adminroles), 2)
+        self.assertEqual(adminroles[0].department_id, 2)
+        self.assertEqual(adminroles[1].department_id, 3)
+
+        # Test set adminrole again, nothing should happen
+        data = {'adminroles': {'2': True}}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertEqual(res.status_code, 200)
+
+        # Test change email adress
+        data = {'email': 'updated@test.com'}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertEqual(res.status_code, 200)
+
+        # Test login with the old email adress. This should fail.
+        res = self.login('testconsumer@test.com', 'Testpassword')
+        self.assertException(res, exc.ObjectNotFound)
+        data = json.loads(res.data)
+        assert 'token' not in data
+
+        # Test check login with the new email adress
+        res = self.login('updated@test.com', 'Testpassword')
+        self.assertEqual(res.status_code, 200)
+        data = json.loads(res.data)
+        assert 'token' in data
+
+        # Test remove adminroles
+        data = {'adminroles': {'2': False, '3': False}}
+        res = self.put('/consumer/5', data, 'admin')
+        self.assertEqual(res.status_code, 200)
+        adminroles = self.api.getAdminroles(consumer)
+        self.assertEqual(len(adminroles), 0)
+
     def test_list_products(self):
         products = json.loads(self.client.get('/products').data)
         self.assertEqual(len(products), 3)
