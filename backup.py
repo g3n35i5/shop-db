@@ -10,7 +10,7 @@ if __name__ == '__main__':
     _currentDate = datetime.datetime.now()
     _filepath = BaseConfig.BACKUP_DIR + _currentDate.strftime('%Y/%B/%d/')
     _filename = _currentDate.strftime('%H_%M_%S') + '.dump'
-    dumpfile =  _filepath + _filename
+    dumpfile = _filepath + _filename
 
     if not os.path.exists(_filepath):
         try:
