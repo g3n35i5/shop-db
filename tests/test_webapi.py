@@ -186,6 +186,40 @@ class WebapiTestCase(BaseTestCase):
         self.assertEqual(product['department_id'], 1)
         self.assertEqual(product['price'], 25)
 
+    def test_list_purchases(self):
+        # Insert test purchases
+        consumer_ids = [1, 2, 3, 1, 1, 1, 3, 2, 3, 1]
+        product_ids = [1, 1, 1, 2, 1, 3, 3, 2, 1, 3]
+        amounts = [1, 8, 16, 5, 1, 5, 6, 7, 1, 2]
+        for i in range(0, len(consumer_ids)):
+            p = models.Purchase(consumer_id=consumer_ids[i],
+                                product_id=product_ids[i],
+                                amount=amounts[i],
+                                comment='Purchase #{}'.format(i))
+            self.api.insert_purchase(p)
+
+        # List purchases without limit
+        res = self.get('/purchases', 'extern')
+        self.assertEqual(res.status_code, 200)
+        pur = json.loads(res.data)
+        self.assertEqual(len(pur), 10)
+        for i in range(0, len(pur)):
+            self.assertEqual(pur[i]['consumer_id'], consumer_ids[i])
+            self.assertEqual(pur[i]['product_id'], product_ids[i])
+            self.assertEqual(pur[i]['amount'], amounts[i])
+            self.assertEqual(pur[i]['comment'], 'Purchase #{}'.format(i))
+
+        # List purchases with limit
+        res = self.get('/purchases/6', 'extern')
+        self.assertEqual(res.status_code, 200)
+        pur = json.loads(res.data)
+        self.assertEqual(len(pur), 6)
+        for i in range(0, len(pur)):
+            self.assertEqual(pur[i]['consumer_id'], consumer_ids[9 - i])
+            self.assertEqual(pur[i]['product_id'], product_ids[9 - i])
+            self.assertEqual(pur[i]['amount'], amounts[9 - i])
+            self.assertEqual(pur[i]['comment'], 'Purchase #{}'.format(9 - i))
+
     def test_list_departments(self):
         # List departments without token
         res = self.get('/departments', 'extern')
