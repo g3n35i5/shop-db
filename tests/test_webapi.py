@@ -233,6 +233,36 @@ class WebapiTestCase(BaseTestCase):
             self.assertEqual(pur[i]['amount'], amounts[9 - i])
             self.assertEqual(pur[i]['comment'], 'Purchase #{}'.format(9 - i))
 
+    def test_list_deposits(self):
+        # Insert test deposits
+        consumer_ids = [1, 2, 3, 1, 1, 1, 3, 2, 3, 1]
+        amounts = [1, 8, 16, 5, 1, 5, 6, 7, 1, 2]
+        for i in range(0, len(consumer_ids)):
+            d = models.Deposit(consumer_id=consumer_ids[i],
+                               amount=amounts[i],
+                               comment='Deposit #{}'.format(i))
+            self.api.insert_deposit(d)
+
+        # List deposits without limit
+        res = self.get('/deposits', 'extern')
+        self.assertEqual(res.status_code, 200)
+        dep = json.loads(res.data)
+        self.assertEqual(len(dep), 10)
+        for i in range(0, len(dep)):
+            self.assertEqual(dep[i]['consumer_id'], consumer_ids[i])
+            self.assertEqual(dep[i]['amount'], amounts[i])
+            self.assertEqual(dep[i]['comment'], 'Deposit #{}'.format(i))
+
+        # List deposits with limit
+        res = self.get('/deposits/6', 'extern')
+        self.assertEqual(res.status_code, 200)
+        dep = json.loads(res.data)
+        self.assertEqual(len(dep), 6)
+        for i in range(0, len(dep)):
+            self.assertEqual(dep[i]['consumer_id'], consumer_ids[9 - i])
+            self.assertEqual(dep[i]['amount'], amounts[9 - i])
+            self.assertEqual(dep[i]['comment'], 'Deposit #{}'.format(9 - i))
+
     def test_list_departments(self):
         # List departments without token
         res = self.get('/departments', 'extern')
