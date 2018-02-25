@@ -10,6 +10,7 @@ from project.cli.department import add_department
 import argparse
 import sys
 
+
 class BackendManager:
     def __init__(self):
         parser = argparse.ArgumentParser(description='Management interface '
@@ -29,7 +30,6 @@ class BackendManager:
                '\tThe most commonly used commands are:\n' \
                '\tadd        Adds an element to the database\n' \
                '\tadmin      Manage consumer admin roles\n'
-
 
     def add(self):
         parser = argparse.ArgumentParser(
