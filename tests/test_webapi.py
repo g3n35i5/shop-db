@@ -186,6 +186,19 @@ class WebapiTestCase(BaseTestCase):
         self.assertEqual(product['department_id'], 1)
         self.assertEqual(product['price'], 25)
 
+    def test_get_purchase(self):
+        purchase = models.Purchase(consumer_id=1, product_id=2,
+                                   comment='Testpurchase', amount=1)
+        self.api.insert_purchase(purchase)
+        res = self.get('/purchase/1', 'extern')
+        self.assertEqual(res.status_code, 200)
+        purchase = json.loads(res.data)
+        self.assertEqual(purchase['consumer_id'], 1)
+        self.assertEqual(purchase['product_id'], 2)
+        self.assertEqual(purchase['amount'], 1)
+        self.assertEqual(purchase['comment'], 'Testpurchase')
+        self.assertFalse(purchase['revoked'])
+
     def test_list_purchases(self):
         # Insert test purchases
         consumer_ids = [1, 2, 3, 1, 1, 1, 3, 2, 3, 1]
