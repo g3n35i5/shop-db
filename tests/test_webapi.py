@@ -378,7 +378,7 @@ class WebapiTestCase(BaseTestCase):
 
         # Test maximum length exceeded
         data = b_data.copy()
-        data['comment'] = 'A'*65
+        data['comment'] = 'A' * 65
         res = self.post('/purchases', data, 'extern')
         self.assertException(res, exc.MaxLengthExceeded)
 
