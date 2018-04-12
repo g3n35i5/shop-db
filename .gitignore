@@ -8,3 +8,5 @@ backups/
 backend.log*
 # pycache folder
 __pycache__
+# product images
+project/uploads
