@@ -480,6 +480,32 @@ class WebapiTestCase(BaseTestCase):
         # TODO: Check payoffs
         pass
 
+    def test_list_payoffs(self):
+        # Get payoffs
+        res = self.client.get('/payoffs')
+        self.assertEqual(res.status_code, 200)
+        payoffs = json.loads(res.data)
+
+        # Make sure that there are no payoffs in the database
+        self.assertEqual(len(payoffs), 0)
+
+        # Insert test payoff
+        p = models.Payoff(department_id=1, admin_id=1,
+                          amount=200, comment='This is a test payoff')
+        self.api.insert_payoff(p)
+
+        # Get payoffs again
+        res = self.client.get('/payoffs')
+        self.assertEqual(res.status_code, 200)
+        payoffs = json.loads(res.data)
+
+        # Make sure, that there is a payoff in the database
+        self.assertEqual(len(payoffs), 1)
+        self.assertEqual(payoffs[0]['department_id'], 1)
+        self.assertEqual(payoffs[0]['admin_id'], 1)
+        self.assertEqual(payoffs[0]['amount'], 200)
+        self.assertEqual(payoffs[0]['comment'], 'This is a test payoff')
+
     def test_get_consumer(self):
         # Get consumer
         res = self.client.get('/consumer/1')
