@@ -166,7 +166,7 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(departments[1].expenses, 0)
         self.assertEqual(departments[2].expenses, 0)
 
-    def test_insert_consumers(self):
+    def test_insert_departments(self):
         d = models.Department(name="Test 1", budget=20000)
         self.api.insert_department(d)
         d = models.Department(name="Test 2", budget=30000)
