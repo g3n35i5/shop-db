@@ -214,7 +214,7 @@ class DatabaseApi(object):
                     values.append(getattr(obj, v))
 
             fields = ', '.join(fields)
-            _vals = ', '.join(['?']*len(values))
+            _vals = ', '.join(['?'] * len(values))
 
             query += ' ({}) VALUES ({});'.format(fields, _vals)
 

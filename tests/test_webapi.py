@@ -557,7 +557,7 @@ class WebapiTestCase(BaseTestCase):
         self.assertException(res, exc.MinLengthUndershot)
 
         # Test maximum length exceeded
-        data = {'name': 'a'*65}
+        data = {'name': 'a' * 65}
         res = self.post('/consumers', data, 'admin')
         self.assertEqual(res.status_code, 400)
         self.assertException(res, exc.MaxLengthExceeded)
@@ -641,17 +641,17 @@ class WebapiTestCase(BaseTestCase):
 
         # Test maximum length exceeded
         data = b_data.copy()
-        data['name'] = 'a'*65
+        data['name'] = 'a' * 65
         res = self.post('/products', data, 'admin')
         self.assertEqual(res.status_code, 400)
         self.assertException(res, exc.MaxLengthExceeded)
 
         data = {
-                'name': 'Testproduct',
-                'department_id': 1,
-                'price': 200,
-                'countable': True,
-                'revocable': True
+            'name': 'Testproduct',
+            'department_id': 1,
+            'price': 200,
+            'countable': True,
+            'revocable': True
         }
 
         # Test insert without login data
