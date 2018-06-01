@@ -51,16 +51,19 @@ class DatabaseApi(object):
         self.con.executescript(schema)
 
     def _assert_mandatory_fields(self, object, fields):
+        """Check all mandatory fields of a given object."""
         for field_name in fields:
             if getattr(object, field_name, None) is None:
                 raise exc.FieldIsNone(field_name)
 
     def _assert_forbidden_fields(self, object, fields):
+        """Check all forbidden fields of a given object."""
         for field_name in fields:
             if getattr(object, field_name, None) is not None:
                 raise exc.ForbiddenField(field=field_name)
 
     def _check_uniqueness(self, object, table, fields):
+        """Check uniqueness of a given object."""
         cur = self.con.cursor()
         for field_name in fields:
 
@@ -81,6 +84,7 @@ class DatabaseApi(object):
                 raise exc.DuplicateObject(field=field_name)
 
     def _check_foreign_key(self, object, foreign_key, foreign_table):
+        """Check foreign key of a given object."""
         cur = self.con.cursor()
 
         # Since the foreign key exception of sqlite3 has no information
