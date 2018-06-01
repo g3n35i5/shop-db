@@ -83,7 +83,7 @@ class Departmentpurchase(ValidatableObject):
         'department_id': [Type(int)],
         'admin_id': [Type(int)],
         'amount': [Type(int)],
-        'price_per_product': [Type(int)]
+        'total_price': [Type(int)]
     }
 
 

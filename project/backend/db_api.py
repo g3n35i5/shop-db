@@ -470,7 +470,7 @@ class DatabaseApi(object):
         cur = self.con.cursor()
         self._assert_mandatory_fields(
             dpurchase, ['product_id', 'department_id', 'admin_id',
-                        'amount', 'price_per_product'])
+                        'amount', 'total_price'])
         self._assert_forbidden_fields(dpurchase, ['id', 'timestamp'])
         self._check_foreign_key(dpurchase, 'admin_id', 'consumers')
         self._check_foreign_key(dpurchase, 'department_id', 'departments')
@@ -480,11 +480,11 @@ class DatabaseApi(object):
 
         cur.execute('INSERT INTO departmentpurchases '
                     '(timestamp, product_id, department_id, '
-                    ' admin_id, amount, price_per_product) '
+                    ' admin_id, amount, total_price) '
                     'VALUES (?,?,?,?,?,?);',
                     (dpurchase.timestamp, dpurchase.product_id,
                      dpurchase.department_id, dpurchase.admin_id,
-                     dpurchase.amount, dpurchase.price_per_product)
+                     dpurchase.amount, dpurchase.total_price)
                     )
         dp_id = cur.lastrowid
 
@@ -494,10 +494,9 @@ class DatabaseApi(object):
 
         product = self.get_product(dpurchase.product_id)
         comment = '{}x {}'.format(dpurchase.amount, product.name)
-        depositamount = dpurchase.amount * dpurchase.price_per_product
         payoff = models.Payoff(department_id=dpurchase.department_id,
                                comment=comment,
-                               amount=depositamount,
+                               amount=dpurchase.total_price,
                                departmentpurchase_id=dp_id,
                                admin_id=dpurchase.admin_id)
         self.insert_payoff(payoff)

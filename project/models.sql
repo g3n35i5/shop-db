@@ -74,7 +74,7 @@ CREATE TABLE departmentpurchases (
 	department_id INTEGER NOT NULL,
 	admin_id INTEGER NOT NULL,
 	amount INTEGER NOT NULL,
-	price_per_product INTEGER NOT NULL,
+	total_price INTEGER NOT NULL,
 	PRIMARY KEY (id),
 	FOREIGN KEY (product_id) REFERENCES products (id),
 	FOREIGN KEY (department_id) REFERENCES departments (id),
