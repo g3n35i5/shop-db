@@ -61,6 +61,12 @@ class ObjectNotFound(InputException):
         InputException.__init__(self)
 
 
+class InvalidDepartmentpurchase(InputException):
+
+    def __init__(self):
+        InputException.__init__(self)
+
+
 class FieldBasedException(InputException):
 
     def __init__(self, field, **kwargs):
@@ -318,5 +324,11 @@ exception_mapping = {
         "types": ["input-exception",
                   "nothing-has-changed"],
         "code": 200
+    },
+    InvalidDepartmentpurchase:
+    {
+        "types": ["input-exception",
+                  "invalid-departmentpurchase"],
+        "code": 400
     }
 }

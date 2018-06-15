@@ -117,34 +117,49 @@ class BackendTestCase(BaseTestCase):
         product = self.api.get_product(id=1)
         self.assertEqual(product.stock, 0)
 
+        # List departmentpurchasecollections
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 0)
+
+        # Create departmentpurchasecollection
+        dpcollection = models.DepartmentpurchaseCollection()
+        dpcollection.department_id = departments[0].id
+        dpcollection.admin_id = consumer.id
+
+        # Insert departmentpurchasecollection
+        self.api.insert_departmentpurchasecollection(dpcollection)
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 1)
+
+        # Get last departmentpurchasecollection
+        dpcollection = self.api.get_last_departmentpurchasecollection()
+        self.assertIsNotNone(dpcollection)
+        self.assertEqual(dpcollection.id, 1)
+
+        # Insert departmentpurchase
         dpurchase = models.Departmentpurchase()
+        dpurchase.collection_id = dpcollection.id
         dpurchase.product_id = product.id
-        dpurchase.department_id = departments[0].id
-        dpurchase.admin_id = consumer.id
         dpurchase.amount = 5
         dpurchase.total_price = 50
-        dpurchase.admin_id = 1
 
         self.api.insert_departmentpurchase(dpurchase)
-        dpurchases = self.api.list_departmentpurchases(department_id=1)
+        dpurchases = self.api.list_departmentpurchases(collection_id=1)
         self.assertEqual(len(dpurchases), 1)
 
         product = self.api.get_product(id=1)
         self.assertEqual(product.stock, dpurchase.amount)
-
-        payoffs = self.api.list_payoffs()
-        self.assertEqual(len(payoffs), 1)
-        comment = '{}x {}'.format(dpurchase.amount, product.name)
-        self.assertEqual(payoffs[0].comment, comment)
 
         departments = self.api.list_departments()
         self.assertEqual(departments[0].expenses, 50)
         self.assertEqual(departments[1].expenses, 0)
         self.assertEqual(departments[2].expenses, 0)
 
-        # Revoke deposit in order to "revoke" departmentpurchase
-        p = models.Payoff(id=1, revoked=True, admin_id=1)
-        self.api.update_payoff(p)
+        # Revoke departmentpurchasecollection
+        dpcollection = models.DepartmentpurchaseCollection()
+        dpcollection.id = 1
+        dpcollection.revoked = True
+        self.api.update_departmentpurchasecollection(dpcollection)
 
         departments = self.api.list_departments()
         self.assertEqual(departments[0].expenses, 0)
@@ -158,13 +173,45 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(department.expenses, 0)
 
         with self.assertRaises(exc.CanOnlyBeRevokedOnce):
-            p = models.Payoff(id=1, revoked=True)
-            self.api.update_payoff(p)
+            dpcollection = models.DepartmentpurchaseCollection()
+            dpcollection.id = 1
+            dpcollection.revoked = True
+            self.api.update_departmentpurchasecollection(dpcollection)
 
         departments = self.api.list_departments()
         self.assertEqual(departments[0].expenses, 0)
         self.assertEqual(departments[1].expenses, 0)
         self.assertEqual(departments[2].expenses, 0)
+
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 1)
+        self.assertTrue(dpcollections[0].revoked)
+
+        # Check, weather an incorrect departmentpurchase causes a dead
+        # departmentpurchasecollection
+
+        dpcollection = models.DepartmentpurchaseCollection()
+        dpcollection.department_id = departments[0].id
+        dpcollection.admin_id = consumer.id
+        self.api.insert_departmentpurchasecollection(dpcollection)
+        # List departmentpurchasecollections
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 2)
+        # Get the last dpcollection
+        dpcollection = self.api.get_last_departmentpurchasecollection()
+        self.assertEqual(dpcollection.id, 2)
+
+        # Insert defective departmentpurchase
+        dpurchase = models.Departmentpurchase()
+        dpurchase.collection_id = dpcollection.id
+        dpurchase.product_id = product.id
+        # amount is missing
+        dpurchase.total_price = 50
+        with self.assertRaises(exc.InvalidDepartmentpurchase):
+            self.api.insert_departmentpurchase(dpurchase)
+
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 1)
 
     def test_insert_departments(self):
         d = models.Department(name="Test 1", budget=20000)

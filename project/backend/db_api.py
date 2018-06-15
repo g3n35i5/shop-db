@@ -326,6 +326,20 @@ class DatabaseApi(object):
         pre_insert=_insert_participation
     )
 
+    def _insert_departmentpurchasecollection(self, dpcollection):
+        dpcollection.timestamp = datetime.datetime.now()
+        dpcollection.revoked = False
+
+    insert_departmentpurchasecollection = _insert_factory(
+        mandatory=['admin_id', 'department_id'],
+        forbidden=['id', 'timestamp', 'revoked', 'sum_price'],
+        foreign_keys=[
+            ['admin_id', 'consumers'],
+            ['department_id', 'departments'],
+        ],
+        pre_insert=_insert_departmentpurchasecollection
+    )
+
     def insert_payoff(self, payoff):
         cur = self.con.cursor()
 
@@ -344,15 +358,13 @@ class DatabaseApi(object):
         cur.execute(
             'INSERT INTO payoffs('
             '    department_id, '
-            '    departmentpurchase_id, '
             '    admin_id, '
             '    comment, '
             '    amount, '
             '    revoked,'
             '    timestamp) '
-            'VALUES (?,?,?,?,?,?,?);',
+            'VALUES (?,?,?,?,?,?);',
             (payoff.department_id,
-             payoff.departmentpurchase_id,
              payoff.admin_id,
              payoff.comment,
              payoff.amount,
@@ -468,39 +480,49 @@ class DatabaseApi(object):
 
     def insert_departmentpurchase(self, dpurchase):
         cur = self.con.cursor()
-        self._assert_mandatory_fields(
-            dpurchase, ['product_id', 'department_id', 'admin_id',
-                        'amount', 'total_price'])
-        self._assert_forbidden_fields(dpurchase, ['id', 'timestamp'])
-        self._check_foreign_key(dpurchase, 'admin_id', 'consumers')
-        self._check_foreign_key(dpurchase, 'department_id', 'departments')
-        self._check_foreign_key(dpurchase, 'product_id', 'products')
+        try:
+            self._assert_mandatory_fields(
+                dpurchase, ['collection_id', 'product_id',
+                            'amount', 'total_price'])
+            self._assert_forbidden_fields(dpurchase, ['id'])
+            self._check_foreign_key(dpurchase, 'collection_id',
+                                    'departmentpurchasecollections')
+            self._check_foreign_key(dpurchase, 'product_id', 'products')
 
-        dpurchase.timestamp = datetime.datetime.now()
+            cur.execute('INSERT INTO departmentpurchases '
+                        '(collection_id, product_id, '
+                        'amount, total_price) '
+                        'VALUES (?,?,?,?);',
+                        (dpurchase.collection_id, dpurchase.product_id,
+                         dpurchase.amount, dpurchase.total_price)
+                        )
+            col_id = dpurchase.collection_id
 
-        cur.execute('INSERT INTO departmentpurchases '
-                    '(timestamp, product_id, department_id, '
-                    ' admin_id, amount, total_price) '
-                    'VALUES (?,?,?,?,?,?);',
-                    (dpurchase.timestamp, dpurchase.product_id,
-                     dpurchase.department_id, dpurchase.admin_id,
-                     dpurchase.amount, dpurchase.total_price)
-                    )
-        dp_id = cur.lastrowid
+            dpcollection = self.get_departmentpurchasecollection(id=col_id)
+            # Update departments expeses
+            cur.execute('UPDATE departments SET expenses=expenses+? '
+                        'WHERE id=?;',
+                        (dpurchase.total_price, dpcollection.department_id)
+                        )
 
-        cur.execute('UPDATE products SET stock=stock+? WHERE id=?;',
-                    (dpurchase.amount, dpurchase.product_id)
-                    )
+            # Update product stock
+            cur.execute('UPDATE products SET stock=stock+? WHERE id=?;',
+                        (dpurchase.amount, dpurchase.product_id)
+                        )
 
-        product = self.get_product(dpurchase.product_id)
-        comment = '{}x {}'.format(dpurchase.amount, product.name)
-        payoff = models.Payoff(department_id=dpurchase.department_id,
-                               comment=comment,
-                               amount=dpurchase.total_price,
-                               departmentpurchase_id=dp_id,
-                               admin_id=dpurchase.admin_id)
-        self.insert_payoff(payoff)
-        self.con.commit()
+            self.con.commit()
+
+        except Exception as e:
+            # Delete all departmentpurchases with this collection id
+            cur.execute('DELETE FROM departmentpurchases WHERE '
+                        'collection_id=?;', (dpurchase.collection_id, )
+                        )
+            # Delete the collection
+            cur.execute('DELETE FROM departmentpurchasecollections WHERE '
+                        'id=?;', (dpurchase.collection_id, )
+                        )
+            self.con.commit()
+            raise exc.InvalidDepartmentpurchase
 
     def insert_deposit(self, deposit):
         cur = self.con.cursor()
@@ -556,6 +578,20 @@ class DatabaseApi(object):
 
         return d_amount + p_amount + k_amount
 
+    def _get_dpcollection_price(self, id):
+        dpurchases = self.list_departmentpurchases(collection_id=id)
+        dpurchases = list(map(validation.to_dict, dpurchases))
+        amount = sum(map(itemgetter('total_price'), dpurchases))
+        return amount
+
+    def get_last_departmentpurchasecollection(self):
+        cur = self.con.cursor()
+        model = models.DepartmentpurchaseCollection
+        cur.row_factory = factory(model)
+        cur.execute('SELECt * FROM {} DESC ORDER BY id DESC LIMIT 1;'.format(
+                    model._tablename))
+        return cur.fetchone()
+
     def get_activity(self, id):
         return self._get_one(model=models.Activity, id=id)
 
@@ -568,6 +604,12 @@ class DatabaseApi(object):
         consumer.isAdmin = len(self.getAdminroles(consumer)) > 0
         consumer.hasCredentials = all([consumer.email, consumer.password])
         return consumer
+
+    def get_departmentpurchasecollection(self, id):
+        dpcollection = self._get_one(model=models.DepartmentpurchaseCollection,
+                                     id=id)
+        dpcollection.sum_price = self._get_dpcollection_price(id=id)
+        return dpcollection
 
     def get_product(self, id):
         return self._get_one(model=models.Product, id=id)
@@ -738,11 +780,24 @@ class DatabaseApi(object):
 
         return consumers
 
-    def list_departmentpurchases(self, department_id):
+    def list_departmentpurchasecollections(self):
+        cur = self.con.cursor()
+        cur.row_factory = factory(models.DepartmentpurchaseCollection)
+        cur.execute('SELECT * FROM {};'.format(
+                    models.DepartmentpurchaseCollection._tablename)
+                    )
+        dpcollections = cur.fetchall()
+        for dpcollection in dpcollections:
+            id = dpcollection.id
+            dpcollection.sum_price = self._get_dpcollection_price(id)
+
+        return dpcollections
+
+    def list_departmentpurchases(self, collection_id):
         cur = self.con.cursor()
         cur.row_factory = factory(models.Departmentpurchase)
-        cur.execute('SELECT * FROM {} WHERE department_id={};'.format(
-                    models.Departmentpurchase._tablename, department_id)
+        cur.execute('SELECT * FROM {} WHERE collection_id={};'.format(
+                    models.Departmentpurchase._tablename, collection_id)
                     )
         return cur.fetchall()
 
@@ -838,6 +893,50 @@ class DatabaseApi(object):
         )
         self.con.commit()
 
+    def update_departmentpurchasecollection(self, dpcollection):
+        self._assert_mandatory_fields(dpcollection, ['id'])
+        self._assert_forbidden_fields(dpcollection, ['timestamp',
+                                                     'department_id',
+                                                     'admin_id'])
+
+        api_collection = self.get_departmentpurchasecollection(dpcollection.id)
+        if dpcollection.revoked is not None:
+            if not dpcollection.revoked:
+                if api_collection.revoked:
+                    raise exc.RevokeIsFinal()
+                else:
+                    raise exc.NothingHasChanged()
+        else:
+            raise exc.NothingHasChanged()
+
+        if api_collection.revoked:
+            raise exc.CanOnlyBeRevokedOnce()
+        if dpcollection.revoked:
+            api_collection.revoked = True
+
+        cur = self.con.cursor()
+
+        # update bank credit
+        cur.execute('UPDATE banks SET credit=credit+?;',
+                    (api_collection.sum_price, ))
+
+        cur.execute('UPDATE departments SET expenses=expenses-? '
+                    'WHERE id=?;',
+                    (api_collection.sum_price, api_collection.department_id)
+                    )
+        id = api_collection.id
+        dpurchases = self.list_departmentpurchases(collection_id=id)
+        for dp in dpurchases:
+            cur.execute('UPDATE products SET stock=stock-? WHERE id=?;',
+                        (dp.amount, dp.product_id)
+                        )
+
+        self._simple_update(cur, object=api_collection,
+                            table='departmentpurchasecollections',
+                            updateable_fields=['revoked'])
+
+        self.con.commit()
+
     def update_payoff(self, payoff):
         self._assert_mandatory_fields(payoff, ['id'])
         self._assert_forbidden_fields(payoff, ['department_id',
@@ -870,12 +969,6 @@ class DatabaseApi(object):
                     'WHERE id=?;',
                     (apipayoff.amount, apipayoff.department_id)
                     )
-
-        if apipayoff.departmentpurchase_id:
-            dp = self.get_departmentpurchase(id=apipayoff.departmentpurchase_id)
-            cur.execute('UPDATE products SET stock=stock-? WHERE id=?;',
-                        (dp.amount, dp.department_id)
-                        )
 
         self._simple_update(cur, object=apipayoff, table='payoffs',
                             updateable_fields=['revoked', 'comment'])

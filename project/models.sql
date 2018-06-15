@@ -69,16 +69,26 @@ CREATE TABLE purchases (
 
 CREATE TABLE departmentpurchases (
 	id INTEGER NOT NULL,
-	timestamp TIMESTAMP NOT NULL,
+	collection_id INTEGER NOT NULL,
 	product_id INTEGER NOT NULL,
-	department_id INTEGER NOT NULL,
-	admin_id INTEGER NOT NULL,
 	amount INTEGER NOT NULL,
 	total_price INTEGER NOT NULL,
 	PRIMARY KEY (id),
-	FOREIGN KEY (product_id) REFERENCES products (id),
-	FOREIGN KEY (department_id) REFERENCES departments (id),
-	FOREIGN KEY (admin_id) REFERENCES consumers (id)
+	FOREIGN KEY (collection_id) REFERENCES departmentpurchasecollections (id),
+	FOREIGN KEY (product_id) REFERENCES products (id)
+);
+
+CREATE TABLE departmentpurchasecollections (
+	id INTEGER NOT NULL,
+	timestamp TIMESTAMP NOT NULL,
+	comment VARCHAR(64),
+	department_id INTEGER NOT NULL,
+	admin_id INTEGER NOT NULL,
+	revoked BOOLEAN NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(department_id) REFERENCES departments (id),
+	FOREIGN KEY(admin_id) REFERENCES consumers (id),
+	CHECK (revoked IN (0, 1))
 );
 
 CREATE TABLE deposits (
@@ -94,14 +104,14 @@ CREATE TABLE deposits (
 CREATE TABLE payoffs (
 	id INTEGER NOT NULL,
 	department_id INTEGER NOT NULL,
-	departmentpurchase_id INTEGER,
+	admin_id INTEGER NOT NULL,
 	comment VARCHAR(64) NOT NULL,
 	amount INTEGER NOT NULL,
 	revoked BOOLEAN NOT NULL,
 	timestamp TIMESTAMP NOT NULL,
 	PRIMARY KEY (id),
 	FOREIGN KEY (department_id) REFERENCES departments (id),
-	FOREIGN KEY (departmentpurchase_id) REFERENCES departmentpurchases (id),
+	FOREIGN KEY (admin_id) REFERENCES consumers (id),
 	CHECK (revoked IN (0, 1))
 );
 

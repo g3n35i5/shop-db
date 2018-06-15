@@ -457,6 +457,82 @@ class WebapiTestCase(BaseTestCase):
         # Check consumers credit
         self.assertEqual(self.api.get_consumer(1).credit, 0)
 
+    def test_insert_departmentpurchase(self):
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 0)
+        products = self.api.list_products()
+        # Create departmentpurchases
+        dpurchases = []
+        for product in products:
+            dpurchase = {
+                'product_id': product.id,
+                'amount': 10,
+                'total_price': 100
+            }
+            dpurchases.append(dpurchase)
+        data = {
+            'admin_id': 1,
+            'department_id': 1,
+            'comment': 'Departmentpurchase collection 1',
+            'dpurchases': dpurchases
+        }
+        # Try inserting without token
+        res = self.post('/departmentpurchases', data, 'extern')
+        self.assertException(res, exc.TokenMissing)
+
+        res = self.post('/departmentpurchases', data, 'consumer')
+        self.assertException(res, exc.NotAuthorized)
+
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 0)
+
+        # Insert with token
+        res = self.post('/departmentpurchases', data, 'admin')
+        self.assertEqual(res.status_code, 201)
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 1)
+
+        # Insert second collection with different data
+        dpurchases = []
+        for product in products:
+            dpurchase = {
+                'product_id': product.id,
+                'amount': 20,
+                'total_price': 50
+            }
+            dpurchases.append(dpurchase)
+        data = {
+            'admin_id': 1,
+            'department_id': 1,
+            'comment': 'Departmentpurchase collection 2',
+            'dpurchases': dpurchases
+        }
+        res = self.post('/departmentpurchases', data, 'admin')
+        self.assertEqual(res.status_code, 201)
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 2)
+
+        self.assertEqual(dpcollections[0].sum_price, len(products) * 100)
+        self.assertEqual(dpcollections[0].comment,
+                         'Departmentpurchase collection 1')
+        self.assertEqual(dpcollections[1].sum_price, len(products) * 50)
+        self.assertEqual(dpcollections[1].comment,
+                         'Departmentpurchase collection 2')
+
+        # List departmentpurchases of collection 1
+        res = self.get('/departmentpurchases/1', 'extern')
+        self.assertException(res, exc.TokenMissing)
+
+        res = self.get('/departmentpurchases/1', 'consumer')
+        self.assertException(res, exc.NotAuthorized)
+
+        res = self.get('/departmentpurchases/1', 'admin')
+        data = json.loads(res.data)
+        self.assertEqual(len(data), len(products))
+
+        for index, product in enumerate(products):
+            self.assertEqual(data[index]['product_id'], product.id)
+
     def test_insert_deposit(self):
         deposits = self.api.list_deposits()
         self.assertFalse(deposits)

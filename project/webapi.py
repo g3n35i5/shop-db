@@ -448,6 +448,7 @@ def insertPayoff(admin):
     api.insert_payoff(models.Payoff(**json_body()))
     return jsonify(result='created'), 201
 
+
 # Update payoff
 @app.route('/payoff/<int:id>', methods=['PUT'])
 def update_payoff(id):
@@ -573,11 +574,20 @@ def insertActivityfeedback():
 
 ############################### Departmentpurchases Routes ####################
 
+# List departmentpurchase collections
+@app.route('/departmentpurchasecollections', methods=['GET'])
+@adminRequired
+def list_departmentpurchasecollections(admin):
+    col = api.list_departmentpurchasecollections()
+    res = list(map(validation.to_dict, col))
+    return jsonify(res)
+
 # List departmentpurchases
 @app.route('/departmentpurchases/<int:id>', methods=['GET'])
 @adminRequired
 def list_departmentpurchases(admin, id):
-    res = list(map(validation.to_dict, api.list_departmentpurchases(department_id=id)))
+    dpurchases = api.list_departmentpurchases(collection_id=id)
+    res = list(map(validation.to_dict, dpurchases))
     return jsonify(res)
 
 
@@ -590,15 +600,26 @@ def insert_departmentpurchase(admin):
         return make_response('Unauthorized access', 401)
 
     try:
+        a_ID = admin['id']
+        d_ID = data['department_id']
+        if 'comment' in data:
+            comment = data['comment']
+        else:
+            comment = None
+
+        c = models.DepartmentpurchaseCollection(admin_id=a_ID,
+                                                department_id=d_ID,
+                                                comment=comment)
+        api.insert_departmentpurchasecollection(c)
+        last_collection = api.get_last_departmentpurchasecollection()
         for obj in data['dpurchases']:
-            d = models.Departmentpurchase(admin_id=admin['id'],
+            d = models.Departmentpurchase(collection_id=last_collection.id,
                                           product_id=obj['product_id'],
-                                          department_id=data['department_id'],
                                           amount=obj['amount'],
-                                          price_per_product=obj['price'])
-            # pdb.set_trace()
+                                          total_price=obj['total_price'])
             api.insert_departmentpurchase(d)
 
         return jsonify(result='created'), 201
-    except:
+
+    except Exception as e:
         return make_response('Invalid data', 401)

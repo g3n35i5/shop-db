@@ -3,3 +3,4 @@ flask_bcrypt ==  0.7.1
 pyjwt        ==  1.5.3
 flask_cors   ==  3.0.3
 werkzeug     ==  0.14.1
+Flask-Testing == 0.6.2
