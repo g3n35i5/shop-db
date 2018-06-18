@@ -28,13 +28,19 @@ class BackendTestCase(BaseTestCase):
 
     def test_insert_consumer(self):
         # insert correctly
-        c = models.Consumer(name='Hans Müller')
+        c = models.Consumer(name='Hans Müller', email='me@example.com')
         self.api.insert_consumer(c)
         consumer = self.api.get_consumer(id=5)
         self.assertEqual(consumer.name, 'Hans Müller')
+        self.assertEqual(consumer.email, 'me@example.com')
         self.assertEqual(consumer.credit, 0)
         self.assertEqual(consumer.karma, 0)
         self.assertTrue(consumer.active)
+
+        # insert second consumer
+        c = models.Consumer(name='Peter Meier', email='me@example.com')
+        with self.assertRaises(exc.DuplicateObject):
+            self.api.insert_consumer(c)
 
         # missing fields
         with self.assertRaises(exc.FieldIsNone):
@@ -111,33 +117,49 @@ class BackendTestCase(BaseTestCase):
         product = self.api.get_product(id=1)
         self.assertEqual(product.stock, 0)
 
+        # List departmentpurchasecollections
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 0)
+
+        # Create departmentpurchasecollection
+        dpcollection = models.DepartmentpurchaseCollection()
+        dpcollection.department_id = departments[0].id
+        dpcollection.admin_id = consumer.id
+
+        # Insert departmentpurchasecollection
+        self.api.insert_departmentpurchasecollection(dpcollection)
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 1)
+
+        # Get last departmentpurchasecollection
+        dpcollection = self.api.get_last_departmentpurchasecollection()
+        self.assertIsNotNone(dpcollection)
+        self.assertEqual(dpcollection.id, 1)
+
+        # Insert departmentpurchase
         dpurchase = models.Departmentpurchase()
+        dpurchase.collection_id = dpcollection.id
         dpurchase.product_id = product.id
-        dpurchase.department_id = departments[0].id
-        dpurchase.admin_id = consumer.id
         dpurchase.amount = 5
-        dpurchase.price_per_product = 10
+        dpurchase.total_price = 50
 
         self.api.insert_departmentpurchase(dpurchase)
-        dpurchases = self.api.list_departmentpurchases(department_id=1)
+        dpurchases = self.api.list_departmentpurchases(collection_id=1)
         self.assertEqual(len(dpurchases), 1)
 
         product = self.api.get_product(id=1)
         self.assertEqual(product.stock, dpurchase.amount)
-
-        payoffs = self.api.list_payoffs()
-        self.assertEqual(len(payoffs), 1)
-        comment = '{}x {}'.format(dpurchase.amount, product.name)
-        self.assertEqual(payoffs[0].comment, comment)
 
         departments = self.api.list_departments()
         self.assertEqual(departments[0].expenses, 50)
         self.assertEqual(departments[1].expenses, 0)
         self.assertEqual(departments[2].expenses, 0)
 
-        # Revoke deposit in order to "revoke" departmentpurchase
-        p = models.Payoff(id=1, revoked=True)
-        self.api.update_payoff(p)
+        # Revoke departmentpurchasecollection
+        dpcollection = models.DepartmentpurchaseCollection()
+        dpcollection.id = 1
+        dpcollection.revoked = True
+        self.api.update_departmentpurchasecollection(dpcollection)
 
         departments = self.api.list_departments()
         self.assertEqual(departments[0].expenses, 0)
@@ -151,15 +173,47 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(department.expenses, 0)
 
         with self.assertRaises(exc.CanOnlyBeRevokedOnce):
-            p = models.Payoff(id=1, revoked=True)
-            self.api.update_payoff(p)
+            dpcollection = models.DepartmentpurchaseCollection()
+            dpcollection.id = 1
+            dpcollection.revoked = True
+            self.api.update_departmentpurchasecollection(dpcollection)
 
         departments = self.api.list_departments()
         self.assertEqual(departments[0].expenses, 0)
         self.assertEqual(departments[1].expenses, 0)
         self.assertEqual(departments[2].expenses, 0)
 
-    def test_insert_consumers(self):
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 1)
+        self.assertTrue(dpcollections[0].revoked)
+
+        # Check, weather an incorrect departmentpurchase causes a dead
+        # departmentpurchasecollection
+
+        dpcollection = models.DepartmentpurchaseCollection()
+        dpcollection.department_id = departments[0].id
+        dpcollection.admin_id = consumer.id
+        self.api.insert_departmentpurchasecollection(dpcollection)
+        # List departmentpurchasecollections
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 2)
+        # Get the last dpcollection
+        dpcollection = self.api.get_last_departmentpurchasecollection()
+        self.assertEqual(dpcollection.id, 2)
+
+        # Insert defective departmentpurchase
+        dpurchase = models.Departmentpurchase()
+        dpurchase.collection_id = dpcollection.id
+        dpurchase.product_id = product.id
+        # amount is missing
+        dpurchase.total_price = 50
+        with self.assertRaises(exc.InvalidDepartmentpurchase):
+            self.api.insert_departmentpurchase(dpurchase)
+
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 1)
+
+    def test_insert_departments(self):
         d = models.Department(name="Test 1", budget=20000)
         self.api.insert_department(d)
         d = models.Department(name="Test 2", budget=30000)
@@ -302,24 +356,80 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(products[2].stock, 0)
 
     def test_create_payoff(self):
+
+        # Check bank balance
+        bank = self.api.get_bank()
+        self.assertEqual(bank.credit, 0)
+
+        # Check department expenses
         departments = self.api.list_departments()
         self.assertEqual(departments[0].expenses, 0)
         self.assertEqual(departments[1].expenses, 0)
         self.assertEqual(departments[2].expenses, 0)
-        bank = self.api.get_bank()
-        self.assertEqual(bank.credit, 0)
 
-        p = models.Payoff(department_id=1, amount=2000, comment="payoff test")
-        self.api.insert_payoff(p)
+        # Check payoffs
+        payoffs = self.api.list_payoffs()
+        self.assertEqual(len(payoffs), 0)
+
+        # Make consumer 2 administrator for department 2
+        upconsumer = models.Consumer(id=2)
+        upconsumer.email = 'me@example.com'
+        upconsumer.password = 'supersecretpassword'.encode()
+        self.api.update_consumer(upconsumer)
+        consumer = self.api.get_consumer(upconsumer.id)
+        self.api.setAdmin(consumer, departments[1], True)
+
+        # Check consumer admin states
+        consumers = self.api.list_consumers()
+        self.assertEqual(len(consumers), 4)
+        self.assertTrue(consumers[0].isAdmin)
+        self.assertTrue(consumers[1].isAdmin)
+        self.assertFalse(consumers[2].isAdmin)
+        self.assertFalse(consumers[3].isAdmin)
+
+        # Check adminroles of consumer 1
+        adminroles = self.api.getAdminroles(consumers[0])
+        self.assertEqual(len(adminroles), 1)
+        self.assertEqual(adminroles[0].consumer_id, consumers[0].id)
+        self.assertEqual(adminroles[0].department_id, departments[0].id)
+
+        # Check adminroles of consumer 2
+        adminroles = self.api.getAdminroles(consumers[1])
+        self.assertEqual(len(adminroles), 1)
+        self.assertEqual(adminroles[0].consumer_id, consumers[1].id)
+        self.assertEqual(adminroles[0].department_id, departments[1].id)
+
+        # Consumer No. 1 is administrator for department 1 and should
+        # therefore be able to insert a payoff
+        payoff_1 = models.Payoff(department_id=1, comment='Should work',
+                                 amount=10000, admin_id=1)
+        self.api.insert_payoff(payoff_1)
+
+        # Now it is necessary to check whether even a payoff and an admin
+        # event have been created and whether all values are set correctly.
+        payoffs = self.api.list_payoffs()
+        self.assertEqual(len(payoffs), 1)
+        self.assertEqual(payoffs[0].department_id, payoff_1.department_id)
+        self.assertEqual(payoffs[0].comment, payoff_1.comment)
+        self.assertEqual(payoffs[0].amount, payoff_1.amount)
+
+        # Check bank balance
         bank = self.api.get_bank()
-        self.assertEqual(bank.credit, -2000)
+        self.assertEqual(bank.credit, -10000)
+
+        # Check that the expenses of the departments are correct
         departments = self.api.list_departments()
-        self.assertEqual(departments[0].expenses, 2000)
+        self.assertEqual(departments[0].expenses, 10000)
         self.assertEqual(departments[1].expenses, 0)
         self.assertEqual(departments[2].expenses, 0)
 
+        # Try to set revoke to false, this should fail
+        p = models.Payoff(id=1, revoked=False, admin_id=1)
+        with self.assertRaises(exc.NothingHasChanged):
+            self.api.update_payoff(p)
+
         # revoke payoff
-        p = models.Payoff(id=1, revoked=True)
+        p = models.Payoff(id=1, revoked=True, admin_id=1)
         self.api.update_payoff(p)
 
         bank = self.api.get_bank()
@@ -330,6 +440,16 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(departments[2].expenses, 0)
 
         with self.assertRaises(exc.CanOnlyBeRevokedOnce):
+            self.api.update_payoff(p)
+
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 0)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
+
+        # Try to un-revoke payoff, this should fail
+        p = models.Payoff(id=1, revoked=False, admin_id=1)
+        with self.assertRaises(exc.RevokeIsFinal):
             self.api.update_payoff(p)
 
         departments = self.api.list_departments()
@@ -730,6 +850,8 @@ class BackendTestCase(BaseTestCase):
         workactivity = models.Workactivity(name="Getränke schleppen")
         self.api.insert_workactivity(workactivity)
 
+        # Duplicate object should be forbidden
+        workactivity = models.Workactivity(name="Getränke schleppen")
         with self.assertRaises(exc.DuplicateObject):
             self.api.insert_workactivity(workactivity)
 

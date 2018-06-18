@@ -78,12 +78,23 @@ class Departmentpurchase(ValidatableObject):
     _tablename = 'departmentpurchases'
     _validators = {
         'id': [Type(int)],
-        'timestamp': [Type(datetime.datetime)],
+        'collection_id': [Type(int)],
         'product_id': [Type(int)],
+        'amount': [Type(int)],
+        'total_price': [Type(int)]
+    }
+
+
+class DepartmentpurchaseCollection(ValidatableObject):
+    _tablename = 'departmentpurchasecollections'
+    _validators = {
+        'id': [Type(int)],
+        'timestamp': [Type(datetime.datetime)],
+        'comment': [SkipIfNone(Type(str), MaxLength(64), MinLength(4))],
+        'sum_price': [Type(int)],
         'department_id': [Type(int)],
         'admin_id': [Type(int)],
-        'amount': [Type(int)],
-        'price_per_product': [Type(int)]
+        'revoked': [Type(bool)]
     }
 
 
@@ -102,8 +113,8 @@ class Payoff(ValidatableObject):
     _tablename = 'payoffs'
     _validators = {
         'id': [Type(int)],
+        'admin_id': [Type(int)],
         'department_id': [Type(int)],
-        'departmentpurchase_id': [SkipIfNone(Type(int))],
         'comment': [Type(str), MaxLength(64), MinLength(8)],
         'amount': [Type(int)],
         'revoked': [Type(bool)],
@@ -155,7 +166,8 @@ class Workactivity(ValidatableObject):
     _tablename = 'workactivities'
     _validators = {
         'id': [Type(int)],
-        'name': [Type(str), MaxLength(32), MinLength(4)]
+        'name': [Type(str), MaxLength(32), MinLength(4)],
+        'created': [Type(datetime.datetime)]
     }
 
 

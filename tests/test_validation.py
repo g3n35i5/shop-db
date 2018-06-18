@@ -12,7 +12,8 @@ class ValidationTestCase(BaseTestCase):
         class TestClass(ValidatableObject):
             _validators = {
                 'name': [Type(str), MaxLength(20), MinLength(4)],
-                'amount': [Type(int), LessThan(5)],
+                'amount': [Type(int), LessThan(5), GreaterThan(1)],
+                'age': [Type(int), GreaterOrEqual(0), LessOrEqual(99)],
                 'canbenone': [SkipIfNone(Type(str))]
             }
 
@@ -45,6 +46,18 @@ class ValidationTestCase(BaseTestCase):
     def test_set_int(self):
         self.test_obj.amount = 2
 
+    def test_greater_than(self):
+        with self.assertRaises(exc.MinimumValueUndershot):
+            self.test_obj.amount = 1
+
+    def test_less_or_equal(self):
+        with self.assertRaises(exc.MaximumValueExceeded):
+            self.test_obj.age = 100
+
+    def test_greater_or_equal(self):
+        with self.assertRaises(exc.MinimumValueUndershot):
+            self.test_obj.age = -2
+
     def test_set_wrong_type_string(self):
         with self.assertRaises(exc.WrongType):
             self.test_obj.name = 2
@@ -55,3 +68,11 @@ class ValidationTestCase(BaseTestCase):
     def test_less_than_exception(self):
         with self.assertRaises(exc.MaximumValueExceeded):
             self.test_obj.amount = 42
+
+    def test_representation(self):
+        self.test_obj.name = 'test'
+        self.test_obj.amount = 2
+        self.test_obj.age = 9
+        self.test_obj.canbenone = None
+        b = '<TestClass(id=None, age=9, amount=2, canbenone=None, name="test")>'
+        self.assertEqual(str(self.test_obj), b)

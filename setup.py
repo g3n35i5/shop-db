@@ -3,8 +3,8 @@
 import os.path
 import sys
 import sqlite3
-from configuration import BaseConfig
-from cli.utils import choice
+from project.configuration import BaseConfig
+from project.cli.utils import choice
 
 
 if __name__ == '__main__':

@@ -51,16 +51,19 @@ class DatabaseApi(object):
         self.con.executescript(schema)
 
     def _assert_mandatory_fields(self, object, fields):
+        """Check all mandatory fields of a given object."""
         for field_name in fields:
             if getattr(object, field_name, None) is None:
                 raise exc.FieldIsNone(field_name)
 
     def _assert_forbidden_fields(self, object, fields):
+        """Check all forbidden fields of a given object."""
         for field_name in fields:
             if getattr(object, field_name, None) is not None:
                 raise exc.ForbiddenField(field=field_name)
 
     def _check_uniqueness(self, object, table, fields):
+        """Check uniqueness of a given object."""
         cur = self.con.cursor()
         for field_name in fields:
 
@@ -74,13 +77,14 @@ class DatabaseApi(object):
                 res = cur.execute(
                     'SELECT 1 FROM {} WHERE {}=?;'.format(
                         table, field_name),
-                    (getattr(object, field_name),)
+                    (getattr(object, field_name), )
                 )
 
             if res.fetchone() is not None:
                 raise exc.DuplicateObject(field=field_name)
 
     def _check_foreign_key(self, object, foreign_key, foreign_table):
+        """Check foreign key of a given object."""
         cur = self.con.cursor()
 
         # Since the foreign key exception of sqlite3 has no information
@@ -158,7 +162,6 @@ class DatabaseApi(object):
         params = []
         query_parts = []
         log_string = []
-
         for field in updateable_fields:
             if getattr(object, field) is None:
                 continue
@@ -177,8 +180,6 @@ class DatabaseApi(object):
         if res1.rowcount != 1:
             self.con.rollback()
             raise exc.ObjectNotFound
-            raise ObjectNotFound()
-
         for change in log_string:
             change.replace("True", "1")
             change.replace("False", "0")
@@ -191,196 +192,180 @@ class DatabaseApi(object):
             if res2.rowcount != 1:
                 self.con.rollback()
 
-    def insert_workactivity(self, workactivity):
-        cur = self.con.cursor()
+    def _insert_factory(mandatory=[], forbidden=[], unique=[],
+                        foreign_keys=[], pre_insert=None, optional_unique=[]):
+        """Factory to insert simple objects"""
+        def insert(self, obj):
+            self._assert_mandatory_fields(obj, mandatory)
+            self._assert_forbidden_fields(obj, forbidden)
+            self._check_uniqueness(obj, obj._tablename, unique)
+            for foreign_key, ref_table in foreign_keys:
+                self._check_foreign_key(obj, foreign_key, ref_table)
 
-        self._assert_mandatory_fields(workactivity, ['name'])
-        self._check_uniqueness(workactivity, 'workactivities',
-                               ['name'])
-        self._assert_forbidden_fields(workactivity, ['id'])
+            for oi in optional_unique:
+                if getattr(obj, oi) is not None:
+                    self._check_uniqueness(obj, obj._tablename, [oi])
 
-        cur.execute('INSERT INTO workactivities '
-                    '(name) VALUES(?);', (workactivity.name, )
-                    )
-        self.con.commit()
+            if pre_insert:
+                pre_insert(self, obj)
 
-    def insert_activity(self, activity):
-        cur = self.con.cursor()
+            query = 'INSERT INTO {} '.format(obj._tablename)
+            fields = []
+            values = []
+            for v in obj._validators:
+                if getattr(obj, v) is not None:
+                    fields.append(v)
+                    values.append(getattr(obj, v))
 
-        self._assert_mandatory_fields(activity,
-                                      ['workactivity_id',
-                                       'date_deadline',
-                                       'date_event',
-                                       'created_by'])
+            fields = ', '.join(fields)
+            _vals = ', '.join(['?'] * len(values))
 
-        self._assert_forbidden_fields(activity,
-                                      ['id', 'date_created'])
-        self._check_foreign_key(activity, 'created_by', 'consumers')
+            query += ' ({}) VALUES ({});'.format(fields, _vals)
 
-        activity.date_created = datetime.datetime.now()
-        activity.reviewed = False
-        if not (activity.date_created < activity.date_deadline < activity.date_event):
-            raise exc.InvalidDates()
+            cur = self.con.cursor()
+            cur.execute(query, values)
+            self.con.commit()
 
-        cur.execute('INSERT INTO activities '
-                    '(created_by, workactivity_id, '
-                    'date_created, date_deadline, date_event, reviewed) '
-                    'VALUES(?,?,?,?,?,?);', (
-                     activity.created_by, activity.workactivity_id,
-                     activity.date_created, activity.date_deadline,
-                     activity.date_event, activity.reviewed)
-                    )
+        return insert
 
-        self.con.commit()
-
-    def insert_activityfeedback(self, activityfeedback):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(activityfeedback,
-                                      ['consumer_id',
-                                       'activity_id',
-                                       'feedback'])
-        self._assert_forbidden_fields(activityfeedback, ['id', 'timestamp'])
-        self._check_foreign_key(activityfeedback, 'consumer_id', 'consumers')
-        self._check_foreign_key(activityfeedback, 'activity_id', 'activities')
-
-        activity = self.get_activity(id=activityfeedback.activity_id)
-
-        activityfeedback.timestamp = datetime.datetime.now()
-
-        if activityfeedback.timestamp > activity.date_deadline:
-            raise exc.InvalidDates()
-
-        cur.execute('INSERT INTO activityfeedbacks '
-                    '(timestamp, consumer_id, activity_id, feedback) '
-                    'VALUES(?,?,?,?);', (
-                     activityfeedback.timestamp, activityfeedback.consumer_id,
-                     activityfeedback.activity_id, activityfeedback.feedback)
-                    )
-
-        self.con.commit()
-
-    def insert_participation(self, participation):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(participation,
-                                      ['consumer_id',
-                                       'activity_id'])
-        self._assert_forbidden_fields(participation, ['id', 'timestamp'])
-        self._check_foreign_key(participation, 'consumer_id', 'consumers')
-        self._check_foreign_key(participation, 'activity_id', 'activities')
-
-        participation.timestamp = datetime.datetime.now()
-
-        cur.execute('INSERT INTO participations '
-                    '(timestamp, consumer_id, activity_id) '
-                    'VALUES(?,?,?);',
-                    (participation.timestamp, participation.consumer_id,
-                     participation.activity_id)
-                    )
-
-    def insert_product(self, product):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(
-            product, ['name', 'countable', 'price',
-                      'department_id', 'revocable']
-        )
-        self._assert_forbidden_fields(product, ['id', 'active', 'stock'])
-        self._check_uniqueness(product, 'products', ['name'])
-        self._check_foreign_key(product, 'department_id', 'departments')
-
-        product.stock = 0 if product.countable else None
-
-        product.active = True
-
-        cur.execute(
-            'INSERT INTO products '
-            '(name, active, stock, price, department_id, '
-            'revocable, countable, image, barcode) '
-            'VALUES (?,?,?,?,?,?,?,?,?);',
-            (product.name, product.active, product.stock,
-             product.price, product.department_id,
-             product.revocable, product.countable,
-             product.image, product.barcode)
-        )
-        self.con.commit()
-
-    def insert_consumer(self, consumer):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(
-            consumer, ['name'])
-        self._assert_forbidden_fields(consumer,
-                                      ['id', 'credit', 'active', 'karma'])
-        self._check_uniqueness(consumer, 'consumers', ['name'])
-
-        if consumer.email is not None:
-            self._check_uniqueness(consumer, 'consumers', ['email'])
-
-        if consumer.studentnumber is not None:
-            self._check_uniqueness(consumer, 'consumers', ['studentnumber'])
-
+    def _insert_consumer(self, consumer):
         consumer.credit = 0
         consumer.active = True
         consumer.karma = 0
 
-        cur.execute(
-            'INSERT INTO consumers '
-            '(name, active, credit, karma, email, password, studentnumber) '
-            'VALUES (?,?,?,?,?,?,?);',
-            (consumer.name, consumer.active, consumer.credit,
-             consumer.karma, consumer.email, consumer.password,
-             consumer.studentnumber)
-        )
-        self.con.commit()
+    insert_consumer = _insert_factory(
+        mandatory=['name'],
+        forbidden=['id', 'credit', 'active', 'karma'],
+        unique=['name'],
+        pre_insert=_insert_consumer,
+        optional_unique=['email', 'studentnumber']
+    )
 
-    def insert_department(self, department):
-        cur = self.con.cursor()
-
-        self._assert_mandatory_fields(
-            department, ['name', 'budget'])
-        self._assert_forbidden_fields(department, ['id'])
-        self._check_uniqueness(department, 'departments', ['name'])
+    def _insert_department(self, department):
         department.income_base = 0
         department.income_karma = 0
         department.expenses = 0
 
-        cur.execute(
-            'INSERT INTO departments '
-            '(name, income_base, income_karma, expenses, budget) '
-            'VALUES (?,?,?,?,?);',
-            (department.name, department.income_base,
-             department.income_karma, department.expenses, department.budget)
-        )
-        self.con.commit()
+    insert_department = _insert_factory(
+        mandatory=['name', 'budget'],
+        forbidden=['id'],
+        unique=['name'],
+        pre_insert=_insert_department
+    )
+
+    def _insert_product(self, product):
+        product.stock = 0 if product.countable else None
+        product.active = True
+
+    insert_product = _insert_factory(
+        mandatory=['name', 'countable', 'price', 'department_id', 'revocable'],
+        forbidden=['id', 'active', 'stock'],
+        foreign_keys=[
+            ['department_id', 'departments']
+        ],
+        unique=['name'],
+        pre_insert=_insert_product
+    )
+
+    def _insert_activityfeedback(self, activityfeedback):
+        activity = self.get_activity(id=activityfeedback.activity_id)
+        activityfeedback.timestamp = datetime.datetime.now()
+        if activityfeedback.timestamp > activity.date_deadline:
+            raise exc.InvalidDates()
+
+    insert_activityfeedback = _insert_factory(
+        mandatory=['consumer_id', 'activity_id', 'feedback'],
+        forbidden=['id', 'timestamp'],
+        foreign_keys=[
+            ['consumer_id', 'consumers'],
+            ['activity_id', 'activities']
+        ],
+        pre_insert=_insert_activityfeedback
+    )
+
+    def _insert_workactivity(self, workactivity):
+        workactivity.created = datetime.datetime.now()
+
+    insert_workactivity = _insert_factory(
+        mandatory=['name'],
+        forbidden=['id', 'created'],
+        unique=['name'],
+        pre_insert=_insert_workactivity
+    )
+
+    def _insert_activity(self, activity):
+        activity.date_created = datetime.datetime.now()
+        activity.reviewed = False
+
+        created = activity.date_created
+        deadline = activity.date_deadline
+        event = activity.date_event
+        if not (created < deadline < event):
+            raise exc.InvalidDates()
+
+    insert_activity = _insert_factory(
+        mandatory=['workactivity_id', 'date_deadline',
+                   'date_event', 'created_by'],
+        forbidden=['id', 'date_created'],
+        foreign_keys=[
+            ['created_by', 'consumers']
+        ],
+        pre_insert=_insert_activity
+    )
+
+    def _insert_participation(self, participation):
+        participation.timestamp = datetime.datetime.now()
+
+    insert_participation = _insert_factory(
+        mandatory=['consumer_id', 'activity_id'],
+        forbidden=['id', 'timestamp'],
+        foreign_keys=[
+            ['consumer_id', 'consumers'],
+            ['activity_id', 'activities'],
+        ],
+        pre_insert=_insert_participation
+    )
+
+    def _insert_departmentpurchasecollection(self, dpcollection):
+        dpcollection.timestamp = datetime.datetime.now()
+        dpcollection.revoked = False
+
+    insert_departmentpurchasecollection = _insert_factory(
+        mandatory=['admin_id', 'department_id'],
+        forbidden=['id', 'timestamp', 'revoked', 'sum_price'],
+        foreign_keys=[
+            ['admin_id', 'consumers'],
+            ['department_id', 'departments'],
+        ],
+        pre_insert=_insert_departmentpurchasecollection
+    )
 
     def insert_payoff(self, payoff):
         cur = self.con.cursor()
 
         self._assert_mandatory_fields(payoff, ['department_id',
                                                'amount',
-                                               'comment'])
-        self._assert_forbidden_fields(
-            payoff, ['id', 'timestamp', 'revoked']
-        )
+                                               'comment',
+                                               'admin_id'])
+        self._assert_forbidden_fields(payoff, ['id', 'revoked'])
 
         payoff.timestamp = datetime.datetime.now()
         payoff.revoked = False
 
         self._check_foreign_key(payoff, 'department_id', 'departments')
+        self._check_foreign_key(payoff, 'admin_id', 'consumers')
 
         cur.execute(
             'INSERT INTO payoffs('
             '    department_id, '
-            '    departmentpurchase_id, '
+            '    admin_id, '
             '    comment, '
             '    amount, '
             '    revoked,'
             '    timestamp) '
             'VALUES (?,?,?,?,?,?);',
             (payoff.department_id,
-             payoff.departmentpurchase_id,
+             payoff.admin_id,
              payoff.comment,
              payoff.amount,
              payoff.revoked,
@@ -410,6 +395,7 @@ class DatabaseApi(object):
                                                  'consumer_id',
                                                  'amount',
                                                  'comment'])
+
         self._assert_forbidden_fields(
             purchase, ['id', 'timestamp', 'revoked',
                        'paid_base_price_per_product',
@@ -494,39 +480,49 @@ class DatabaseApi(object):
 
     def insert_departmentpurchase(self, dpurchase):
         cur = self.con.cursor()
-        self._assert_mandatory_fields(
-            dpurchase, ['product_id', 'department_id', 'admin_id',
-                        'amount', 'price_per_product'])
-        self._assert_forbidden_fields(dpurchase, ['id', 'timestamp'])
-        self._check_foreign_key(dpurchase, 'admin_id', 'consumers')
-        self._check_foreign_key(dpurchase, 'department_id', 'departments')
-        self._check_foreign_key(dpurchase, 'product_id', 'products')
+        try:
+            self._assert_mandatory_fields(
+                dpurchase, ['collection_id', 'product_id',
+                            'amount', 'total_price'])
+            self._assert_forbidden_fields(dpurchase, ['id'])
+            self._check_foreign_key(dpurchase, 'collection_id',
+                                    'departmentpurchasecollections')
+            self._check_foreign_key(dpurchase, 'product_id', 'products')
 
-        dpurchase.timestamp = datetime.datetime.now()
+            cur.execute('INSERT INTO departmentpurchases '
+                        '(collection_id, product_id, '
+                        'amount, total_price) '
+                        'VALUES (?,?,?,?);',
+                        (dpurchase.collection_id, dpurchase.product_id,
+                         dpurchase.amount, dpurchase.total_price)
+                        )
+            col_id = dpurchase.collection_id
 
-        cur.execute('INSERT INTO departmentpurchases '
-                    '(timestamp, product_id, department_id, '
-                    ' admin_id, amount, price_per_product) '
-                    'VALUES (?,?,?,?,?,?);',
-                    (dpurchase.timestamp, dpurchase.product_id,
-                     dpurchase.department_id, dpurchase.admin_id,
-                     dpurchase.amount, dpurchase.price_per_product)
-                    )
-        dp_id = cur.lastrowid
+            dpcollection = self.get_departmentpurchasecollection(id=col_id)
+            # Update departments expeses
+            cur.execute('UPDATE departments SET expenses=expenses+? '
+                        'WHERE id=?;',
+                        (dpurchase.total_price, dpcollection.department_id)
+                        )
 
-        cur.execute('UPDATE products SET stock=stock+? WHERE id=?;',
-                    (dpurchase.amount, dpurchase.product_id)
-                    )
+            # Update product stock
+            cur.execute('UPDATE products SET stock=stock+? WHERE id=?;',
+                        (dpurchase.amount, dpurchase.product_id)
+                        )
 
-        product = self.get_product(dpurchase.product_id)
-        comment = '{}x {}'.format(dpurchase.amount, product.name)
-        depositamount = dpurchase.amount * dpurchase.price_per_product
-        payoff = models.Payoff(department_id=dpurchase.department_id,
-                               comment=comment,
-                               amount=depositamount,
-                               departmentpurchase_id=dp_id)
-        self.insert_payoff(payoff)
-        self.con.commit()
+            self.con.commit()
+
+        except Exception as e:
+            # Delete all departmentpurchases with this collection id
+            cur.execute('DELETE FROM departmentpurchases WHERE '
+                        'collection_id=?;', (dpurchase.collection_id, )
+                        )
+            # Delete the collection
+            cur.execute('DELETE FROM departmentpurchasecollections WHERE '
+                        'id=?;', (dpurchase.collection_id, )
+                        )
+            self.con.commit()
+            raise exc.InvalidDepartmentpurchase
 
     def insert_deposit(self, deposit):
         cur = self.con.cursor()
@@ -582,6 +578,20 @@ class DatabaseApi(object):
 
         return d_amount + p_amount + k_amount
 
+    def _get_dpcollection_price(self, id):
+        dpurchases = self.list_departmentpurchases(collection_id=id)
+        dpurchases = list(map(validation.to_dict, dpurchases))
+        amount = sum(map(itemgetter('total_price'), dpurchases))
+        return amount
+
+    def get_last_departmentpurchasecollection(self):
+        cur = self.con.cursor()
+        model = models.DepartmentpurchaseCollection
+        cur.row_factory = factory(model)
+        cur.execute('SELECt * FROM {} DESC ORDER BY id DESC LIMIT 1;'.format(
+                    model._tablename))
+        return cur.fetchone()
+
     def get_activity(self, id):
         return self._get_one(model=models.Activity, id=id)
 
@@ -594,6 +604,12 @@ class DatabaseApi(object):
         consumer.isAdmin = len(self.getAdminroles(consumer)) > 0
         consumer.hasCredentials = all([consumer.email, consumer.password])
         return consumer
+
+    def get_departmentpurchasecollection(self, id):
+        dpcollection = self._get_one(model=models.DepartmentpurchaseCollection,
+                                     id=id)
+        dpcollection.sum_price = self._get_dpcollection_price(id=id)
+        return dpcollection
 
     def get_product(self, id):
         return self._get_one(model=models.Product, id=id)
@@ -635,9 +651,14 @@ class DatabaseApi(object):
                     models.Consumer._tablename), (email, )
                     )
         res = cur.fetchall()
-        if res is None or len(res) > 1:
+        if res is None or len(res) > 1 or len(res) == 0:
             raise exc.ObjectNotFound()
-        return res[0]
+
+        consumer = res[0]
+        consumer.credit = self._consumer_credit(id=consumer.id)
+        consumer.isAdmin = len(self.getAdminroles(consumer)) > 0
+        consumer.hasCredentials = all([consumer.email, consumer.password])
+        return consumer
 
     def get_activityfeedback(self, activity_id, list_all=False):
         consumers = self.list_consumers()
@@ -759,11 +780,24 @@ class DatabaseApi(object):
 
         return consumers
 
-    def list_departmentpurchases(self, department_id):
+    def list_departmentpurchasecollections(self):
+        cur = self.con.cursor()
+        cur.row_factory = factory(models.DepartmentpurchaseCollection)
+        cur.execute('SELECT * FROM {};'.format(
+                    models.DepartmentpurchaseCollection._tablename)
+                    )
+        dpcollections = cur.fetchall()
+        for dpcollection in dpcollections:
+            id = dpcollection.id
+            dpcollection.sum_price = self._get_dpcollection_price(id)
+
+        return dpcollections
+
+    def list_departmentpurchases(self, collection_id):
         cur = self.con.cursor()
         cur.row_factory = factory(models.Departmentpurchase)
-        cur.execute('SELECT * FROM {} WHERE department_id={};'.format(
-                    models.Departmentpurchase._tablename, department_id)
+        cur.execute('SELECT * FROM {} WHERE collection_id={};'.format(
+                    models.Departmentpurchase._tablename, collection_id)
                     )
         return cur.fetchall()
 
@@ -859,17 +893,66 @@ class DatabaseApi(object):
         )
         self.con.commit()
 
+    def update_departmentpurchasecollection(self, dpcollection):
+        self._assert_mandatory_fields(dpcollection, ['id'])
+        self._assert_forbidden_fields(dpcollection, ['timestamp',
+                                                     'department_id',
+                                                     'admin_id'])
+
+        api_collection = self.get_departmentpurchasecollection(dpcollection.id)
+        if dpcollection.revoked is not None:
+            if not dpcollection.revoked:
+                if api_collection.revoked:
+                    raise exc.RevokeIsFinal()
+                else:
+                    raise exc.NothingHasChanged()
+        else:
+            raise exc.NothingHasChanged()
+
+        if api_collection.revoked:
+            raise exc.CanOnlyBeRevokedOnce()
+        if dpcollection.revoked:
+            api_collection.revoked = True
+
+        cur = self.con.cursor()
+
+        # update bank credit
+        cur.execute('UPDATE banks SET credit=credit+?;',
+                    (api_collection.sum_price, ))
+
+        cur.execute('UPDATE departments SET expenses=expenses-? '
+                    'WHERE id=?;',
+                    (api_collection.sum_price, api_collection.department_id)
+                    )
+        id = api_collection.id
+        dpurchases = self.list_departmentpurchases(collection_id=id)
+        for dp in dpurchases:
+            cur.execute('UPDATE products SET stock=stock-? WHERE id=?;',
+                        (dp.amount, dp.product_id)
+                        )
+
+        self._simple_update(cur, object=api_collection,
+                            table='departmentpurchasecollections',
+                            updateable_fields=['revoked'])
+
+        self.con.commit()
+
     def update_payoff(self, payoff):
         self._assert_mandatory_fields(payoff, ['id'])
-        self._assert_forbidden_fields(
-            payoff, ['department_id',
-                     'amount']
-        )
-
-        if payoff.revoked is None or not payoff.revoked:
-            return
+        self._assert_forbidden_fields(payoff, ['department_id',
+                                               'amount'])
 
         apipayoff = self.get_payoff(payoff.id)
+
+        if payoff.revoked is not None:
+            if not payoff.revoked:
+                if apipayoff.revoked:
+                    raise exc.RevokeIsFinal()
+                else:
+                    raise exc.NothingHasChanged()
+        else:
+            raise exc.NothingHasChanged()
+
         if apipayoff.revoked:
             raise exc.CanOnlyBeRevokedOnce()
 
@@ -886,12 +969,6 @@ class DatabaseApi(object):
                     'WHERE id=?;',
                     (apipayoff.amount, apipayoff.department_id)
                     )
-
-        if apipayoff.departmentpurchase_id:
-            dp = self.get_departmentpurchase(id=apipayoff.departmentpurchase_id)
-            cur.execute('UPDATE products SET stock=stock-? WHERE id=?;',
-                        (dp.amount, dp.department_id)
-                        )
 
         self._simple_update(cur, object=apipayoff, table='payoffs',
                             updateable_fields=['revoked', 'comment'])

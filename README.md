@@ -7,6 +7,7 @@ This is the documentation for shop.db.
 2.  [Dependencies](#dependencies)
 3.  [Getting started](#getting-started)
 4.  [Backups](#backups)
+5.  [Unittests](#unittests)
 
 ### About shop.db
 
@@ -178,3 +179,25 @@ has to be entered in the crontab editor. `0 */3 * * * * *` means that a backup
 is performed every day every 3 hours at minute 0, these parameters could be
 adapted to individual needs. You can find more information about using crontab
 [here](https://help.ubuntu.com/community/CronHowto).
+
+
+### Unittests
+Currently, most of the core features of shop-db are covered with the
+corresponding unittests. In order to execute them you can use the command
+
+```bash
+$ python -m coverage run test.py
+```
+
+If you want to check the test coverage, type
+
+```bash
+$ python -m coverage html
+```
+to generate the html preview and open a webserver in the newly created
+directory `htmlcov`
+
+```bash
+$ cd htmlcov
+$ python -m http.server
+```

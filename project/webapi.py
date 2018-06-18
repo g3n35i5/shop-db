@@ -38,13 +38,6 @@ def set_app(configuration):
     return app, api
 
 
-def get_api():
-    DB_URI = app.config['DATABASE_URI']
-    db = sqlite3.connect(DB_URI, detect_types=sqlite3.PARSE_DECLTYPES)
-    api = DatabaseApi(db, app.config)
-    return api
-
-
 @app.teardown_appcontext
 def teardown_db(exception):
     db = getattr(g, '_database', None)
@@ -52,11 +45,7 @@ def teardown_db(exception):
         db.close()
 
 
-def handle_json_error(self, e):
-    raise exc.InvalidJSON()
-
-
-Request.on_json_loading_failed = handle_json_error
+Request.on_json_loading_failed = exc.InvalidJSON()
 
 
 @app.errorhandler(404)
@@ -80,31 +69,32 @@ def json_body():
 def adminRequired(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = None
-        if 'token' in request.headers:
+        try:
             token = request.headers['token']
-
-        if not token:
-            return jsonify({'message': 'Token is missing!'}), 401
+        except KeyError:
+            raise exc.TokenMissing
 
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'])
+        except jwt.exceptions.DecodeError:
+            raise exc.TokenInvalid
+
+        try:
             admin = data['admin']
             admin = api.get_consumer(admin['id'])
             adminroles = api.getAdminroles(admin)
+        except KeyError:
+            raise exc.NotAuthorized
 
-            if not adminroles:
-                return make_response('Not authorized', 401)
+        if len(adminroles) == 0:
+            raise exc.NotAuthorized
 
-            admin = validation.to_dict(admin)
-            adminroles = []
-            for a in adminroles:
-                adminroles.append(a.department_id)
+        admin = validation.to_dict(admin)
+        _adminroles = []
+        for a in adminroles:
+            _adminroles.append(a.department_id)
 
-            admin['adminroles'] = adminroles
-
-        except:
-            return jsonify({'message': 'Token is invalid!'}), 401
+        admin['adminroles'] = _adminroles
 
         return f(admin, *args, **kwargs)
     return decorated
@@ -174,19 +164,17 @@ def login():
         json_data = json_body()
         email = json_data['email']
         password = json_data['password']
-    except:
-        return make_response('Could not verify', 401)
+    except KeyError:
+        raise exc.MissingData
 
-    try:
-        consumer = validation.to_dict(api.get_consumer_by_email(email))
-    except:
-        return make_response('Could not verify', 401)
+    # Get consumer via email address. If this fails, ObjectNotFound gets raised
+    consumer = validation.to_dict(api.get_consumer_by_email(email))
 
-    try:
-        if not bcrypt.check_password_hash(consumer['password'], password):
-            return make_response('Could not verify', 401)
-    except:
-        return make_response('Could not verify', 401)
+    if not consumer['hasCredentials']:
+        raise exc.ConsumerNeedsCredentials
+
+    if not bcrypt.check_password_hash(consumer['password'], password):
+        raise exc.NotAuthorized
 
     # Check if the consumer has administrator rights
     adminroles = api.getAdminroles(api.get_consumer(consumer['id']))
@@ -281,107 +269,62 @@ def getConsumer(id):
 @adminRequired
 def updateConsumer(admin, id):
     data = json_body()
-    messages = []
 
-    consumer = models.Consumer(id=id)
-    _consumer = api.get_consumer(id=id)
+    # Get corresponding consumer from the backend
+    apiconsumer = api.get_consumer(id=id)
 
-    if 'credit' in data:
-        del data['credit']
+    # If roles are to be set, it must be ensured that the consumer
+    # has already stored access data.
+    if 'adminroles' in data and not apiconsumer.hasCredentials:
+        raise exc.ConsumerNeedsCredentials
 
+    # Create updateconsumer object
+    updateconsumer = models.Consumer(id=id)
+
+    # Handle new password
+    if 'password' in data:
+        if 'repeatpassword' not in data:
+            raise exc.MissingData
+        if not data['password'] == data['repeatpassword']:
+            raise exc.PasswordsDoNotMatch
+        if not apiconsumer.email:
+            if 'email' not in data:
+                raise exc.MissingData
+        _pwhash = bcrypt.generate_password_hash(data['password'])
+        del data['password']
+        del data['repeatpassword']
+        data['password'] = _pwhash
+
+    # Check forbidden keys
+    for key in ['credit', 'id']:
+        if key in data:
+            raise exc.ForbiddenField(key)
+
+    # Handle adminroles
     if 'adminroles' in data:
-        if data['adminroles']:
-            # check if there are already consumer credentials in the database
-            if any(v is None for v in [_consumer.email, _consumer.password]):
-                # if not, check if credentials are in request data
-                if any(v not in data for v in ['email', 'password']):
-                    # if not, return failure
-                    messages.append('Login data required to set adminroles!')
-                    return jsonify(result=False, messages=messages), 200
-
-            else:
-                adminroles = data['adminroles']
-        else:
-            adminroles = False
+        api_adminroles = api.getAdminroles(apiconsumer)
+        for dep_id in data['adminroles'].keys():
+            # Check if the consumer is already an administrator
+            # for this department
+            for api_role in api_adminroles:
+                if api_role.department_id == int(dep_id):
+                    # If the consumer is admin and the value is true, we can
+                    # skip this modification
+                    if data['adminroles'][dep_id]:
+                        continue
+            department = api.get_department(int(dep_id))
+            api.setAdmin(apiconsumer, department, data['adminroles'][dep_id])
 
         del data['adminroles']
 
-    else:
-        adminroles = False
-
-    if 'password' in data:
-        if 'repeatpassword' in data:
-            if data['password'] == data['repeatpassword']:
-                data['password'] = bcrypt.generate_password_hash(data['password'])
-                del data['repeatpassword']
-            else:
-                message = {
-                    'message': 'Passwords do not match!',
-                    'error': True
-                }
-                messages.append(message)
-                return jsonify(result=False, messages=messages), 200
-        else:
-            message = {
-                'message': 'Please confirm your password!',
-                'error': True
-            }
-            messages.append(message)
-            return jsonify(result=False, messages=messages), 200
-
+    # Handle remaining update data
     for key, value in data.items():
-        setattr(consumer, key, value)
+        setattr(updateconsumer, key, value)
 
-    try:
-        api.update_consumer(consumer)
-        for key in data:
-            message = {
-                'message': 'Updated: {}'.format(key),
-                'error': False
-            }
-            messages.append(message)
-    except:
-        message = {
-            'message': 'Error updating consumer!',
-            'error': True
-        }
-        messages.append(message)
-        return jsonify(result=False, messages=messages), 200
+    # Update consumer
+    api.update_consumer(updateconsumer)
 
-    if adminroles:
-        departments = api.list_departments()
-        _apiAdminroles = api.getAdminroles(_consumer)
-
-        for dep_id in adminroles.keys():
-            department = api.get_department(id=int(dep_id))
-            try:
-                api.setAdmin(_consumer, department, adminroles[dep_id])
-                message = {
-                    'message': 'Adminrole set: {}'.format(department.name),
-                    'error': False
-                }
-
-                messages.append(message)
-
-            except ConsumerNeedsCredentials:
-                message = {
-                    'message': 'Login data required in order to be admin!',
-                    'error': True
-                }
-                messages.append(message)
-                _consumer = validation.to_dict(_consumer)
-                rebaseConsumer = Consumer(**_consumer)
-                api.update_consumer(rebaseConsumer)
-
-                adminroles = [d.department_id for d in _apiAdminroles]
-
-                for department in departments:
-                    isAdmin = department.id in adminroles
-                    api.setAdmin(rebaseConsumer, department, isAdmin)
-
-                return jsonify(result=False, messages=messages), 200
-
-    return jsonify(result=True, messages=messages), 200
+    return jsonify(result=True), 200
 
 
 # Get consumer's favorite products
@@ -393,7 +336,8 @@ def getConsumerFavorites(id):
 # Get consumer's purchases
 @app.route('/consumer/<int:id>/purchases', methods=['GET'])
 def getConsumerPurchases(id):
-    return jsonify(list(map(validation.to_dict, api.get_purchases_of_consumer(id))))
+    purchases = api.get_purchases_of_consumer(id)
+    return jsonify(list(map(validation.to_dict, purchases)))
 
 
 # Get consumer's deposits
@@ -500,8 +444,10 @@ def list_payoffs():
 @app.route('/payoff', methods=['POST'])
 @adminRequired
 def insertPayoff(admin):
+    # TODO check responsible
     api.insert_payoff(models.Payoff(**json_body()))
     return jsonify(result='created'), 201
+
 
 # Update payoff
 @app.route('/payoff/<int:id>', methods=['PUT'])
@@ -628,11 +574,20 @@ def insertActivityfeedback():
 
 ############################### Departmentpurchases Routes ####################
 
+# List departmentpurchase collections
+@app.route('/departmentpurchasecollections', methods=['GET'])
+@adminRequired
+def list_departmentpurchasecollections(admin):
+    col = api.list_departmentpurchasecollections()
+    res = list(map(validation.to_dict, col))
+    return jsonify(res)
+
 # List departmentpurchases
 @app.route('/departmentpurchases/<int:id>', methods=['GET'])
 @adminRequired
 def list_departmentpurchases(admin, id):
-    res = list(map(validation.to_dict, api.list_departmentpurchases(department_id=id)))
+    dpurchases = api.list_departmentpurchases(collection_id=id)
+    res = list(map(validation.to_dict, dpurchases))
     return jsonify(res)
 
 
@@ -645,15 +600,26 @@ def insert_departmentpurchase(admin):
         return make_response('Unauthorized access', 401)
 
     try:
+        a_ID = admin['id']
+        d_ID = data['department_id']
+        if 'comment' in data:
+            comment = data['comment']
+        else:
+            comment = None
+
+        c = models.DepartmentpurchaseCollection(admin_id=a_ID,
+                                                department_id=d_ID,
+                                                comment=comment)
+        api.insert_departmentpurchasecollection(c)
+        last_collection = api.get_last_departmentpurchasecollection()
         for obj in data['dpurchases']:
-            d = models.Departmentpurchase(admin_id=admin['id'],
+            d = models.Departmentpurchase(collection_id=last_collection.id,
                                           product_id=obj['product_id'],
-                                          department_id=data['department_id'],
                                           amount=obj['amount'],
-                                          price_per_product=obj['price'])
-            # pdb.set_trace()
+                                          total_price=obj['total_price'])
             api.insert_departmentpurchase(d)
 
         return jsonify(result='created'), 201
-    except:
+
+    except Exception as e:
         return make_response('Invalid data', 401)

@@ -11,7 +11,7 @@ passwords = None
 def generate_passwords(pwds):
     global passwords
     if passwords is None:
-        passwords = [None]*len(pwds)
+        passwords = [None] * len(pwds)
         for i in range(0, len(pwds)):
             passwords[i] = bcrypt.generate_password_hash(pwds[i])
     return passwords
@@ -42,9 +42,9 @@ class BaseTestCase(TestCase):
 
         # Create default products
         products = [
-            {'name': 'Coffee', 'department_id': 1, 'price':  25},
-            {'name': 'Twix',   'department_id': 2, 'price': 100},
-            {'name': 'Pizza',  'department_id': 3, 'price': 400}
+            {'name': 'Coffee', 'department_id': 1, 'price': 25},
+            {'name': 'Twix', 'department_id': 2, 'price': 100},
+            {'name': 'Pizza', 'department_id': 3, 'price': 400}
         ]
         for product in products:
             p = models.Product(name=product['name'], countable=True,
@@ -88,9 +88,9 @@ class BaseTestCase(TestCase):
 
         # Check if all products have been entered correctly
         products = [
-            {'name': 'Coffee', 'department_id': 1, 'price':  25},
-            {'name': 'Twix',   'department_id': 2, 'price': 100},
-            {'name': 'Pizza',  'department_id': 3, 'price': 400}
+            {'name': 'Coffee', 'department_id': 1, 'price': 25},
+            {'name': 'Twix', 'department_id': 2, 'price': 100},
+            {'name': 'Pizza', 'department_id': 3, 'price': 400}
         ]
         api_products = self.api.list_products()
         assert len(api_products) == len(products)

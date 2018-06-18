@@ -15,13 +15,6 @@ def to_dict(object):
     return d
 
 
-def to_json(converable):
-    if type(converable) is list:
-        return json.dumps([to_dict(obj) for obj in converable])
-    else:
-        return json.dumps(to_dict(converable))
-
-
 class LessThan(object):
 
     def __init__(self, other):
@@ -136,12 +129,17 @@ class ValidatableObject(object):
 
     def __repr__(self):
         keys = list(fields(self))
-        keys.remove('id')
+        if 'id' in keys:
+            keys.remove('id')
+            _id = str(self.id)
+        else:
+            _id = 'None'
 
-        representation = ['<', type(self).__name__, '(id=', str(self.id)]
+        representation = ['<', type(self).__name__, '(id=', _id]
 
         for k in sorted(keys):
             v = getattr(self, k)
+
             if type(v) is str:
                 representation.append(', {}="{}"'.format(k, v))
             else:

@@ -1,13 +1,67 @@
 #!/usr/bin/env python3
 
 
+class AuthenticationException(Exception):
+
+    def __init__(self, **kwargs):
+        self.info = kwargs
+
+
+class NotResponsible(AuthenticationException):
+
+    def __init__(self):
+        AuthenticationException.__init__(self)
+
+
+class NotAuthorized(AuthenticationException):
+
+    def __init__(self):
+        AuthenticationException.__init__(self)
+
+
+class TokenMissing(AuthenticationException):
+
+    def __init__(self):
+        AuthenticationException.__init__(self)
+
+
+class TokenInvalid(AuthenticationException):
+
+    def __init__(self):
+        AuthenticationException.__init__(self)
+
+
+class PasswordsDoNotMatch(AuthenticationException):
+
+    def __init__(self):
+        AuthenticationException.__init__(self)
+
+
+class ConsumerNeedsCredentials(AuthenticationException):
+
+    def __init__(self):
+        InputException.__init__(self)
+
+
 class InputException(Exception):
 
     def __init__(self, **kwargs):
         self.info = kwargs
 
 
+class NothingHasChanged(InputException):
+
+    def __init__(self):
+        InputException.__init__(self)
+
+
 class ObjectNotFound(InputException):
+
+    def __init__(self):
+        InputException.__init__(self)
+
+
+class InvalidDepartmentpurchase(InputException):
 
     def __init__(self):
         InputException.__init__(self)
@@ -20,7 +74,13 @@ class FieldBasedException(InputException):
 
 
 class InvalidJSON(InputException):
-    pass
+    def __init__(self):
+        InputException.__init__(self)
+
+
+class MissingData(InputException):
+    def __init__(self):
+        InputException.__init__(self)
 
 
 class WrongType(FieldBasedException):
@@ -91,12 +151,6 @@ class OnlyOneRowAllowed(FieldBasedException):
         InputException.__init__(self)
 
 
-class ConsumerNeedsCredentials(FieldBasedException):
-
-    def __init__(self):
-        InputException.__init__(self)
-
-
 class ProductNotCountable(FieldBasedException):
 
     def __init__(self):
@@ -115,6 +169,12 @@ class CanOnlyBeRevokedOnce(FieldBasedException):
         FieldBasedException.__init__(self, 'revoked')
 
 
+class RevokeIsFinal(FieldBasedException):
+
+    def __init__(self):
+        FieldBasedException.__init__(self, 'revoked')
+
+
 class NotRevocable(FieldBasedException):
 
     def __init__(self, product):
@@ -122,6 +182,48 @@ class NotRevocable(FieldBasedException):
 
 
 exception_mapping = {
+    MissingData:
+    {
+        "types": ["input-exception",
+                  "missing-data"],
+        "code": 400
+    },
+    NotAuthorized:
+    {
+        "types": ["authentication-exception",
+                  "not-authorized"],
+        "code": 403
+    },
+    TokenMissing:
+    {
+        "types": ["authentication-exception",
+                  "token-missing"],
+        "code": 403
+    },
+    TokenInvalid:
+    {
+        "types": ["authentication-exception",
+                  "token-invalid"],
+        "code": 403
+    },
+    PasswordsDoNotMatch:
+    {
+        "types": ["authentication-exception",
+                  "passwords-do-not-match"],
+        "code": 400
+    },
+    ConsumerNeedsCredentials:
+    {
+        "types": ["authentication-exception",
+                  "consumer-needs-credentials"],
+        "code": 400
+    },
+    NotResponsible:
+    {
+        "types": ["authentication-exception",
+                  "not-responsible"],
+        "code": 403
+    },
     WrongType:
     {
         "types": ["input-exception",
@@ -208,6 +310,25 @@ exception_mapping = {
         "types": ["input-exception",
                   "field-based-exception",
                   "can-only-be-revoked-once"],
+        "code": 400
+    },
+    RevokeIsFinal:
+    {
+        "types": ["input-exception",
+                  "field-based-exception",
+                  "revoke-is-final"],
+        "code": 400
+    },
+    NothingHasChanged:
+    {
+        "types": ["input-exception",
+                  "nothing-has-changed"],
+        "code": 200
+    },
+    InvalidDepartmentpurchase:
+    {
+        "types": ["input-exception",
+                  "invalid-departmentpurchase"],
         "code": 400
     }
 }

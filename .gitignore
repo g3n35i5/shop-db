@@ -1,8 +1,12 @@
 # database shits
 *.db
 images/
+htmlcov
+.coverage
 backups/
 # logging
 backend.log*
 # pycache folder
 __pycache__
+# product images
+project/uploads
