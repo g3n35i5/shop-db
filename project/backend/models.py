@@ -94,6 +94,18 @@ class DepartmentpurchaseCollection(ValidatableObject):
         'sum_price': [Type(int)],
         'department_id': [Type(int)],
         'admin_id': [Type(int)],
+        'revoked': [Type(bool)],
+        'revoke_history': [SkipIfNone(Type(list))]
+    }
+
+
+class DpcollRevoke(ValidatableObject):
+    _tablename = 'dpcollrevokes'
+    _validators = {
+        'id': [Type(int)],
+        'timestamp': [Type(datetime.datetime)],
+        'dpcoll_id': [Type(int)],
+        'admin_id': [Type(int)],
         'revoked': [Type(bool)]
     }
 

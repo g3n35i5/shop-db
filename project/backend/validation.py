@@ -11,7 +11,11 @@ def fields(object):
 def to_dict(object):
     d = {}
     for f in fields(object):
-        d[f] = getattr(object, f)
+        item = getattr(object, f)
+        if isinstance(item, list):
+            d[f] = list(map(to_dict, item))
+        else:
+            d[f] = item
     return d
 
 

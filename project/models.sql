@@ -84,9 +84,19 @@ CREATE TABLE departmentpurchasecollections (
 	comment VARCHAR(64),
 	department_id INTEGER NOT NULL,
 	admin_id INTEGER NOT NULL,
-	revoked BOOLEAN NOT NULL,
 	PRIMARY KEY (id),
 	FOREIGN KEY(department_id) REFERENCES departments (id),
+	FOREIGN KEY(admin_id) REFERENCES consumers (id)
+);
+
+CREATE TABLE dpcollrevokes (
+	id INTEGER NOT NULL,
+	dpcoll_id INTEGER NOT NULL,
+	timestamp TIMESTAMP NOT NULL,
+	admin_id INTEGER NOT NULL,
+	revoked BOOLEAN NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(dpcoll_id) REFERENCES departmentpurchasecollections (id),
 	FOREIGN KEY(admin_id) REFERENCES consumers (id),
 	CHECK (revoked IN (0, 1))
 );

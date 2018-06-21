@@ -328,7 +328,6 @@ class DatabaseApi(object):
 
     def _insert_departmentpurchasecollection(self, dpcollection):
         dpcollection.timestamp = datetime.datetime.now()
-        dpcollection.revoked = False
 
     insert_departmentpurchasecollection = _insert_factory(
         mandatory=['admin_id', 'department_id'],
@@ -338,6 +337,19 @@ class DatabaseApi(object):
             ['department_id', 'departments'],
         ],
         pre_insert=_insert_departmentpurchasecollection
+    )
+
+    def _insert_dpcollrevoke(self, dpcollrevoke):
+        dpcollrevoke.timestamp = datetime.datetime.now()
+
+    insert_dpcollrevoke = _insert_factory(
+        mandatory=['admin_id', 'dpcoll_id', 'revoked'],
+        forbidden=['id', 'timestamp'],
+        foreign_keys=[
+            ['admin_id', 'consumers'],
+            ['dpcoll_id', 'departmentpurchasecollections'],
+        ],
+        pre_insert=_insert_dpcollrevoke
     )
 
     def insert_payoff(self, payoff):
@@ -512,7 +524,8 @@ class DatabaseApi(object):
 
             self.con.commit()
 
-        except Exception as e:
+        except:
+            self.con.rollback()
             # Delete all departmentpurchases with this collection id
             cur.execute('DELETE FROM departmentpurchases WHERE '
                         'collection_id=?;', (dpurchase.collection_id, )
@@ -605,11 +618,30 @@ class DatabaseApi(object):
         consumer.hasCredentials = all([consumer.email, consumer.password])
         return consumer
 
+    def _get_dpcoll_revoked(self, id):
+        cur = self.con.cursor()
+        cur.row_factory = factory(models.DpcollRevoke)
+        cur.execute('SELECT revoked FROM {} WHERE dpcoll_id=? '
+                    'ORDER BY id DESC;'.format(
+                     models.DpcollRevoke._tablename), (id, ))
+        res = cur.fetchone()
+        return res.revoked if res else False
+
+    def _get_dpcoll_revokehistory(self, id):
+        cur = self.con.cursor()
+        cur.row_factory = factory(models.DpcollRevoke)
+        cur.execute('SELECT * FROM {} WHERE dpcoll_id=?;'.format(
+                    models.DpcollRevoke._tablename), (id, ))
+        res = cur.fetchall()
+        return res if res else None
+
     def get_departmentpurchasecollection(self, id):
-        dpcollection = self._get_one(model=models.DepartmentpurchaseCollection,
-                                     id=id)
-        dpcollection.sum_price = self._get_dpcollection_price(id=id)
-        return dpcollection
+        dpc = self._get_one(model=models.DepartmentpurchaseCollection,
+                            id=id)
+        dpc.sum_price = self._get_dpcollection_price(id=id)
+        dpc.revoked = self._get_dpcoll_revoked(id=id)
+        dpc.revoke_history = self._get_dpcoll_revokehistory(id=id)
+        return dpc
 
     def get_product(self, id):
         return self._get_one(model=models.Product, id=id)
@@ -790,6 +822,8 @@ class DatabaseApi(object):
         for dpcollection in dpcollections:
             id = dpcollection.id
             dpcollection.sum_price = self._get_dpcollection_price(id)
+            dpcollection.revoke_history = self._get_dpcoll_revokehistory(id)
+            dpcollection.revoked = self._get_dpcoll_revoked(id)
 
         return dpcollections
 
@@ -893,48 +927,81 @@ class DatabaseApi(object):
         )
         self.con.commit()
 
-    def update_departmentpurchasecollection(self, dpcollection):
+    def _revoke_dpcollection(self, id, revoked, admin_id):
+        cur = self.con.cursor()
+        dpc = models.DepartmentpurchaseCollection(id=id,
+                                                  revoked=revoked)
+        api_dpc = self.get_departmentpurchasecollection(id)
+
+        dpc_revoke = models.DpcollRevoke()
+        dpc_revoke.dpcoll_id = id
+        dpc_revoke.revoked = revoked
+        dpc_revoke.admin_id = admin_id
+        self.insert_dpcollrevoke(dpc_revoke)
+
+        # update bank credit
+        if revoked:
+            cur.execute('UPDATE banks SET credit=credit+?;',
+                        (api_dpc.sum_price, ))
+        else:
+            cur.execute('UPDATE banks SET credit=credit-?;',
+                        (api_dpc.sum_price, ))
+
+        # update department expenses
+        if revoked:
+            cur.execute('UPDATE departments SET expenses=expenses-? '
+                        'WHERE id=?;',
+                        (api_dpc.sum_price, api_dpc.department_id))
+        else:
+            cur.execute('UPDATE departments SET expenses=expenses+? '
+                        'WHERE id=?;',
+                        (api_dpc.sum_price, api_dpc.department_id))
+
+        # update product stock
+        dpurchases = self.list_departmentpurchases(collection_id=id)
+        for dp in dpurchases:
+            if revoked:
+                cur.execute('UPDATE products SET stock=stock-? '
+                            'WHERE id=?;',
+                            (dp.amount, dp.product_id))
+            else:
+                cur.execute('UPDATE products SET stock=stock+? '
+                            'WHERE id=?;',
+                            (dp.amount, dp.product_id))
+
+    def update_departmentpurchasecollection(self, dpcollection, admin):
         self._assert_mandatory_fields(dpcollection, ['id'])
         self._assert_forbidden_fields(dpcollection, ['timestamp',
                                                      'department_id',
                                                      'admin_id'])
 
-        api_collection = self.get_departmentpurchasecollection(dpcollection.id)
+        api_dpc = self.get_departmentpurchasecollection(dpcollection.id)
+        if isinstance(admin, dict):
+            admin_id = admin['id']
+        else:
+            admin_id = admin.id
+        # Check, if the dpcollection should be revoked
         if dpcollection.revoked is not None:
+            # Undo revoke
             if not dpcollection.revoked:
-                if api_collection.revoked:
-                    raise exc.RevokeIsFinal()
+                if api_dpc.revoked:
+                    self._revoke_dpcollection(id=dpcollection.id,
+                                              revoked=False,
+                                              admin_id=admin_id)
                 else:
                     raise exc.NothingHasChanged()
+            # Revoke
+            else:
+                if api_dpc.revoked:
+                    raise exc.NothingHasChanged()
+                else:
+                    self._revoke_dpcollection(id=dpcollection.id,
+                                              revoked=True,
+                                              admin_id=admin_id)
         else:
             raise exc.NothingHasChanged()
 
-        if api_collection.revoked:
-            raise exc.CanOnlyBeRevokedOnce()
-        if dpcollection.revoked:
-            api_collection.revoked = True
-
-        cur = self.con.cursor()
-
-        # update bank credit
-        cur.execute('UPDATE banks SET credit=credit+?;',
-                    (api_collection.sum_price, ))
-
-        cur.execute('UPDATE departments SET expenses=expenses-? '
-                    'WHERE id=?;',
-                    (api_collection.sum_price, api_collection.department_id)
-                    )
-        id = api_collection.id
-        dpurchases = self.list_departmentpurchases(collection_id=id)
-        for dp in dpurchases:
-            cur.execute('UPDATE products SET stock=stock-? WHERE id=?;',
-                        (dp.amount, dp.product_id)
-                        )
-
-        self._simple_update(cur, object=api_collection,
-                            table='departmentpurchasecollections',
-                            updateable_fields=['revoked'])
-
+        # commit changes
         self.con.commit()
 
     def update_payoff(self, payoff):

@@ -533,6 +533,20 @@ class WebapiTestCase(BaseTestCase):
         for index, product in enumerate(products):
             self.assertEqual(data[index]['product_id'], product.id)
 
+        # Revoke departmentpurchasecollection
+        data = {
+            'revoked': True
+        }
+        res = self.put('/departmentpurchasecollections/1', data, 'admin')
+        self.assertEqual(res.status_code, 200)
+        res = self.get('/departmentpurchasecollections', 'admin')
+        dpcollections = json.loads(res.data)
+        self.assertEqual(len(dpcollections), 2)
+        self.assertTrue(dpcollections[0]['revoked'])
+        self.assertFalse(dpcollections[1]['revoked'])
+        self.assertEqual(len(dpcollections[0]['revoke_history']), 1)
+        self.assertIsNone(dpcollections[1]['revoke_history'])
+
     def test_insert_deposit(self):
         deposits = self.api.list_deposits()
         self.assertFalse(deposits)

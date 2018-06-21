@@ -135,6 +135,7 @@ class BackendTestCase(BaseTestCase):
         dpcollection = self.api.get_last_departmentpurchasecollection()
         self.assertIsNotNone(dpcollection)
         self.assertEqual(dpcollection.id, 1)
+        self.assertFalse(dpcollection.revoked)
 
         # Insert departmentpurchase
         dpurchase = models.Departmentpurchase()
@@ -159,24 +160,12 @@ class BackendTestCase(BaseTestCase):
         dpcollection = models.DepartmentpurchaseCollection()
         dpcollection.id = 1
         dpcollection.revoked = True
-        self.api.update_departmentpurchasecollection(dpcollection)
+        self.api.update_departmentpurchasecollection(dpcollection, consumer)
 
-        departments = self.api.list_departments()
-        self.assertEqual(departments[0].expenses, 0)
-        self.assertEqual(departments[1].expenses, 0)
-        self.assertEqual(departments[2].expenses, 0)
-
-        product = self.api.get_product(id=1)
-        self.assertEqual(product.stock, 0)
-
-        department = self.api.get_department(id=1)
-        self.assertEqual(department.expenses, 0)
-
-        with self.assertRaises(exc.CanOnlyBeRevokedOnce):
-            dpcollection = models.DepartmentpurchaseCollection()
-            dpcollection.id = 1
-            dpcollection.revoked = True
-            self.api.update_departmentpurchasecollection(dpcollection)
+        dpcollection = self.api.get_departmentpurchasecollection(id=1)
+        self.assertEqual(dpcollection.id, 1)
+        self.assertTrue(dpcollection.revoked)
+        self.assertEqual(len(dpcollection.revoke_history), 1)
 
         departments = self.api.list_departments()
         self.assertEqual(departments[0].expenses, 0)
@@ -186,6 +175,49 @@ class BackendTestCase(BaseTestCase):
         dpcollections = self.api.list_departmentpurchasecollections()
         self.assertEqual(len(dpcollections), 1)
         self.assertTrue(dpcollections[0].revoked)
+        self.assertEqual(len(dpcollections[0].revoke_history), 1)
+
+        product = self.api.get_product(id=1)
+        self.assertEqual(product.stock, 0)
+
+        department = self.api.get_department(id=1)
+        self.assertEqual(department.expenses, 0)
+
+        # Revoke again, this should do nothing
+        dpcollection = models.DepartmentpurchaseCollection()
+        dpcollection.id = 1
+        dpcollection.revoked = True
+        with self.assertRaises(exc.NothingHasChanged):
+            self.api.update_departmentpurchasecollection(dpcollection,
+                                                         consumer)
+
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 0)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
+
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 1)
+        self.assertTrue(dpcollections[0].revoked)
+
+        # Un-revoke dpcollection
+        dpcollection = models.DepartmentpurchaseCollection()
+        dpcollection.id = 1
+        dpcollection.revoked = False
+        self.api.update_departmentpurchasecollection(dpcollection,
+                                                     consumer)
+
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 50)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
+
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 1)
+        self.assertFalse(dpcollections[0].revoked)
+        self.assertEqual(len(dpcollections[0].revoke_history), 2)
+        self.assertTrue(dpcollections[0].revoke_history[0].revoked)
+        self.assertFalse(dpcollections[0].revoke_history[1].revoked)
 
         # Check, weather an incorrect departmentpurchase causes a dead
         # departmentpurchasecollection
@@ -763,7 +795,8 @@ class BackendTestCase(BaseTestCase):
 
         # this should do nothing
         pur = models.Purchase(id=1)
-        self.api.update_purchase(pur)
+        with self.assertRaises(exc.NothingHasChanged):
+            self.api.update_purchase(pur)
 
         # check if the consumers credit is the same
         consumer = self.api.get_consumer(id=1)
