@@ -153,9 +153,8 @@ class DatabaseApi(object):
         self._check_foreign_key(consumer, 'id', 'consumers')
         cur = self.con.cursor()
         cur.row_factory = factory(models.AdminRole)
-        res = cur.execute('SELECT * FROM adminroles '
-                          'WHERE consumer_id = ?;', (consumer.id, )
-                          )
+        cur.execute('SELECT * FROM adminroles '
+                    'WHERE consumer_id = ?;', (consumer.id, ))
         return cur.fetchall()
 
     def _simple_update(self, cur, object, table, updateable_fields):
@@ -668,8 +667,7 @@ class DatabaseApi(object):
         cur = self.con.cursor()
         cur.row_factory = factory(model)
         cur.execute('SELECT * FROM {} WHERE id=?;'.format(model._tablename),
-                    (id, )
-                    )
+                    (id, ))
 
         res = cur.fetchone()
         if res is None:
@@ -680,8 +678,7 @@ class DatabaseApi(object):
         cur = self.con.cursor()
         cur.row_factory = factory(models.Consumer)
         cur.execute('SELECT * FROM {} WHERE email=?;'.format(
-                    models.Consumer._tablename), (email, )
-                    )
+                    models.Consumer._tablename), (email, ))
         res = cur.fetchall()
         if res is None or len(res) > 1 or len(res) == 0:
             raise exc.ObjectNotFound()
@@ -831,8 +828,7 @@ class DatabaseApi(object):
         cur = self.con.cursor()
         cur.row_factory = factory(models.Departmentpurchase)
         cur.execute('SELECT * FROM {} WHERE collection_id={};'.format(
-                    models.Departmentpurchase._tablename, collection_id)
-                    )
+                    models.Departmentpurchase._tablename, collection_id))
         return cur.fetchall()
 
     def list_products(self):
@@ -875,8 +871,7 @@ class DatabaseApi(object):
             limit = int(limit)
             cur.execute(
                 'SELECT * FROM {} ORDER BY id  DESC LIMIT ?;'.format(
-                    model._tablename), (limit,)
-            )
+                    model._tablename), (limit,))
         return cur.fetchall()
 
     def _list_purchases_department(self, department_id, limit=None):
@@ -923,8 +918,7 @@ class DatabaseApi(object):
         self._simple_update(
             cur=cur, object=consumer, table='consumers',
             updateable_fields=['name', 'active', 'karma', 'email',
-                               'password', 'studentnumber']
-        )
+                               'password', 'studentnumber'])
         self.con.commit()
 
     def _revoke_dpcollection(self, id, revoked, admin_id):
@@ -1034,8 +1028,7 @@ class DatabaseApi(object):
 
         cur.execute('UPDATE departments SET expenses=expenses-? '
                     'WHERE id=?;',
-                    (apipayoff.amount, apipayoff.department_id)
-                    )
+                    (apipayoff.amount, apipayoff.department_id))
 
         self._simple_update(cur, object=apipayoff, table='payoffs',
                             updateable_fields=['revoked', 'comment'])
@@ -1100,31 +1093,24 @@ class DatabaseApi(object):
         if purchase.revoked and dbpur.revoked:
             raise exc.CanOnlyBeRevokedOnce()
 
-        return_money = dbpur.amount * \
-            (dbpur.paid_base_price_per_product +
-             dbpur.paid_karma_per_product)
-
         return_base = dbpur.amount * dbpur.paid_base_price_per_product
         return_karma = dbpur.amount * dbpur.paid_karma_per_product
 
         cur.execute('UPDATE consumers '
                     'SET credit=credit + {} WHERE id=?;'.format(
                         return_karma + return_base),
-                    (dbpur.consumer_id, )
-                    )
+                    (dbpur.consumer_id, ))
 
         if product.countable:
             cur.execute('UPDATE products '
                         'SET stock=stock + ? WHERE id=?;',
-                        (dbpur.amount, dbpur.product_id)
-                        )
+                        (dbpur.amount, dbpur.product_id))
 
         cur.execute('UPDATE departments '
                     'SET income_base = income_base - {} , '
                     'income_karma = income_karma - {} '
                     'WHERE id=?;'.format(return_base, return_karma),
-                    (product.department_id, )
-                    )
+                    (product.department_id, ))
 
         self._simple_update(cur, object=purchase, table='purchases',
                             updateable_fields=['revoked', 'comment'])

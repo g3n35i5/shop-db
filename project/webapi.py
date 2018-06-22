@@ -343,7 +343,8 @@ def getConsumerPurchases(id):
 # Get consumer's deposits
 @app.route('/consumer/<int:id>/deposits', methods=['GET'])
 def getConsumerDeposits(id):
-    return jsonify(list(map(validation.to_dict, api.get_deposits_of_consumer(id))))
+    deposits = api.get_deposits_of_consumer(id)
+    return jsonify(list(map(validation.to_dict, deposits)))
 
 
 
