@@ -621,8 +621,8 @@ class DatabaseApi(object):
         cur = self.con.cursor()
         cur.row_factory = factory(models.DpcollRevoke)
         cur.execute('SELECT revoked FROM {} WHERE dpcoll_id=? '
-                    'ORDER BY id DESC;'.format(
-                     models.DpcollRevoke._tablename), (id, ))
+                    'ORDER BY id DESC;'.format(models.DpcollRevoke._tablename),
+                    (id, ))
         res = cur.fetchone()
         return res.revoked if res else False
 
