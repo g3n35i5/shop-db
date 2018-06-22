@@ -1078,9 +1078,7 @@ class DatabaseApi(object):
                                                  'paid_karma_per_product'])
 
         if purchase.revoked is None or not purchase.revoked:
-            # nothing to do
-            # TODO: maybe we should return something like "nothing to do"
-            return
+            raise exc.NothingHasChanged
 
         dbpur = self.get_purchase(id=purchase.id)
 
