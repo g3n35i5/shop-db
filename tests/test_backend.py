@@ -135,6 +135,7 @@ class BackendTestCase(BaseTestCase):
         dpcollection = self.api.get_last_departmentpurchasecollection()
         self.assertIsNotNone(dpcollection)
         self.assertEqual(dpcollection.id, 1)
+        self.assertFalse(dpcollection.revoked)
 
         # Insert departmentpurchase
         dpurchase = models.Departmentpurchase()
@@ -159,24 +160,12 @@ class BackendTestCase(BaseTestCase):
         dpcollection = models.DepartmentpurchaseCollection()
         dpcollection.id = 1
         dpcollection.revoked = True
-        self.api.update_departmentpurchasecollection(dpcollection)
+        self.api.update_departmentpurchasecollection(dpcollection, consumer)
 
-        departments = self.api.list_departments()
-        self.assertEqual(departments[0].expenses, 0)
-        self.assertEqual(departments[1].expenses, 0)
-        self.assertEqual(departments[2].expenses, 0)
-
-        product = self.api.get_product(id=1)
-        self.assertEqual(product.stock, 0)
-
-        department = self.api.get_department(id=1)
-        self.assertEqual(department.expenses, 0)
-
-        with self.assertRaises(exc.CanOnlyBeRevokedOnce):
-            dpcollection = models.DepartmentpurchaseCollection()
-            dpcollection.id = 1
-            dpcollection.revoked = True
-            self.api.update_departmentpurchasecollection(dpcollection)
+        dpcollection = self.api.get_departmentpurchasecollection(id=1)
+        self.assertEqual(dpcollection.id, 1)
+        self.assertTrue(dpcollection.revoked)
+        self.assertEqual(len(dpcollection.revoke_history), 1)
 
         departments = self.api.list_departments()
         self.assertEqual(departments[0].expenses, 0)
@@ -186,6 +175,49 @@ class BackendTestCase(BaseTestCase):
         dpcollections = self.api.list_departmentpurchasecollections()
         self.assertEqual(len(dpcollections), 1)
         self.assertTrue(dpcollections[0].revoked)
+        self.assertEqual(len(dpcollections[0].revoke_history), 1)
+
+        product = self.api.get_product(id=1)
+        self.assertEqual(product.stock, 0)
+
+        department = self.api.get_department(id=1)
+        self.assertEqual(department.expenses, 0)
+
+        # Revoke again, this should do nothing
+        dpcollection = models.DepartmentpurchaseCollection()
+        dpcollection.id = 1
+        dpcollection.revoked = True
+        with self.assertRaises(exc.NothingHasChanged):
+            self.api.update_departmentpurchasecollection(dpcollection,
+                                                         consumer)
+
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 0)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
+
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 1)
+        self.assertTrue(dpcollections[0].revoked)
+
+        # Un-revoke dpcollection
+        dpcollection = models.DepartmentpurchaseCollection()
+        dpcollection.id = 1
+        dpcollection.revoked = False
+        self.api.update_departmentpurchasecollection(dpcollection,
+                                                     consumer)
+
+        departments = self.api.list_departments()
+        self.assertEqual(departments[0].expenses, 50)
+        self.assertEqual(departments[1].expenses, 0)
+        self.assertEqual(departments[2].expenses, 0)
+
+        dpcollections = self.api.list_departmentpurchasecollections()
+        self.assertEqual(len(dpcollections), 1)
+        self.assertFalse(dpcollections[0].revoked)
+        self.assertEqual(len(dpcollections[0].revoke_history), 2)
+        self.assertTrue(dpcollections[0].revoke_history[0].revoked)
+        self.assertFalse(dpcollections[0].revoke_history[1].revoked)
 
         # Check, weather an incorrect departmentpurchase causes a dead
         # departmentpurchasecollection
@@ -458,13 +490,23 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(departments[2].expenses, 0)
 
     def test_create_deposit(self):
+        # Make consumer 1 administrator
+        upconsumer = models.Consumer(id=1)
+        upconsumer.email = 'me@example.com'
+        upconsumer.password = 'supersecretpassword'.encode()
+        self.api.update_consumer(upconsumer)
+
+        admin = self.api.get_consumer(id=1)
+        departments = self.api.list_departments()
+        self.api.setAdmin(admin, departments[0], True)
+
         # check the consumers credit
         consumer = self.api.get_consumer(1)
         self.assertEqual(consumer.credit, 0)
 
         # create deposit
-        dep1 = models.Deposit(consumer_id=1, amount=250, comment="testcomment")
-        self.api.insert_deposit(dep1)
+        dep = models.Deposit(consumer_id=1, amount=250, comment="testcomment")
+        self.api.insert_deposit(dep)
 
         # check, if the consumers credit has been increased
         consumer = self.api.get_consumer(id=1)
@@ -476,22 +518,46 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(deposit.comment, "testcomment")
         self.assertEqual(deposit.consumer_id, consumer.id)
 
+        # revoke deposit
+        dep = models.Deposit(id=1, revoked=True)
+        self.api.update_deposit(dep, admin)
+
+        deposits = self.api.list_deposits()
+        self.assertEqual(len(deposits), 1)
+        self.assertTrue(deposits[0].revoked)
+        consumer = self.api.get_consumer(id=1)
+        self.assertEqual(consumer.credit, 0)
+
+        # Un-revoke deposit again to make sure this works too
+        dep = models.Deposit(id=1, revoked=False)
+        self.api.update_deposit(dep, admin)
+        consumer = self.api.get_consumer(id=1)
+        self.assertEqual(consumer.credit, 250)
+
+        # Check revokehistory
+        deposits = self.api.list_deposits()
+        self.assertEqual(len(deposits), 1)
+        self.assertFalse(deposits[0].revoked)
+        self.assertEqual(len(deposits[0].revoke_history), 2)
+        self.assertTrue(deposits[0].revoke_history[0].revoked)
+        self.assertFalse(deposits[0].revoke_history[1].revoked)
+
         # test with wrong foreign_key consumer_id
-        dep2 = models.Deposit(consumer_id=5, amount=240, comment="testcomment")
+        dep = models.Deposit(consumer_id=5, amount=240, comment="testcomment")
         with self.assertRaises(exc.ForeignKeyNotExisting):
-            self.api.insert_deposit(dep2)
+            self.api.insert_deposit(dep)
 
         # deposit.id should be forbidden
-        dep3 = models.Deposit(consumer_id=2, amount=20,
-                              id=12, comment="testcomment")
+        dep = models.Deposit(consumer_id=2, amount=20,
+                             id=12, comment="testcomment")
         with self.assertRaises(exc.ForbiddenField):
-            self.api.insert_deposit(dep3)
+            self.api.insert_deposit(dep)
 
         # deposit.timestamp should be forbidden
-        dep4 = models.Deposit(consumer_id=2, amount=20, comment="testcomment",
-                              timestamp=datetime.datetime.now())
+        dep = models.Deposit(consumer_id=2, amount=20, comment="testcomment",
+                             timestamp=datetime.datetime.now())
         with self.assertRaises(exc.ForbiddenField):
-            self.api.insert_deposit(dep3)
+            self.api.insert_deposit(dep)
 
     def test_insert_purchase(self):
         department = self.api.get_department(id=1)
@@ -763,7 +829,8 @@ class BackendTestCase(BaseTestCase):
 
         # this should do nothing
         pur = models.Purchase(id=1)
-        self.api.update_purchase(pur)
+        with self.assertRaises(exc.NothingHasChanged):
+            self.api.update_purchase(pur)
 
         # check if the consumers credit is the same
         consumer = self.api.get_consumer(id=1)

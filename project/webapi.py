@@ -343,7 +343,8 @@ def getConsumerPurchases(id):
 # Get consumer's deposits
 @app.route('/consumer/<int:id>/deposits', methods=['GET'])
 def getConsumerDeposits(id):
-    return jsonify(list(map(validation.to_dict, api.get_deposits_of_consumer(id))))
+    deposits = api.get_deposits_of_consumer(id)
+    return jsonify(list(map(validation.to_dict, deposits)))
 
 
 
@@ -430,6 +431,14 @@ def insertDeposit(admin):
     return jsonify(result='created'), 201
 
 
+# Update deposit
+@app.route('/deposits/<int:id>', methods=['PUT'])
+@adminRequired
+def update_deposit(admin, id):
+    deposit = models.Deposit(**json_body())
+    deposit.id = id
+    api.update_deposit(deposit, admin)
+    return jsonify(result='updated'), 200
 
 
 ############################### Payoff Routes #################################
@@ -582,6 +591,17 @@ def list_departmentpurchasecollections(admin):
     res = list(map(validation.to_dict, col))
     return jsonify(res)
 
+
+# Update departmentpurchase collections
+@app.route('/departmentpurchasecollections/<int:id>', methods=['PUT'])
+@adminRequired
+def update_departmentpurchasecollections(admin, id):
+    dpcollection = models.DepartmentpurchaseCollection(**json_body())
+    dpcollection.id = id
+    api.update_departmentpurchasecollection(dpcollection, admin)
+    return jsonify(result='updated'), 200
+
+
 # List departmentpurchases
 @app.route('/departmentpurchases/<int:id>', methods=['GET'])
 @adminRequired
@@ -598,7 +618,6 @@ def insert_departmentpurchase(admin):
     data = json_body()
     if 'admin_id' not in data or data['admin_id'] != admin['id']:
         return make_response('Unauthorized access', 401)
-
     try:
         a_ID = admin['id']
         d_ID = data['department_id']
@@ -613,11 +632,12 @@ def insert_departmentpurchase(admin):
         api.insert_departmentpurchasecollection(c)
         last_collection = api.get_last_departmentpurchasecollection()
         for obj in data['dpurchases']:
-            d = models.Departmentpurchase(collection_id=last_collection.id,
-                                          product_id=obj['product_id'],
-                                          amount=obj['amount'],
-                                          total_price=obj['total_price'])
-            api.insert_departmentpurchase(d)
+            dp = models.Departmentpurchase(collection_id=last_collection.id,
+                                           product_id=obj['product_id'],
+                                           amount=obj['amount'],
+                                           total_price=obj['total_price'])
+
+            api.insert_departmentpurchase(dp)
 
         return jsonify(result='created'), 201
 

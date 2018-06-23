@@ -94,6 +94,18 @@ class DepartmentpurchaseCollection(ValidatableObject):
         'sum_price': [Type(int)],
         'department_id': [Type(int)],
         'admin_id': [Type(int)],
+        'revoked': [Type(bool)],
+        'revoke_history': [SkipIfNone(Type(list))]
+    }
+
+
+class DpcollRevoke(ValidatableObject):
+    _tablename = 'dpcollrevokes'
+    _validators = {
+        'id': [Type(int)],
+        'timestamp': [Type(datetime.datetime)],
+        'dpcoll_id': [Type(int)],
+        'admin_id': [Type(int)],
         'revoked': [Type(bool)]
     }
 
@@ -105,7 +117,20 @@ class Deposit(ValidatableObject):
         'consumer_id': [Type(int)],
         'amount': [Type(int)],
         'comment': [Type(str), MaxLength(64), MinLength(8)],
-        'timestamp': [Type(datetime.datetime)]
+        'timestamp': [Type(datetime.datetime)],
+        'revoked': [Type(bool)],
+        'revoke_history': [SkipIfNone(Type(list))]
+    }
+
+
+class DepositRevoke(ValidatableObject):
+    _tablename = 'depositrevokes'
+    _validators = {
+        'id': [Type(int)],
+        'timestamp': [Type(datetime.datetime)],
+        'deposit_id': [Type(int)],
+        'admin_id': [Type(int)],
+        'revoked': [Type(bool)]
     }
 
 
