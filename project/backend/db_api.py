@@ -351,6 +351,19 @@ class DatabaseApi(object):
         pre_insert=_insert_dpcollrevoke
     )
 
+    def _insert_depositrevoke(self, depositrevoke):
+        depositrevoke.timestamp = datetime.datetime.now()
+
+    insert_depositrevoke = _insert_factory(
+        mandatory=['admin_id', 'deposit_id', 'revoked'],
+        forbidden=['id', 'timestamp'],
+        foreign_keys=[
+            ['admin_id', 'consumers'],
+            ['deposit_id', 'deposits'],
+        ],
+        pre_insert=_insert_depositrevoke
+    )
+
     def insert_payoff(self, payoff):
         cur = self.con.cursor()
 
@@ -576,6 +589,7 @@ class DatabaseApi(object):
         _deposits = self.get_deposits_of_consumer(id=id)
 
         _purchases = [x for x in _purchases if not x.revoked]
+        _deposits = [x for x in _deposits if not x.revoked]
 
         purchases = list(map(validation.to_dict, _purchases))
         deposits = list(map(validation.to_dict, _deposits))
@@ -634,6 +648,23 @@ class DatabaseApi(object):
         res = cur.fetchall()
         return res if res else None
 
+    def _get_deposit_revoked(self, id):
+        cur = self.con.cursor()
+        cur.row_factory = factory(models.DepositRevoke)
+        cur.execute('SELECT revoked FROM {} WHERE deposit_id=? '
+                    'ORDER BY id DESC;'.format(models.DepositRevoke._tablename),
+                    (id, ))
+        res = cur.fetchone()
+        return res.revoked if res else False
+
+    def _get_deposit_revokehistory(self, id):
+        cur = self.con.cursor()
+        cur.row_factory = factory(models.DepositRevoke)
+        cur.execute('SELECT * FROM {} WHERE deposit_id=?;'.format(
+                    models.DepositRevoke._tablename), (id, ))
+        res = cur.fetchall()
+        return res if res else None
+
     def get_departmentpurchasecollection(self, id):
         dpc = self._get_one(model=models.DepartmentpurchaseCollection,
                             id=id)
@@ -652,7 +683,8 @@ class DatabaseApi(object):
         return self._get_one(model=models.Departmentpurchase, id=id)
 
     def get_deposit(self, id):
-        return self._get_one(model=models.Deposit, id=id)
+        deposits = self.list_deposits()
+        return next(x for x in deposits if x.id == id)
 
     def get_department(self, id):
         return self._get_one(model=models.Department, id=id)
@@ -772,20 +804,13 @@ class DatabaseApi(object):
         return out
 
     def get_purchases_of_consumer(self, id):
+        purchases = self.list_purchases()
+        return list(filter(lambda x: x.consumer_id == id, purchases))
         return self._get_consumer_data(model=models.Purchase, id=id)
 
     def get_deposits_of_consumer(self, id):
-        return self._get_consumer_data(model=models.Deposit, id=id)
-
-    def _get_consumer_data(self, model, id):
-        cur = self.con.cursor()
-        cur.row_factory = factory(model)
-        cur.execute('SELECT * FROM {} WHERE consumer_id=?;'.format(
-                    model._tablename),
-                    (id, )
-                    )
-
-        return cur.fetchall()
+        deposits = self.list_deposits()
+        return list(filter(lambda x: x.consumer_id == id, deposits))
 
     def get_favorite_products(self, id):
         cur = self.con.cursor()
@@ -808,6 +833,25 @@ class DatabaseApi(object):
             consumer.hasCredentials = all([consumer.email, consumer.password])
 
         return consumers
+
+    def list_deposits(self, limit=None):
+        cur = self.con.cursor()
+        cur.row_factory = factory(models.Deposit)
+        if limit:
+            cur.execute('SELECT * FROM {} ORDER BY id  DESC LIMIT ?;'.format(
+                        models.Deposit._tablename), (limit, )
+                        )
+        else:
+            cur.execute('SELECT * FROM {};'.format(
+                        models.Deposit._tablename)
+                        )
+        deposits = cur.fetchall()
+        for deposit in deposits:
+            id = deposit.id
+            deposit.revoke_history = self._get_deposit_revokehistory(id)
+            deposit.revoked = self._get_deposit_revoked(id)
+
+        return deposits
 
     def list_departmentpurchasecollections(self):
         cur = self.con.cursor()
@@ -836,9 +880,6 @@ class DatabaseApi(object):
 
     def list_purchases(self, limit=None):
         return self._list(model=models.Purchase, limit=limit)
-
-    def list_deposits(self, limit=None):
-        return self._list(model=models.Deposit, limit=limit)
 
     def list_departments(self):
         return self._list(model=models.Department, limit=None)
@@ -921,10 +962,36 @@ class DatabaseApi(object):
                                'password', 'studentnumber'])
         self.con.commit()
 
+    def _revoke_deposit(self, id, revoked, admin_id):
+        cur = self.con.cursor()
+        api_deposit = self.get_deposit(id)
+
+        dep_revoke = models.DepositRevoke()
+        dep_revoke.deposit_id = id
+        dep_revoke.revoked = revoked
+        dep_revoke.admin_id = admin_id
+        self.insert_depositrevoke(dep_revoke)
+
+        # update bank credit
+        if revoked:
+            cur.execute('UPDATE banks SET credit=credit+?;',
+                        (api_deposit.amount, ))
+        else:
+            cur.execute('UPDATE banks SET credit=credit-?;',
+                        (api_deposit.amount, ))
+
+        # update consumer credit
+        if revoked:
+            cur.execute('UPDATE consumers SET credit=credit-? '
+                        'WHERE id=?;',
+                        (api_deposit.amount, api_deposit.consumer_id))
+        else:
+            cur.execute('UPDATE consumers SET credit=credit+? '
+                        'WHERE id=?;',
+                        (api_deposit.amount, api_deposit.consumer_id))
+
     def _revoke_dpcollection(self, id, revoked, admin_id):
         cur = self.con.cursor()
-        dpc = models.DepartmentpurchaseCollection(id=id,
-                                                  revoked=revoked)
         api_dpc = self.get_departmentpurchasecollection(id)
 
         dpc_revoke = models.DpcollRevoke()
@@ -992,6 +1059,40 @@ class DatabaseApi(object):
                     self._revoke_dpcollection(id=dpcollection.id,
                                               revoked=True,
                                               admin_id=admin_id)
+        else:
+            raise exc.NothingHasChanged()
+
+        # commit changes
+        self.con.commit()
+
+    def update_deposit(self, deposit, admin):
+        self._assert_mandatory_fields(deposit, ['id'])
+        self._assert_forbidden_fields(deposit, ['timestamp',
+                                                'amount'])
+
+        api_deposit = self.get_deposit(deposit.id)
+        if isinstance(admin, dict):
+            admin_id = admin['id']
+        else:
+            admin_id = admin.id
+        # Check, if the deposit should be revoked
+        if deposit.revoked is not None:
+            # Undo revoke
+            if not deposit.revoked:
+                if api_deposit.revoked:
+                    self._revoke_deposit(id=deposit.id,
+                                         revoked=False,
+                                         admin_id=admin_id)
+                else:
+                    raise exc.NothingHasChanged()
+            # Revoke
+            else:
+                if api_deposit.revoked:
+                    raise exc.NothingHasChanged()
+                else:
+                    self._revoke_deposit(id=deposit.id,
+                                         revoked=True,
+                                         admin_id=admin_id)
         else:
             raise exc.NothingHasChanged()
 

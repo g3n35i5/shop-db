@@ -566,6 +566,21 @@ class WebapiTestCase(BaseTestCase):
         deposits = self.api.list_deposits()
         self.assertEqual(len(deposits), 1)
 
+    def test_revoke_deposit(self):
+        self.test_insert_deposit()
+        # Revoke deposit
+        data = {'revoked': True}
+        res = self.put('/deposits/1', data, 'admin')
+        self.assertEqual(res.status_code, 200)
+        deposits = self.api.list_deposits()
+        self.assertTrue(deposits[0].revoked)
+        # Un-Revoke deposit
+        data = {'revoked': False}
+        res = self.put('/deposits/1', data, 'admin')
+        self.assertEqual(res.status_code, 200)
+        deposits = self.api.list_deposits()
+        self.assertFalse(deposits[0].revoked)
+
     def test_insert_payoff(self):
         # TODO: Check payoffs
         pass

@@ -111,6 +111,18 @@ CREATE TABLE deposits (
 	FOREIGN KEY(consumer_id) REFERENCES consumers (id)
 );
 
+CREATE TABLE depositrevokes (
+	id INTEGER NOT NULL,
+	deposit_id INTEGER NOT NULL,
+	timestamp TIMESTAMP NOT NULL,
+	admin_id INTEGER NOT NULL,
+	revoked BOOLEAN NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY(deposit_id) REFERENCES deposits (id),
+	FOREIGN KEY(admin_id) REFERENCES consumers (id),
+	CHECK (revoked IN (0, 1))
+);
+
 CREATE TABLE payoffs (
 	id INTEGER NOT NULL,
 	department_id INTEGER NOT NULL,

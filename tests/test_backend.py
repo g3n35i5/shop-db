@@ -490,13 +490,23 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(departments[2].expenses, 0)
 
     def test_create_deposit(self):
+        # Make consumer 1 administrator
+        upconsumer = models.Consumer(id=1)
+        upconsumer.email = 'me@example.com'
+        upconsumer.password = 'supersecretpassword'.encode()
+        self.api.update_consumer(upconsumer)
+
+        admin = self.api.get_consumer(id=1)
+        departments = self.api.list_departments()
+        self.api.setAdmin(admin, departments[0], True)
+
         # check the consumers credit
         consumer = self.api.get_consumer(1)
         self.assertEqual(consumer.credit, 0)
 
         # create deposit
-        dep1 = models.Deposit(consumer_id=1, amount=250, comment="testcomment")
-        self.api.insert_deposit(dep1)
+        dep = models.Deposit(consumer_id=1, amount=250, comment="testcomment")
+        self.api.insert_deposit(dep)
 
         # check, if the consumers credit has been increased
         consumer = self.api.get_consumer(id=1)
@@ -508,22 +518,46 @@ class BackendTestCase(BaseTestCase):
         self.assertEqual(deposit.comment, "testcomment")
         self.assertEqual(deposit.consumer_id, consumer.id)
 
+        # revoke deposit
+        dep = models.Deposit(id=1, revoked=True)
+        self.api.update_deposit(dep, admin)
+
+        deposits = self.api.list_deposits()
+        self.assertEqual(len(deposits), 1)
+        self.assertTrue(deposits[0].revoked)
+        consumer = self.api.get_consumer(id=1)
+        self.assertEqual(consumer.credit, 0)
+
+        # Un-revoke deposit again to make sure this works too
+        dep = models.Deposit(id=1, revoked=False)
+        self.api.update_deposit(dep, admin)
+        consumer = self.api.get_consumer(id=1)
+        self.assertEqual(consumer.credit, 250)
+
+        # Check revokehistory
+        deposits = self.api.list_deposits()
+        self.assertEqual(len(deposits), 1)
+        self.assertFalse(deposits[0].revoked)
+        self.assertEqual(len(deposits[0].revoke_history), 2)
+        self.assertTrue(deposits[0].revoke_history[0].revoked)
+        self.assertFalse(deposits[0].revoke_history[1].revoked)
+
         # test with wrong foreign_key consumer_id
-        dep2 = models.Deposit(consumer_id=5, amount=240, comment="testcomment")
+        dep = models.Deposit(consumer_id=5, amount=240, comment="testcomment")
         with self.assertRaises(exc.ForeignKeyNotExisting):
-            self.api.insert_deposit(dep2)
+            self.api.insert_deposit(dep)
 
         # deposit.id should be forbidden
-        dep3 = models.Deposit(consumer_id=2, amount=20,
-                              id=12, comment="testcomment")
+        dep = models.Deposit(consumer_id=2, amount=20,
+                             id=12, comment="testcomment")
         with self.assertRaises(exc.ForbiddenField):
-            self.api.insert_deposit(dep3)
+            self.api.insert_deposit(dep)
 
         # deposit.timestamp should be forbidden
-        dep4 = models.Deposit(consumer_id=2, amount=20, comment="testcomment",
-                              timestamp=datetime.datetime.now())
+        dep = models.Deposit(consumer_id=2, amount=20, comment="testcomment",
+                             timestamp=datetime.datetime.now())
         with self.assertRaises(exc.ForbiddenField):
-            self.api.insert_deposit(dep3)
+            self.api.insert_deposit(dep)
 
     def test_insert_purchase(self):
         department = self.api.get_department(id=1)

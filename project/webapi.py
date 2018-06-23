@@ -431,6 +431,14 @@ def insertDeposit(admin):
     return jsonify(result='created'), 201
 
 
+# Update deposit
+@app.route('/deposits/<int:id>', methods=['PUT'])
+@adminRequired
+def update_deposit(admin, id):
+    deposit = models.Deposit(**json_body())
+    deposit.id = id
+    api.update_deposit(deposit, admin)
+    return jsonify(result='updated'), 200
 
 
 ############################### Payoff Routes #################################
