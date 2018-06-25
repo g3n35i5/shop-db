@@ -804,13 +804,17 @@ class DatabaseApi(object):
         return out
 
     def get_purchases_of_consumer(self, id):
-        purchases = self.list_purchases()
-        return list(filter(lambda x: x.consumer_id == id, purchases))
-        return self._get_consumer_data(model=models.Purchase, id=id)
+        return self._get_consumer_data(models.Purchase, id)
 
     def get_deposits_of_consumer(self, id):
-        deposits = self.list_deposits()
-        return list(filter(lambda x: x.consumer_id == id, deposits))
+        return self._get_consumer_data(models.Deposit, id)
+
+    def _get_consumer_data(self, model, id):
+        cur = self.con.cursor()
+        cur.row_factory = factory(model)
+        cur.execute('SELECT * FROM {} WHERE consumer_id=?;'.format(
+                    model._tablename), (id, ))
+        return cur.fetchall()
 
     def get_favorite_products(self, id):
         cur = self.con.cursor()
@@ -828,9 +832,9 @@ class DatabaseApi(object):
 
         for consumer in _consumers:
             consumer.credit = self._consumer_credit(id=consumer.id)
-            consumers.append(consumer)
             consumer.isAdmin = len(self.getAdminroles(consumer)) > 0
             consumer.hasCredentials = all([consumer.email, consumer.password])
+            consumers.append(consumer)
 
         return consumers
 
