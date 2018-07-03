@@ -5,7 +5,7 @@ import sqlite3
 import datetime
 import argparse
 
-from flask import (Flask, Request, g, jsonify, request,
+from flask import (Flask, Request, jsonify, request,
                    make_response, send_from_directory)
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -36,13 +36,6 @@ def set_app(configuration):
                                  check_same_thread=False)
     api = db_api.DatabaseApi(connection, app.config)
     return app, api
-
-
-@app.teardown_appcontext
-def teardown_db(exception):
-    db = getattr(g, '_database', None)
-    if db is not None:
-        db.close()
 
 
 Request.on_json_loading_failed = exc.InvalidJSON()
